@@ -1,0 +1,11 @@
+services:
+  server:
+    environment:
+      S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
+    secrets: [s3_access_key, s3_secret_key]
+secrets:
+  s3_access_key:
+    file: ${S3_ACCESS_KEY_FILE:?Set S3_ACCESS_KEY_FILE to a private credential file}
+  s3_secret_key:
+    file: ${S3_SECRET_KEY_FILE:?Set S3_SECRET_KEY_FILE to a private credential file}

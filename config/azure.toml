@@ -1,0 +1,15 @@
+listen = "0.0.0.0:8080"
+metadata_dir = "/data/metadata"
+max_blob_bytes = 268435456
+vault_quota_bytes = 10737418240
+max_inflight = 4
+operation_timeout_secs = 300
+job_quota_per_vault = 100
+job_max_attempts = 5
+
+[storage]
+kind = "azure"
+account = "replacestorageaccount"
+container = "obsidian-sync"
+prefix = "exclusive-installation-id"
+# AZURE_SAS_TOKEN_FILE: mounted expiring HTTPS-only container SAS (sr=c, sp=rcwd).

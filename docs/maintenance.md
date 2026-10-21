@@ -1,0 +1,48 @@
+# Repository maintenance
+
+Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). Skills are versioned in `.agents/skills/`: `maintain-docs` and `security-release`. They do not run unattended destructive edits or make network/LLM calls.
+
+## Documentation lifecycle
+
+```sh
+# Detect broken links, unreviewed drafts and drift in implementation/config/CI sources.
+python3 scripts/docs.py check
+python3 scripts/docs.py create docs/topic.md --title 'Topic'
+python3 scripts/docs.py update docs/topic.md --from-file /path/to/reviewed-content.md
+# First move useful content and remove inbound links; deletion requires tracked history.
+python3 scripts/docs.py delete docs/obsolete.md --reason 'Superseded by topic.md' --yes
+# Refresh generated config copies and LLM source map.
+python3 scripts/sync-generated.py
+# ONLY after reviewing affected authored documents against changed sources:
+python3 scripts/docs.py review --reason 'Describe reviewed behavior and evidence'
+python3 scripts/docs.py check
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+`docs/review.json` records reviewed source fingerprints, not proof that prose is correct. Never acknowledge drift without reading the implementation, tests and affected prose. The tool refuses path escapes, direct symlink targets, untracked deletion, missing confirmation and inbound links. Deletions remain recoverable through Git. Do not call documentation stale solely because it is old. This initial repository had no pre-existing documentation to delete.
+
+`config/` is canonical; generated Kustomize config copies and `docs/source-map.md` are checked in and regenerated deterministically. Authored consistency, threat model, operations, storage, LLM context and results pages are not automatically rewritten.
+
+## CI and release gates
+
+[GitHub CI](../.github/workflows/ci.yml) is read-only and does not publish/deploy. It runs all eight Cargo feature combinations (debug/release build, format, Clippy, tests), fresh RustSec/deny checks, maintenance tests/doc drift, actual local S3-compatible contract tests, Linux/musl Docker tests, runtime image verification/scanning, Compose rendering and smoke tests, and server-side validation/smoke tests in a disposable kind cluster. It uploads scanner reports. Native cloud/provider and actual plugin tests still require separately authorized fixtures/credentials.
+
+```sh
+scripts/check.sh
+scripts/check-features.sh
+scripts/test-s3.sh
+scripts/validate-deployments.sh
+docker build --target tests .
+docker build -t obsidian-sync:local .
+python3 scripts/verify-image.py
+scripts/scan-security.sh
+scripts/smoke-compose.sh
+scripts/smoke-kubernetes.sh
+scripts/benchmark.sh
+```
+
+Image verification exports an ephemeral container and checks non-root execution, the single `/server` executable, absence of shells/package managers, and no ELF interpreter. Docker-injected hostname/resolver/device marker files are checked separately; they are not application binaries. Scanner reports under `.work/security/` include RustSec, source-candidate/history Gitleaks, runtime image/layer identity, Trivy package inventory and advisory timestamps. Trivy covers runtime OS packages; Cargo audit/deny cover Rust dependencies, since Trivy does not reconstruct a statically linked Rust dependency graph from this binary.
+
+CI actions and test/runtime/scanner images are pinned. Before updating toolchain, dependencies or image digests: read release notes/advisories, regenerate Cargo.lock deliberately, run ALL checks, and update measured results. Never loosen scanner severity, add advisory ignores or remove failing tests to achieve a green release. The Google Debian Distroless CA advisory found during implementation was addressed by choosing an updated pinned Chainguard static distroless base, not by suppressing the finding.
+
+Smoke/scanner bind mounts use `.work/` inside the checkout so they also work with Colima's shared paths. No real vault, cloud account or current Kubernetes context may be used by default. Core process-restart tests are not power-cut fault-injection or cloud disaster-recovery certification.

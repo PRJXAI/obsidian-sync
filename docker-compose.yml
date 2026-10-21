@@ -1,0 +1,23 @@
+services:
+  server:
+    image: obsidian-sync:local
+    build: .
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 2g
+    cpus: 2
+    ports: ["127.0.0.1:${SYNC_PORT:-8080}:8080"]
+    environment:
+      SYNC_CONFIG: /etc/obsidian-sync/config.toml
+      TMPDIR: /tmp
+    volumes:
+      - ${SYNC_DATA_DIR:-./data}:/data
+      - ${SYNC_CONFIG_FILE:-./config/filesystem.toml}:/etc/obsidian-sync/config.toml:ro
+    tmpfs: ["/tmp:rw,noexec,nosuid,nodev,size=1100m,uid=65532,gid=65532,mode=0700"]
+    stop_grace_period: 40s
+    restart: unless-stopped
+    # No shell/curl in the Distroless image. Kubernetes uses HTTP probes;
+    # Compose operators probe from the host (see scripts/smoke-compose.sh).

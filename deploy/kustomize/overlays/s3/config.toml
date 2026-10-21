@@ -1,0 +1,18 @@
+listen = "0.0.0.0:8080"
+metadata_dir = "/data/metadata"
+max_blob_bytes = 268435456
+vault_quota_bytes = 10737418240
+max_inflight = 4
+operation_timeout_secs = 300
+job_quota_per_vault = 100
+job_max_attempts = 5
+
+[storage]
+kind = "s3"
+endpoint = "https://s3.example.internal"
+region = "us-east-1"
+bucket = "obsidian-sync"
+prefix = "exclusive-installation-id"
+path_style = true
+# Credentials: S3_ACCESS_KEY_FILE and S3_SECRET_KEY_FILE, not this file.
+# For MinIO set its HTTPS endpoint, region and bucket. Never disable TLS remotely.

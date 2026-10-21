@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: obsidian-sync
+spec:
+  podSelector:
+    matchLabels: {app: obsidian-sync}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {sync-client: authorized}
+      ports: [{protocol: TCP, port: 8080}]
+  egress: []

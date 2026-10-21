@@ -1,0 +1,11 @@
+/target/
+/.env
+/secrets/
+/data/
+/.work/
+/.pi-loop.json.lock
+/quality_reports/
+*.profraw
+.DS_Store
+__pycache__/
+*.pyc

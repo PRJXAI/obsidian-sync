@@ -1,0 +1,289 @@
+{
+  "reason": "Reviewed all architecture/evidence docs and maintenance hardening: explicit public checksum entries, committed-clean-only doc deletion, nested doc coverage, exact Git scanner trust path and layer matching",
+  "sources": [
+    {
+      "path": ".agents/skills/maintain-docs/SKILL.md",
+      "sha256": "44d06c23961061aaf47acee219826f7bcc9132afe0beebeb4da8996bd817e6ea"
+    },
+    {
+      "path": ".agents/skills/security-release/SKILL.md",
+      "sha256": "b156de66029c8202447a7a091efc52a9f4960822b8c02c3df2d6e5b402816e12"
+    },
+    {
+      "path": ".dockerignore",
+      "sha256": "35fca3e512e8dc508316568910c1ff94d702a23b3c6953eb2c367e55cbf29d3a"
+    },
+    {
+      "path": ".env.example",
+      "sha256": "339f314c41d67665cbd7806b09c6d69212d7abd90b78949278291c1a393ebfb8"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "6f089e16493ed8ea9b7bd9e9126296ba2d80c860e91af7400be8af6282663774"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "26eaa3a785871e437e5114ea018b95b515a4e98ea0cb015dfb74fd956d779c86"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "235b9d5dbedb9ca07954c56158c9c729840f8fa1f27c09abd465254352218b79"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "7df5b62730a012d239977babadc72f220d561a05e2d2736607d74e230daf9b83"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "f17f5eedd78a563e64f31082222fc29d7f67e878990d6284b15d61926c1cbab0"
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "224a7ea097f53d311dff1bca6d32c9fc1f17308f88024bb9db28669a86a05c9d"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "07dfd957003c859f293778babe22de6df08721e9ffb205ff07f63c6460335a95"
+    },
+    {
+      "path": "config/azure.toml",
+      "sha256": "37bb731eb11d777392967d172fcdd8954b951d48eddb8f02263f285e08ce63f0"
+    },
+    {
+      "path": "config/filesystem.toml",
+      "sha256": "ac983c2d42423432702d6e98ca790489e0ce152c1611c4ab5afb367f91ce8655"
+    },
+    {
+      "path": "config/gcs.toml",
+      "sha256": "7e1a5dea7d5480c07673070aa1083750781849b109e47c921c1fad6ae2808023"
+    },
+    {
+      "path": "config/s3.toml",
+      "sha256": "dc8fd4d7127318a5b9372f45ff34ffd2526e8187be59e3408481907cb6ecab93"
+    },
+    {
+      "path": "deny.toml",
+      "sha256": "66c3e9e997ac497e678de1b17b4178a8ad71311f204be6c88aeb1967ac644570"
+    },
+    {
+      "path": "deploy/kustomize/base/config.toml",
+      "sha256": "ac983c2d42423432702d6e98ca790489e0ce152c1611c4ab5afb367f91ce8655"
+    },
+    {
+      "path": "deploy/kustomize/base/deployment.yaml",
+      "sha256": "d65a053096f22a56f32ed32a6cce937aadf12c858d8181e30af464bf14174fb5"
+    },
+    {
+      "path": "deploy/kustomize/base/kustomization.yaml",
+      "sha256": "4c916c4fce89314cb8aa1db3c9145af0c1366c89cce20209556242dacc46c524"
+    },
+    {
+      "path": "deploy/kustomize/base/namespace.yaml",
+      "sha256": "bdeea656ab92ab781554077f99d9ad481d35cef2172eba363b139eaad331cb13"
+    },
+    {
+      "path": "deploy/kustomize/base/network-policy.yaml",
+      "sha256": "87b0012fdb5c66504292e180881473b1ddf35ce8f1dd5c5bdc0a22b72391ef95"
+    },
+    {
+      "path": "deploy/kustomize/base/pvc.yaml",
+      "sha256": "d8ec2c20aacb451586d59ca83ea5b37e1823943c05ba36263a968e876bf9a429"
+    },
+    {
+      "path": "deploy/kustomize/base/service.yaml",
+      "sha256": "7bea0e514b86f6e7c00a7564b35d3f5c736e94b84c51ce14a048b29e4917399f"
+    },
+    {
+      "path": "deploy/kustomize/overlays/azure/config.toml",
+      "sha256": "37bb731eb11d777392967d172fcdd8954b951d48eddb8f02263f285e08ce63f0"
+    },
+    {
+      "path": "deploy/kustomize/overlays/azure/credentials.yaml",
+      "sha256": "92e62af5b5467fd39b964e0a06abbfe36156cd59ad19b152a1158dcca75ae596"
+    },
+    {
+      "path": "deploy/kustomize/overlays/azure/egress.yaml",
+      "sha256": "6e0ecf828b4aa3fa43764c905e1139a6de6c1a203c0bee7944605a055a51ed0f"
+    },
+    {
+      "path": "deploy/kustomize/overlays/azure/kustomization.yaml",
+      "sha256": "87d25635f01d4a9a2a982dfd916701f61a99f0f2fd7d786199f5778fda8d105b"
+    },
+    {
+      "path": "deploy/kustomize/overlays/filesystem/kustomization.yaml",
+      "sha256": "985432e0b578669da29aa40fc52c71ed13cd0e9ab599a54a54519e0ef798bff5"
+    },
+    {
+      "path": "deploy/kustomize/overlays/gcs/config.toml",
+      "sha256": "7e1a5dea7d5480c07673070aa1083750781849b109e47c921c1fad6ae2808023"
+    },
+    {
+      "path": "deploy/kustomize/overlays/gcs/credentials.yaml",
+      "sha256": "5277b43a1c434e6f3c0bd62e0ce78b2cb4d40881593e9fcfb6a9973df6348c27"
+    },
+    {
+      "path": "deploy/kustomize/overlays/gcs/egress.yaml",
+      "sha256": "6e0ecf828b4aa3fa43764c905e1139a6de6c1a203c0bee7944605a055a51ed0f"
+    },
+    {
+      "path": "deploy/kustomize/overlays/gcs/kustomization.yaml",
+      "sha256": "87d25635f01d4a9a2a982dfd916701f61a99f0f2fd7d786199f5778fda8d105b"
+    },
+    {
+      "path": "deploy/kustomize/overlays/s3/config.toml",
+      "sha256": "dc8fd4d7127318a5b9372f45ff34ffd2526e8187be59e3408481907cb6ecab93"
+    },
+    {
+      "path": "deploy/kustomize/overlays/s3/credentials.yaml",
+      "sha256": "d8b5edb05f07084c693c916aa604ca7f2c3abc463511fedfe745c24dc34fe056"
+    },
+    {
+      "path": "deploy/kustomize/overlays/s3/egress.yaml",
+      "sha256": "6e0ecf828b4aa3fa43764c905e1139a6de6c1a203c0bee7944605a055a51ed0f"
+    },
+    {
+      "path": "deploy/kustomize/overlays/s3/kustomization.yaml",
+      "sha256": "87d25635f01d4a9a2a982dfd916701f61a99f0f2fd7d786199f5778fda8d105b"
+    },
+    {
+      "path": "docker-compose.s3.yml",
+      "sha256": "88fdde6bcd2cc93f0b75bffe7e851946ea62bb8f7de3cd6a5011198e2d4141b2"
+    },
+    {
+      "path": "docker-compose.test-s3.yml",
+      "sha256": "e8a88ebf17875860f59dded6e6fdf979c36b87bc244ddaf6a852eba51b0deecc"
+    },
+    {
+      "path": "docker-compose.yml",
+      "sha256": "d40f2c37463bbdb1ed0d9acb9c861b6090d25aa042ab63b39d6b33ff21830d4f"
+    },
+    {
+      "path": "examples/benchmark.rs",
+      "sha256": "9a11648287ab26c19464936812754db36046eb1ed795e866f724737d20afab3a"
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "sha256": "f715f440167e20fd8ea9afa0498c3d1ab80174cfcb8cbc895f106a34d907a1e1"
+    },
+    {
+      "path": "scripts/benchmark.sh",
+      "sha256": "f15fc08468703b5658ddc7be08f552ba63133ddb712a9d16794f1ec1cfd6406c"
+    },
+    {
+      "path": "scripts/check-features.sh",
+      "sha256": "9b47e96097e93595a6fd540a304ed47a0f13e38c4da21e1b45f36b95d35bf452"
+    },
+    {
+      "path": "scripts/check.sh",
+      "sha256": "6cb28fca774d627a708d048722cedf6fc08e4dcc7c41dbaa175222f98a95a673"
+    },
+    {
+      "path": "scripts/docs.py",
+      "sha256": "bca229577e404a961a9e368da6fb84b94c8e6f1ea22171a8d32fc6747b617060"
+    },
+    {
+      "path": "scripts/scan-security.sh",
+      "sha256": "61f08d35c6f640f16b7cdd14069ac566890cb423563af1ef4722dafb15c99c6d"
+    },
+    {
+      "path": "scripts/smoke-compose.sh",
+      "sha256": "bced1e35a97b88d51c7e6cc6cc9eb97c5da270b38986b6e88827066d325da852"
+    },
+    {
+      "path": "scripts/smoke-kubernetes.sh",
+      "sha256": "a7a38307cbb9803426e568815d79139da3c9a566782f704d8d0f8bb2b75012a8"
+    },
+    {
+      "path": "scripts/sync-generated.py",
+      "sha256": "349d7184f622a8e721aba30b667c3f176dad0d21a9922e5047bdc9e4137c6d75"
+    },
+    {
+      "path": "scripts/test-s3.sh",
+      "sha256": "e64bff987ec12f4e7259d351cce0bbe74cde9aab45f433a43abdcb9bf19bcb07"
+    },
+    {
+      "path": "scripts/validate-deployments.sh",
+      "sha256": "dd86647685fc8a32951547722dda757508956f8573f6731d80020a8daeef538e"
+    },
+    {
+      "path": "scripts/verify-image.py",
+      "sha256": "7cbdc96a9f1dda4aa94ece1a165911fb53bc9715a5f026947ab1e689d6592efb"
+    },
+    {
+      "path": "src/auth.rs",
+      "sha256": "943f087e991dc171045885af19d5c86379dbd37beae189b7e44b127a937d7bbc"
+    },
+    {
+      "path": "src/config.rs",
+      "sha256": "c94d2b3c00ecfd783ef7605f66eed3f7736a5187db7213330f02f570b95cc24c"
+    },
+    {
+      "path": "src/db.rs",
+      "sha256": "ce67c929cb1c48ede6ef99388406a433e3ec7475e768c8eefed26f40f2350d41"
+    },
+    {
+      "path": "src/error.rs",
+      "sha256": "1924f1c1f1246c532d7649d3fcc52ef7f9a08d4c9ad71a8c500192fc4a72eb33"
+    },
+    {
+      "path": "src/jobs.rs",
+      "sha256": "5c557ddad0598ce1d973becd757eccfb4facd1d2287b9d8ea6d6c9e659733e91"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "dfe4455be3253f8d8b106c33f5b6ed12f291f2c45bd5b17535c3a6cdc6ee4417"
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "60a3c29688f72cf36c1eb9fa9df9ddfe0e27140d1fb21f5a940d6530922c4cbf"
+    },
+    {
+      "path": "src/storage/cloud.rs",
+      "sha256": "ee4e025d34438d156310ec2be10a8c8495ef46b3909fc81e83beafad4b5b7d84"
+    },
+    {
+      "path": "src/storage/filesystem.rs",
+      "sha256": "dbc27800c97123a01e86f281f73911e1b7220214690be3e9d531927eff5739c7"
+    },
+    {
+      "path": "src/storage/mod.rs",
+      "sha256": "79acab375604fd08222a64eb8553e17422eb3179202696083e24b7b7b7bd396e"
+    },
+    {
+      "path": "src/storage/s3.rs",
+      "sha256": "775122b7c97b39f34ac9be983380642730287ba712a022cd7eb8fbff305fef46"
+    },
+    {
+      "path": "src/sync.rs",
+      "sha256": "6ecaeb0d8106ef83bb3fa97f9a9ccc981790db484a1b1e3c69018c5746fdbe3b"
+    },
+    {
+      "path": "src/transport.rs",
+      "sha256": "44b3b7f34cd231f1ea80b913b09e49ef225634b3225e2642f05cc9223f8d370a"
+    },
+    {
+      "path": "tests/config_transport.rs",
+      "sha256": "0d70b727c3ba71ffa7f3b754f303aa0b221c55f157e7f346175e49b63f53ab7d"
+    },
+    {
+      "path": "tests/core.rs",
+      "sha256": "ac8f35299464501b841bd6b29accd15f354b364d11d206d313b35a468dcc8c59"
+    },
+    {
+      "path": "tests/interruption.rs",
+      "sha256": "7af119606077ea162ea0b3c3c2e4e041da99844fa1bf3c7926e4af1594e8f837"
+    },
+    {
+      "path": "tests/recovery.rs",
+      "sha256": "660702eb71876ebd723cb230c47ed898898d0dc9c70eb00bcea66aecded23e58"
+    },
+    {
+      "path": "tests/storage_contract.rs",
+      "sha256": "1dbb8153bc554a9cfbbbcdf2fc01e3e19262a7dd0df09e0ef3175a0d464d498e"
+    },
+    {
+      "path": "tests/test_maintenance.py",
+      "sha256": "d435617539f0b8c0ed37722dda4cfcdf52979e2836008d7b044d4db7443320c8"
+    }
+  ]
+}

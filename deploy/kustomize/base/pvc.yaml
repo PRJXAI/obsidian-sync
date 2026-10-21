@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sync-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: {storage: 50Gi}

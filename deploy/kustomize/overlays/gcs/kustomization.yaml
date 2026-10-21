@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [../../base]
+configMapGenerator:
+  - name: sync-config
+    behavior: replace
+    files: [config.toml]
+patches:
+  - path: credentials.yaml
+  - path: egress.yaml

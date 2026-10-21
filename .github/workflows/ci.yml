@@ -1,0 +1,56 @@
+name: correctness-security-deployments
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '23 6 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ['', s3, gcs, azure, 's3,gcs', 's3,azure', 'gcs,azure', 's3,gcs,azure']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - run: rustup show
+      - run: cargo build --locked --no-default-features --features '${{ matrix.features }}'
+      - run: cargo build --release --locked --no-default-features --features '${{ matrix.features }}'
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked --no-default-features --features '${{ matrix.features }}' -- -D warnings
+      - run: cargo test --workspace --locked --no-default-features --features '${{ matrix.features }}'
+  security-docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with: {fetch-depth: 0}
+      - run: cargo install cargo-audit --version 0.22.1 --locked
+      - run: cargo install cargo-deny --version 0.20.2 --locked
+      - run: cargo audit && cargo deny check
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: python3 scripts/sync-generated.py --check && python3 scripts/docs.py check
+      - run: docker build -t obsidian-sync:local .
+      - run: python3 scripts/verify-image.py
+      - run: scripts/scan-security.sh
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with: {name: security-reports, path: .work/security/}
+  integration-deployments:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - run: |
+          go install sigs.k8s.io/kustomize/kustomize/v5@v5.8.1
+          go install sigs.k8s.io/kind@v0.32.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: scripts/validate-deployments.sh
+      - run: scripts/test-s3.sh
+      - run: docker build --target tests .
+      - run: docker build -t obsidian-sync:local .
+      - run: scripts/smoke-compose.sh
+      - run: scripts/smoke-kubernetes.sh
