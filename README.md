@@ -37,11 +37,13 @@ scripts/check.sh
 scripts/check-features.sh
 python3 scripts/test-livesync.py     # real Commonlib 0.1.44 / PouchDB 9; disposable data
 scripts/test-s3.sh                  # same client tests against real S3-compatible RustFS
-python3 scripts/test-reference-couch.py  # optional differential Apache CouchDB 3.5.0 fixture
+python3 scripts/test-reference-couch.py  # optional differential Apache CouchDB 3.5.3 fixture
 # After building obsidian-sync:local, test the actual distroless/nonroot runtime:
 python3 scripts/test-livesync.py --image obsidian-sync:local
 scripts/validate-deployments.sh
 ```
+
+CI builds shared image artifacts once, runs security/integration gates, and uploads source/runtime/builder SPDX and CycloneDX SBOMs with bound materials. The expanded supply-chain gate currently reports unresolved test/tool-image findings; it is not a clean-release claim.
 
 See [actual results and limitations](docs/results.md). Native GCS/Azure account tests, GUI Obsidian/mobile validation and production CNI/Tailscale access are not implied by the protocol tests. Native CouchDB attachments, general Mango/design-view execution, server administration, physical database purge and history GC are not implemented. Scoped bootstrap reset/recreate is supported without physical history deletion. LiveSync's own chunked binary attachments are supported within configured limits.
 
@@ -51,8 +53,8 @@ See [actual results and limitations](docs/results.md). Native GCS/Azure account 
 - [Build/run, plugin settings, Tailscale, backups and recovery](docs/operations.md)
 - [Original internal-core consistency contract](docs/consistency.md)
 - [Storage interfaces and providers](docs/storage.md)
-- [Threat model](docs/threat-model.md)
-- [LLM context](docs/llm.md), [source map](docs/source-map.md), [maintenance/CI](docs/maintenance.md)
+- [Threat model](docs/threat-model.md), [security audit and outstanding supply-chain findings](docs/security-audit.md)
+- [LLM build/deploy/operations guide](llms.txt), [LLM architecture context](docs/llm.md), [source map](docs/source-map.md), [maintenance/CI](docs/maintenance.md)
 - [Repository instructions](AGENTS.md)
 
 Use `scripts/docs.py` for safe create/update/delete/review operations and `scripts/sync-generated.py` for generated configuration/source-map refreshes. CI does not publish images or deploy to real infrastructure.

@@ -15,7 +15,7 @@ ROOT=Path(__file__).resolve().parents[1]
 name='obsidian-sync-reference-'+secrets.token_hex(6)
 username='fixture-user'
 password=secrets.token_hex(32)
-image='couchdb:3.5.0@sha256:1c0a30a54535377bc9ae23f42efb1ca4e92abe796f78ec98b768ac1d5874cc1b'
+image='couchdb:3.5.3@sha256:4e8e0a366208a87d5059b0f4fcbefff13c32401a655d4629c19be6288ea77675'
 headers={'Authorization':'Basic '+base64.b64encode(f'{username}:{password}'.encode()).decode(),'Content-Type':'application/json'}
 try:
     subprocess.run(['docker','run','--rm','-d','--name',name,'-e','COUCHDB_USER','-e','COUCHDB_PASSWORD','-p','127.0.0.1::5984','--tmpfs','/opt/couchdb/data:uid=5984,gid=5984,mode=0700',image],env={**os.environ,'COUCHDB_USER':username,'COUCHDB_PASSWORD':password},check=True,stdout=subprocess.DEVNULL)

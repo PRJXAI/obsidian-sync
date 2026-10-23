@@ -1,12 +1,36 @@
 # LiveSync implementation evidence — 2026-10-23
 
+## Current audit/remediation status
+
+**Expanded supply-chain gate: FAILED / release acceptance blocked.** The subsequent [security audit](security-audit.md) fixed unauthenticated rate-budget depletion, refreshed 14 Rust dependencies and pinned build/test/tool images, and added shared CI image artifacts, runtime-to-release content verification and complete source/runtime/builder SBOM/materials generation. Runtime and populated-builder scans are clean; current official test/scanner/frontend images still have unresolved package findings. No severity/advisory exceptions were added. The implementation evidence below predates this expanded gate and is not an all-supply-chain clean claim.
+
+Remediation verification (2026-10-23, disposable local arm64):
+
+| Check | Actual result |
+|---|---|
+| `scripts/check.sh`; all eight subsets via `scripts/check-features.sh` | PASS: default **42 active Rust tests**, 3 provider tests ignored; debug/release, fmt, Clippy, fresh RustSec/deny |
+| Python regression/maintenance tests | PASS: **17 tests**, including image-content substitution/stale evidence, SBOM dev-lock completeness, unpinned image rejection, scanner cancellation cleanup, LLM guide links and ignored-configuration privacy |
+| Native and final-runtime Commonlib/PouchDB; S3/RustFS contract/client fixture | PASS, including restart; no real vault/provider account |
+| Reference CouchDB | PASS against updated digest-pinned **3.5.3** |
+| Linux/musl Docker test target; static/nonroot image verification | PASS |
+| Compose/Kustomize rendering; Compose smoke; disposable kind | PASS: **kind 0.33.0 / Kubernetes 1.37.0**, dedicated kubeconfig (inherited disposable sentinel remained byte-for-byte unchanged), PVC restart and lock exclusion; not CNI enforcement |
+| Fresh runtime and populated-builder Trivy, RustSec/deny, source/history Gitleaks, npm audit | PASS within their scopes; no runtime/builder package findings or Rust/npm advisories |
+| `python3 scripts/scan-supply-chain.py --platform linux/arm64` | **FAIL (exit 1)**: complete 10-image inventory, findings remain in 7 upstream image pins; exact counts/scope in [audit](security-audit.md) |
+| Workflow actionlint 1.7.12 | PASS; local validation does not assert a successful remote GitHub Actions run |
+| `python3 scripts/generate-sbom.py` | PASS: six SPDX/CycloneDX files, native-toolchain identity and `materials.json`; source graph includes all **287 registry Rust dependencies and 129 locked npm dependency entries**, including test dependencies |
+| `python3 scripts/verify-release.py` | PASS against the exact fresh scanned runtime; negative config/layer/stale/UNKNOWN tests pass |
+
+Exact locally rebuilt runtime OCI index: `sha256:7893527e4e4956f1c68376842855e84f66f63a7bb95fa1d774599d46acc53c64`; exported configuration: `sha256:c9cd12708a9dc6ce2d12ac14bf5acae8c8a211d41b5e160441ea74b6c07a85b6`. These image measurements came from a pre-publication remediation source snapshot, not a release certification. Regenerate release evidence against the committed source. Scanner DB: Trivy 0.76.1, updated 2026-10-23 07:12:39 UTC; RustSec 1,350 advisories at `f7b2f6bc663452200bbe639ebb75e0c762b3422b`. Raw evidence: ignored `.work/security-audit/`, `.work/security/`, `.work/sbom/`.
+
+No speedup, wire-performance or production-rollout claim is made by this remediation. Machine-specific benchmark profiles and deployment-specific receipts are excluded from this document. Native GCS/Azure, production ACL/CNI/DR and full GUI/mobile checks remain outstanding. SBOM/materials and content verification are unsigned; trusted CI/operator delivery remains required.
+
 ## Acceptance scope
 
-**LiveSync server phase implemented and verified with actual pinned upstream clients.** Target: Self-hosted LiveSync 1.0.39 (source pin in [protocol contract](livesync-protocol.md)), Commonlib 0.1.44 and PouchDB 9.0.0. This is a Rust CouchDB-compatible subset, not Apache CouchDB or a replacement client/UI. MCP remains deferred. GUI/mobile certification and separately authorized production/provider gates below are NOT implied. No real vault, cloud account or existing infrastructure was modified; no image was published.
+**LiveSync server phase implemented and verified with actual pinned upstream clients.** Target: Self-hosted LiveSync 1.0.39 (source pin in [protocol contract](livesync-protocol.md)), Commonlib 0.1.44 and PouchDB 9.0.0. This is a Rust CouchDB-compatible subset, not Apache CouchDB or a replacement client/UI. MCP remains deferred. GUI/mobile certification and separately authorized production/provider gates below are NOT implied. The implementation checks below used disposable resources without modifying real vaults/cloud accounts; no image was published.
 
 Implemented: persistent revision DAG/conflicts/tombstones/history, ancestry-aware latest reads, bulk replication, bounded incremental/long-poll/NDJSON feeds, local checkpoints, opaque epoch-bound cursors, scoped bootstrap archive/reset/recreate, shared revocable Basic/Bearer credentials and per-vault grants; immutable verified bodies behind filesystem/S3/native GCS/Azure; bounded HTTP/JSON/CPU/I/O execution, quotas and jobs; schema-v3 migration/backup/recovery, static distroless/nonroot runtime and private deployments. Legacy internal CAS remains separate from wire revision trees.
 
-## Executed gates
+## Initial implementation gates (before the expanded audit)
 
 | Check | Actual result |
 |---|---|
@@ -29,7 +53,7 @@ Actual client scenarios: two independently authenticated offline devices/branche
 
 Additional Rust evidence: cross-vault/read-only/revoked/wrong-username rejection, strict malformed/unsupported requests and Origin checks, body/document/batch/rate budgets; queued bursts and upload backpressure; token-dense JSON rejection BEFORE allocation and aggregate-tree memory-limited change pagination without skipped cursors; interrupted publication and immutable storage races; static/actively swapped symlink escapes; canceled blocking tasks retaining writer authority; fenced job claims/recovery/fairness/retry/quotas; schema-v1/v2 upgrades and newer-schema rejection; real SQLite backup plus copied filesystem bodies restored into a fresh installation with auth, current epoch/checkpoint, archive and content verification (post-snapshot future cursor rejected). Two core path property tests remain.
 
-These are process/cancellation/interruption tests, not physical power-loss, kernel/disk fault-injection, multi-host writer or production CNI certification. CI commands were exercised locally; no remote GitHub Actions execution is claimed.
+These are process/cancellation/interruption tests, not physical power-loss, kernel/disk fault-injection, multi-host writer or production CNI certification. CI commands were exercised locally; their results do not establish a successful remote GitHub Actions run.
 
 ## Differential findings and fixes
 
@@ -52,36 +76,9 @@ These are process/cancellation/interruption tests, not physical power-loss, kern
 
 Reports: ignored `.work/security/` (CI uploads them). Trivy does not reconstruct Rust dependencies from this ELF; Cargo audit/deny cover the locked Rust graph, and the runtime was explicitly rebuilt from that lockfile before image/client/deployment validation. Builder/test/reference/kind images are outside the final runtime scan. These checks establish no known unresolved findings within their scope, not vulnerability freedom.
 
-## Reproducible benchmarks
+## Benchmark reproduction
 
-Native arm64 **Apple M4 Pro, 14 cores, 24 GiB RAM, Darwin 25.6.0/APFS**, release builds, filesystem backend, FULL/WAL, bounded pools. Repository builds/smokes completed before measurements; other OS load/caches are uncontrolled. No controlled before/after speedup is claimed.
-
-### Actual Commonlib HTTP workload
-
-`python3 scripts/test-livesync.py --benchmark` provisions a disposable server and generated device keys. Includes real chunking/client operations and loopback HTTP; no Tailscale/TLS, GUI or cloud latency. Eight independently authenticated writers, normal upstream change watchers; limits stay enabled (documented fixture burst 1,024). Feed phase uses a fresh reader identity and unmeasured three-second budget refill to avoid measuring a depleted token bucket. Binary content is unique random bytes, read/compared through fresh clients, not a warm chunk cache.
-
-| Workload | Samples | Throughput | p50 / p95 / p99 |
-|---|---:|---:|---:|
-| ~1 KiB logical note, actual chunk + metadata durable HTTP writes | 50 | 33.39 notes/s | 29.166 / 37.699 / 45.227 ms |
-| 3 MiB unique binary, actual chunked durable upload | 5 | 7.60 logical MiB/s | 390.812 / 432.111 / 432.111 ms |
-| 3 MiB fresh-client read/reconstruction | 5 | 129.28 logical MiB/s | 23.567 / 27.590 / 27.590 ms |
-| 8 concurrent writers, 25 ~1 KiB notes each | 200 | 38.32 notes/s | 194.653 / 269.550 / 335.347 ms |
-| Full change poll, 665 current documents, requested pages of 100 | 20 | 33.35 complete polls/s | 27.884 / 33.612 / 61.349 ms |
-
-Sampled peak server RSS: **42,303,488 bytes (40.34 MiB)** from 112 `ps` samples (~10 Hz), NOT an exact kernel high-water mark; excludes the Node client/provider. Wire transfer exceeds logical bytes due to base64/JSON. Attachment tail percentiles are the five-sample maximum, not robust production estimates. Eight-writer latency includes real writes and watcher fan-out, not merely cached metadata operations.
-
-### Separate persistence-core microbenchmark
-
-`scripts/benchmark.sh`: four Tokio workers and four DB/blocking slots. These are legacy INTERNAL core operations, not wire/client performance.
-
-| Workload | Samples | Throughput | p50 / p95 / p99 |
-|---|---:|---:|---:|
-| 1 KiB reserve/upload/verification/durable CAS | 200 | 81.43 commits/s | 12.208 / 13.806 / 14.035 ms |
-| 64 MiB streamed body/verification/read-back/publication | 3 | 693.31 MiB/s | 92.886 / 96.904 / 96.904 ms |
-| Full 203-event feed, pages of 100 | 100 | 14,674 complete polls/s | 0.068 / 0.072 / 0.100 ms |
-| 8 concurrent metadata-only CAS writers, existing blob | 800 | 8,054 commits/s | 0.341 / 0.425 / 0.670 ms |
-
-Exact process peak RSS from `/usr/bin/time -l`: **11,681,792 bytes (11.14 MiB)**. Three attachment samples imply sampled-maximum tails only. Core metadata throughput must not be presented as actual LiveSync throughput. Durable per-chunk file/directory sync and FULL metadata commits remain meaningful small-write costs; no durability check was removed for speed.
+Run `scripts/benchmark.sh` for the internal persistence-core workload or `python3 scripts/test-livesync.py --benchmark` for the real-client HTTP workload, using disposable data only. Keep machine profiles and raw measurements in ignored local reports. Record workload, samples, operating conditions, latency percentiles and peak RSS for your own capacity planning; do not present core metadata throughput as LiveSync wire throughput or three attachment samples as robust tail statistics.
 
 ## Remaining acceptance limits
 
@@ -90,5 +87,5 @@ Exact process peak RSS from `/usr/bin/time -l`: **11,681,792 bytes (11.14 MiB)**
 3. Native cloud staging needs provider lifecycle/abandoned-upload cleanup; hard remote staging quota enforcement is absent. Provider durability is trusted. No workload-identity refresh or S3 session tokens; restart for provider-secret rotation.
 4. No final-history GC/reclamation or finite retention; archived/orphaned bytes remain charged. Tree/leaf/ancestry/checkpoint/current-generation sequence/archive/job quotas eventually require reviewed archival/repair tooling. No public archive restore/purge API; do not edit internal rows/files.
 5. Exactly one authoritative local metadata writer; no distributed lease, NFS or multi-host guarantee. Same-state lock is tested, but partitioned-node fencing/force-detach is operational. Local administration requires stopping the service.
-6. Default kind CNI does not prove NetworkPolicy isolation. Private Tailscale TLS/ACLs and policy-aware production CNI were NOT exercised or enabled. Kubernetes smoke proves manifests/probes/lock and PVC-backed restart, not authenticated vault convergence or CSI disaster recovery.
+6. Default kind CNI does not prove NetworkPolicy isolation. Private TLS/proxy behavior, tailnet ACLs, unapproved-peer isolation and policy-aware production CNI require separate validation for each deployment. Kubernetes smoke proves manifests/probes/lock and PVC-backed restart, not authenticated vault convergence or CSI disaster recovery.
 7. SQLite/filesystem restoration and actual client process/container restart passed. Hardware power cuts, disk faults, amd64 execution, sustained soak, production TLS/cloud performance and operational PVC/provider disaster recovery remain untested. No broad production-readiness claim.

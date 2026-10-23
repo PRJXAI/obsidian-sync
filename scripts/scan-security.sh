@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-mkdir -p .work/security
+mkdir -p .work/security .work/trivy-cache
 cargo audit --json > .work/security/rustsec.json
 cargo deny check
 work=$(mktemp -d "$PWD/.work/scan.XXXXXX")
-trap 'rm -rf "$work"' EXIT
+builder="obsidian-sync-audit-builder:scan-$$"
+cleanup_builder=true
+if [[ -n "${SYNC_SECURITY_BUILDER_IMAGE:-}" ]]; then
+  builder=$(docker image inspect "$SYNC_SECURITY_BUILDER_IMAGE" --format '{{.Id}}')
+  cleanup_builder=false
+fi
+trap 'if "$cleanup_builder"; then docker image rm "$builder" >/dev/null 2>&1 || true; fi; rm -rf "$work"' EXIT
 # Scan everything eligible for source control, including untracked files, not target/data/secrets.
 python3 - "$work" <<'PY'
 import pathlib, shutil, subprocess, sys
@@ -29,7 +35,7 @@ docker run --rm --network none --user "$(id -u):$(id -g)" --cap-drop ALL --secur
   dir /source --redact=100 --exit-code 1 --report-format json --report-path /reports/gitleaks.json
 # Detect daemon bind-mount misconfiguration instead of accepting a vacuous scan.
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
-  -v "$work/source:/source:ro" alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 \
+  -v "$work/source:/source:ro" alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63 \
   test -s /source/Cargo.lock
 if git rev-parse --verify HEAD >/dev/null 2>&1; then
   docker run --rm --network none --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
@@ -43,9 +49,9 @@ docker image inspect obsidian-sync:local --format '{{.Id}}' > .work/security/ima
 docker image inspect obsidian-sync:local > .work/security/image-inspect.json
 docker save obsidian-sync:local -o "$work/runtime.tar"
 docker run --rm --cap-drop ALL --security-opt no-new-privileges --entrypoint /bin/sh \
-  -v "$work/runtime.tar:/runtime.tar:ro" -v "$PWD/.work/security:/reports" \
+  -v "$work/runtime.tar:/runtime.tar:ro" -v "$PWD/.work/security:/reports" -v "$PWD/.work/trivy-cache:/cache" \
   aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
-  -c 'status=0; trivy image --input /runtime.tar --scanners vuln --list-all-pkgs --exit-code 1 --format json --output /reports/trivy.json || status=$?; trivy --version > /reports/trivy-version.txt; exit "$status"'
+  -c 'status=0; trivy --cache-dir /cache image --input /runtime.tar --scanners vuln --list-all-pkgs --exit-code 1 --format json --output /reports/trivy.json || status=$?; trivy --cache-dir /cache --version > /reports/trivy-version.txt; exit "$status"'
 python3 - <<'PY'
 import json
 image=json.load(open('.work/security/image-inspect.json'))[0]
@@ -53,4 +59,18 @@ scan=json.load(open('.work/security/trivy.json'))
 assert image['RootFS']['Layers']==scan['Metadata']['DiffIDs'], 'Scanned layers do not match inspected image'
 print('Verified scanned layer digests match the runtime image')
 PY
-printf 'Security scans completed; inspect advisory timestamps and report scope before accepting a release.\n'
+# The static executable also consumes native/toolchain inputs absent from runtime
+# OS package metadata. Scan the actual populated builder stage, not just its base.
+if "$cleanup_builder"; then docker build --target build -t "$builder" .; fi
+docker save "$builder" -o "$work/builder.tar"
+docker run --rm --cap-drop ALL --security-opt no-new-privileges \
+  -v "$work/builder.tar:/builder.tar:ro" -v "$PWD/.work/security:/reports" -v "$PWD/.work/trivy-cache:/cache" \
+  aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
+  --cache-dir /cache image --input /builder.tar --scanners vuln --list-all-pkgs --exit-code 1 --format json --output /reports/trivy-builder.json
+# Rust's self-contained musl is distinct from Alpine's musl-dev. Preserve its
+# identity for patch-aware review; package version alone does not reveal backports.
+docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --read-only \
+  --entrypoint /bin/sh "$builder" -c 'rustc --version; p=$(rustc --print target-libdir); sha256sum "$p/self-contained/libc.a"; ar p "$p/self-contained/libc.a" version.lo | strings' \
+  > .work/security/native-toolchain.txt
+cargo metadata --locked --format-version 1 > .work/security/cargo-metadata.json
+printf 'Runtime and builder scans completed; also run scripts/scan-supply-chain.py and review native-toolchain patches before release.\n'

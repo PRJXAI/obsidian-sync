@@ -259,22 +259,6 @@ async fn guard(State(app): State<App>, request: Request, next: Next) -> Response
             _ => return ApiError::busy().into_response(),
         }
     };
-    let allowed = app
-        .rates
-        .lock()
-        .map(|mut r| {
-            r.global.take(
-                app.couch.options.burst,
-                app.couch.options.requests_per_minute * 4,
-            )
-        })
-        .unwrap_or(false);
-    if !allowed {
-        return ApiError::busy().into_response();
-    }
-    if request.uri().to_string().len() > 8192 {
-        return ApiError::large().into_response();
-    }
     let result = tokio::time::timeout(Duration::from_secs(300), next.run(request)).await;
     let response = match result {
         Ok(r) => r,
@@ -325,6 +309,14 @@ async fn authenticate(app: &App, headers: &axum::http::HeaderMap) -> ApiResult<I
         return Err(ApiError::auth());
     }
     let mut rates = app.rates.lock().map_err(|_| ApiError::busy())?;
+    // Invalid credentials must not exhaust the shared budget of authenticated devices.
+    // Connection/execution admission still bounds the cost of failed authentication.
+    if !rates.global.take(
+        app.couch.options.burst,
+        app.couch.options.requests_per_minute * 4,
+    ) {
+        return Err(ApiError::busy());
+    }
     if !rates.devices.contains_key(who.id()) {
         if rates.devices.len() >= 4096 {
             rates

@@ -36,7 +36,7 @@ HTTP bytes alone do not bound JSON DOM allocation. Input has a 65,536 structural
 
 ## Executable evidence / scope
 
-`tests/compat/livesync.mjs` runs actual pinned, unmodified Commonlib/PouchDB libraries against disposable native Rust, RustFS-backed Rust, the final non-root distroless image and digest-pinned Apache CouchDB 3.5.0. It covers offline conflicts, normal CAS races, revision history/tombstones, filtered pagination/checkpoints, Unicode, updates/logical moves, 3 MiB binary files, actual E2EE/compression, encrypted revision replay, upstream Fast Fetch/live feeds, bootstrap reset/recreate and encrypted content after server restart. Rust tests additionally cover authorization/revocation/resource limits, migration, interruption and backup restoration.
+`tests/compat/livesync.mjs` runs actual pinned, unmodified Commonlib/PouchDB libraries against disposable native Rust, RustFS-backed Rust, the final non-root distroless image and digest-pinned Apache CouchDB 3.5.3 (earlier baseline: 3.5.0). It covers offline conflicts, normal CAS races, revision history/tombstones, filtered pagination/checkpoints, Unicode, updates/logical moves, 3 MiB binary files, actual E2EE/compression, encrypted revision replay, upstream Fast Fetch/live feeds, bootstrap reset/recreate and encrypted content after server restart. Rust tests additionally cover authorization/revocation/resource limits, migration, interruption and backup restoration.
 
 Reference CouchDB opaque cursors can differ textually at the SAME logical position. Tests resume from a returned checkpoint and verify no remaining changes, not string equality with a later info call. Do not invent cursor comparison rules from superficial examples.
 

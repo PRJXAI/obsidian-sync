@@ -30,6 +30,8 @@ Node packages are test-only, exact versions/lockfile committed, installed with l
 
 ```sh
 cp .env.example .env
+cp config/filesystem.toml config/local.toml
+# In the ignored .env, set SYNC_CONFIG_FILE=./config/local.toml.
 sudo install -d -o 65532 -g 65532 -m 0700 data
 docker compose build
 # Locally provision the lowercase database alias, not a filesystem vault directory:
@@ -44,6 +46,27 @@ curl -i http://127.0.0.1:8080/health/ready  # 204; 503 while shutting down
 Protect credential output; do not forward one-shot `issue` output into centralized logs. No application request logs contain tokens or note bodies. The bootstrap credential's username is its printed `principal` UUID and password is its printed 64-character `token`. There are no default passwords. Keep the service private: Compose binds host loopback. For native execution change `listen` to `127.0.0.1:8080`; container configs use `0.0.0.0` only inside their isolated network.
 
 `/data` must be writable by UID 65532. Service-created metadata/blob roots are private 0700. Never mount a real Obsidian vault or let agents edit internal files. Database aliases are locally provisioned lowercase ASCII names (maximum 80 bytes); `health` is reserved for probes. Remote arbitrary database creation is denied.
+
+### Verified release deployment
+
+Use [the release override](../deploy/compose.release.yml) with an already scanned image imported on the authorized host (e.g. encrypted SSH `docker save`/`docker load`), not an implicit rebuild or registry publication. Keep actual host paths/ports/credentials and operational receipts outside this repository. In the host's private `.env`, set `SYNC_RELEASE_IMAGE` to a unique source-revision tag, `SYNC_RELEASE_REVISION` to that application commit, and the existing `SYNC_DATA_DIR`, `SYNC_CONFIG_FILE`, `SYNC_PORT` settings.
+
+```sh
+docker compose -p PRIVATE_PROJECT -f docker-compose.yml -f deploy/compose.release.yml config --quiet
+```
+
+Verify imported configuration digest AND filesystem layers against a **trusted** clean runtime scan before starting. Obtain the report through your authenticated CI/operator channel; arbitrary JSON is not an authenticity proof. Reports older than 24 hours, findings including UNKNOWN, missing results and content substitution fail closed:
+
+```sh
+# Start with the imported tag/reference from the private .env; use this verified ID for up.
+SYNC_RELEASE_IMAGE="$(python3 scripts/verify-release.py --image PRIVATE_IMPORTED_TAG --scan-report /trusted/security-reports/trivy.json)"
+export SYNC_RELEASE_IMAGE
+docker compose -p PRIVATE_PROJECT -f docker-compose.yml -f deploy/compose.release.yml up -d --no-build --pull never
+```
+
+A failed verification emits no image reference, so the release override's required-image check rejects it. The scan report binds content, not builder authenticity; require a trusted CI source/materials receipt separately. A local OCI index ID can differ from the saved/imported configuration ID; compare the correct identity levels rather than assuming all Docker IDs are interchangeable. The override requires release identity, forbids implicit pulls, retains the base's loopback binding/security/resource policy and bounds local logs. Administrative key issuance must use `docker run --log-driver none` with the same private mounts and capture its one-shot stdout privately; do not send it through the service's log driver. Never run admin and server writers concurrently.
+
+Preserve existing Serve mappings; choose an unused dedicated HTTPS port rather than resetting/replacing another service. Validate actual TLS, scoped access, restart persistence and a matched stopped-writer baseline. The initial baseline is NOT a recurring/off-host backup policy; configure encrypted ongoing backups before important use. Rollback stops only the new project/listener and retains data, never uses global Serve reset or backend deletion.
 
 ### Private Tailscale HTTPS
 
@@ -102,9 +125,9 @@ Imported revisions (`new_edits=false`) use CouchDB first-body-wins replay semant
 
 ## Storage modes
 
-Canonical configurations: [filesystem](../config/filesystem.toml), [S3](../config/s3.toml), [GCS](../config/gcs.toml), [Azure](../config/azure.toml). Metadata remains local and persistent in ALL modes.
+Canonical non-secret templates: [filesystem](../config/filesystem.toml), [S3](../config/s3.toml), [GCS](../config/gcs.toml), [Azure](../config/azure.toml). Copy the selected template to ignored `config/local.toml` before entering deployment-specific settings, and select it through ignored `.env`. Do not put real credentials, endpoints or host paths into versioned examples. Required build/policy TOML manifests and explicit shipped templates remain tracked; other TOML files and `.env` variants are ignored. Ignore rules do not erase already tracked files or history. Metadata remains local and persistent in ALL modes.
 
-For S3/MinIO, pre-create a private bucket, choose an exclusive installation prefix and configure endpoint/region/addressing style. Set `SYNC_CONFIG_FILE=./config/s3.toml` and credential FILE paths in `.env`:
+For S3/MinIO, pre-create a private bucket, choose an exclusive installation prefix and configure endpoint/region/addressing style. Copy `config/s3.toml` to ignored `config/local.toml`, set `SYNC_CONFIG_FILE=./config/local.toml`, and set credential FILE paths in ignored `.env`:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.s3.yml config --quiet

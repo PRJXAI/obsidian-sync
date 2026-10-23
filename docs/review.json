@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed pinned LiveSync DAG/import semantics, encrypted replay/reference CouchDB, scoped reset/schema-v3 recovery, bounded JSON/admission, actual native/S3/distroless client fixtures, patched Tokio/ctutils and final scans/deployments/benchmarks",
+  "reason": "Reviewed privacy-safe published evidence, root llms.txt build/deploy/operate guidance, ignored local configuration rules and exclusion from generated source maps/fingerprints alongside prior security/CI remediation",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -7,7 +7,7 @@
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "593c7872f4ed9fb4675054ff0ae04f3d18e269f0ef36aff97e63d66510846996"
+      "sha256": "202bafd7c54e17bfa90fbb961cc8617d1c58a7bd5258c38631a3b8aaef357170"
     },
     {
       "path": ".dockerignore",
@@ -19,11 +19,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "6e93f44aaa2a22315b4f862b55ec667de899868414c84a2d724852d0234af598"
+      "sha256": "434b76aecd74c8dcb6ce55ec5979c0d26570805f7564e62a172ddc2c8d8beb26"
     },
     {
       "path": ".gitignore",
-      "sha256": "42b3c544ec8e3e487f82332fcd2a5cae1f671da309402a708de3c5b248c0ab74"
+      "sha256": "da533d22818e3c24b63c0e62b21bd55f428e921e10c9ad9ec51a1be3b6a71045"
     },
     {
       "path": "AGENTS.md",
@@ -31,7 +31,7 @@
     },
     {
       "path": "Cargo.lock",
-      "sha256": "3c6f159c08d85c0ba67d8325c205510aa37b5b9816b072db69e303869c9cc28a"
+      "sha256": "a8f41a759d341af8512080cec32a996aebdaedce3302b89c44339b432852e454"
     },
     {
       "path": "Cargo.toml",
@@ -39,7 +39,7 @@
     },
     {
       "path": "Dockerfile",
-      "sha256": "224a7ea097f53d311dff1bca6d32c9fc1f17308f88024bb9db28669a86a05c9d"
+      "sha256": "df742d121fb1456607ce2372843662ff976ee6f71436bb37bf1d85f2bee6c018"
     },
     {
       "path": "LICENSE",
@@ -64,6 +64,10 @@
     {
       "path": "deny.toml",
       "sha256": "66c3e9e997ac497e678de1b17b4178a8ad71311f204be6c88aeb1967ac644570"
+    },
+    {
+      "path": "deploy/compose.release.yml",
+      "sha256": "5c431b5f7d535c214fdd1db26c44479d8c148117dcbd0dfed2be3c73853cfada"
     },
     {
       "path": "deploy/kustomize/base/config.toml",
@@ -179,31 +183,39 @@
     },
     {
       "path": "scripts/docs.py",
-      "sha256": "626a0e5e9ee1dff8b5304057cffea2407b9071dc257d99ac93c5be20a65dce73"
+      "sha256": "eb761d5b3bc24f365ac7229e9b5146a150c3d6de45465bc7b45a164f408313d3"
+    },
+    {
+      "path": "scripts/generate-sbom.py",
+      "sha256": "2d1ec4c7bc98347cf2d966b4c4eee5d6940faebfbd83faff1b09470b5cab5cc2"
     },
     {
       "path": "scripts/scan-security.sh",
-      "sha256": "61f08d35c6f640f16b7cdd14069ac566890cb423563af1ef4722dafb15c99c6d"
+      "sha256": "47c9a5f3113fdf0428ccba451958fd63fa5a3ebaf0bf273f70c7e0b437c9ee52"
+    },
+    {
+      "path": "scripts/scan-supply-chain.py",
+      "sha256": "faf0b98d0107ca7fc56caac683be0ad8a3a1a6ca49996f86b17a15c5497c25bd"
     },
     {
       "path": "scripts/smoke-compose.sh",
-      "sha256": "47415e1818fbe4b2a870f156ee1b39c914f8d45b7782aeefc0b59181b69e485e"
+      "sha256": "0ad7f9a8b1bfa4c1c95159aa900954ba73e88166c182b74dbf502a7e02e1930e"
     },
     {
       "path": "scripts/smoke-kubernetes.sh",
-      "sha256": "39585d560a3229968e612998b41f508ec52ab8fb1fee85e625e66c675c3f31cf"
+      "sha256": "ac308489112d4545c6373f46d35b9d6dacbae4e91f150064538d9aed484674bd"
     },
     {
       "path": "scripts/sync-generated.py",
-      "sha256": "c346fa76b2152b13162d820da22a5a8518bc75ef209b80c08156627442f239b4"
+      "sha256": "1204261d869bd112dc3fcab6545da770c16534ad038e09ae2c6a40fbe887f8e8"
     },
     {
       "path": "scripts/test-livesync.py",
-      "sha256": "54e5a043ee73b2f68babb278e9e0e19fd089fe92ea6ae0f83e9397b3cbf3e89c"
+      "sha256": "d63f5c35296d2886f57ef5b5a67f4a310139e630782da2a2f144d56b3ae657c7"
     },
     {
       "path": "scripts/test-reference-couch.py",
-      "sha256": "6252e8c91784de8892ddef10ecaad4f308e4a1900a682bf416480a5f95838a24"
+      "sha256": "4445fed050c696069c17a03c85dc62035b28ab288ece8b189cd5bf0f589e455b"
     },
     {
       "path": "scripts/test-s3.sh",
@@ -211,11 +223,15 @@
     },
     {
       "path": "scripts/validate-deployments.sh",
-      "sha256": "dd86647685fc8a32951547722dda757508956f8573f6731d80020a8daeef538e"
+      "sha256": "58e9ad9f4e65817ef8761de685d96589a2631919bbc8aff3be4484a3e731dbcb"
     },
     {
       "path": "scripts/verify-image.py",
       "sha256": "7cbdc96a9f1dda4aa94ece1a165911fb53bc9715a5f026947ab1e689d6592efb"
+    },
+    {
+      "path": "scripts/verify-release.py",
+      "sha256": "644b5acca623ce2a97018becf39edbe8753c865ded15825a54c6c4f713ee398c"
     },
     {
       "path": "src/auth.rs",
@@ -227,7 +243,7 @@
     },
     {
       "path": "src/couch/http.rs",
-      "sha256": "842708f4e654d900152145bad4eea24b5324c3459100119e8d31e4f88db69662"
+      "sha256": "7ccbd5ef5afd2aba2bb86f6fe3101146733bc782f9057e81ee8ffb930665dcc2"
     },
     {
       "path": "src/couch/json.rs",
@@ -319,7 +335,7 @@
     },
     {
       "path": "tests/couch.rs",
-      "sha256": "87f248abab5e6cef2175c31107b2426a593a7a88b073828f36d9b988e0365e1c"
+      "sha256": "12808b47a9e2d6570182ac4a76dafaec303f074fc2010bf1f530e63ead810d6c"
     },
     {
       "path": "tests/couch_migration.rs",
@@ -339,7 +355,19 @@
     },
     {
       "path": "tests/test_maintenance.py",
-      "sha256": "d435617539f0b8c0ed37722dda4cfcdf52979e2836008d7b044d4db7443320c8"
+      "sha256": "72386184791730e143c0a8bf4a22d24045f8dae6c28abfd23a78e0630491bd0f"
+    },
+    {
+      "path": "tests/test_release.py",
+      "sha256": "dc73ec247fac1ea2a5dd1734cf3f772d7759bd28fe940ecabe8da05ab03eae22"
+    },
+    {
+      "path": "tests/test_sbom.py",
+      "sha256": "c3405a5cd7cee27ad3ce397a0e01ad6e8306404f8a139d7ac96e36d4b9d315d9"
+    },
+    {
+      "path": "tests/test_supply_chain.py",
+      "sha256": "db00b2e958e398609adb6c5c373228977894c565dbbeee320c6ab1cd834d7545"
     }
   ]
 }

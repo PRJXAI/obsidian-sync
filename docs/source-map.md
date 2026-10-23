@@ -9,6 +9,7 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `config/filesystem.toml`
 - `config/gcs.toml`
 - `config/s3.toml`
+- `deploy/compose.release.yml`
 - `deploy/kustomize/base/config.toml`
 - `deploy/kustomize/base/deployment.yaml`
 - `deploy/kustomize/base/kustomization.yaml`
@@ -34,7 +35,9 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `scripts/check-features.sh`
 - `scripts/check.sh`
 - `scripts/docs.py`
+- `scripts/generate-sbom.py`
 - `scripts/scan-security.sh`
+- `scripts/scan-supply-chain.py`
 - `scripts/smoke-compose.sh`
 - `scripts/smoke-kubernetes.sh`
 - `scripts/sync-generated.py`
@@ -43,6 +46,7 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `scripts/test-s3.sh`
 - `scripts/validate-deployments.sh`
 - `scripts/verify-image.py`
+- `scripts/verify-release.py`
 - `src/auth.rs`
 - `src/config.rs`
 - `src/couch/http.rs`
@@ -74,3 +78,6 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `tests/recovery.rs`
 - `tests/storage_contract.rs`
 - `tests/test_maintenance.py`
+- `tests/test_release.py`
+- `tests/test_sbom.py`
+- `tests/test_supply_chain.py`

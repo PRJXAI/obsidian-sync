@@ -9,7 +9,7 @@ cleanup() {
   docker compose -p "$project" down -v >/dev/null 2>&1 || true
   # Test-only cleanup runs as the application's UID, without privileges or networking.
   docker run --rm --network none --user 65532:65532 --cap-drop ALL --security-opt no-new-privileges \
-    -v "$work/data:/data" alpine:3.23@sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0 \
+    -v "$work/data:/data" alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63 \
     sh -c 'rm -rf /data/metadata /data/blobs' >/dev/null 2>&1 || true
   rm -rf "$work"
 }

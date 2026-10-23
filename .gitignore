@@ -1,5 +1,23 @@
 /target/
-/.env
+# Operator environment files are private; only the public root template is shipped.
+.env
+.env.*
+!/.env.example
+
+# Ignore local TOML overrides. These explicit, non-secret build/config templates
+# remain versioned so a clean clone can build, test and deploy.
+*.toml
+!/Cargo.toml
+!/rust-toolchain.toml
+!/deny.toml
+!/config/filesystem.toml
+!/config/s3.toml
+!/config/gcs.toml
+!/config/azure.toml
+!/deploy/kustomize/base/config.toml
+!/deploy/kustomize/overlays/s3/config.toml
+!/deploy/kustomize/overlays/gcs/config.toml
+!/deploy/kustomize/overlays/azure/config.toml
 /secrets/
 /data/
 /.work/

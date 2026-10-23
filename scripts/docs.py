@@ -6,6 +6,7 @@ No network/LLM calls. Deletion requires a reason, --yes, no inbound links, and g
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -30,7 +31,7 @@ def links(path):
 
 
 def markdown():
-    return [ROOT / "README.md", ROOT / "AGENTS.md", *sorted((ROOT / "docs").rglob("*.md"))]
+    return [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "llms.txt", *sorted((ROOT / "docs").rglob("*.md"))]
 
 
 def fingerprints():
@@ -38,7 +39,8 @@ def fingerprints():
     files = [ROOT / p for p in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "Dockerfile", ".dockerignore", ".gitignore", ".env.example", "deny.toml", "AGENTS.md", "LICENSE")]
     files += list(ROOT.glob("docker-compose*.yml"))
     files += [p for folder in folders for p in (ROOT / folder).rglob("*") if p.is_file() and "__pycache__" not in str(p) and "node_modules" not in p.parts]
-    return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files) if p.exists()}
+    candidates = {os.fsdecode(path) for path in subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=ROOT).split(b"\0") if path}
+    return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files) if str(p.relative_to(ROOT)) in candidates and p.is_file()}
 
 
 parser = argparse.ArgumentParser(description=__doc__)

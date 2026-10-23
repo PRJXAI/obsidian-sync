@@ -113,6 +113,39 @@ async fn request(
     (status, value)
 }
 #[tokio::test]
+async fn failed_authentication_cannot_spend_authenticated_rate_budgets() {
+    let f = Fixture::custom(|config| {
+        config.http.burst = 4;
+        config.http.requests_per_minute = 1;
+    })
+    .await;
+    assert_eq!(f.call("GET", "/vault", None).await.0, 200);
+    let wrong_username = {
+        let encoded = f.auth.strip_prefix("Basic ").unwrap();
+        let pair = String::from_utf8(STANDARD.decode(encoded).unwrap()).unwrap();
+        let (_, token) = pair.split_once(':').unwrap();
+        format!(
+            "Basic {}",
+            STANDARD.encode(format!("{}:{token}", Uuid::new_v4()))
+        )
+    };
+    for _ in 0..8 {
+        for auth in ["", "Bearer invalid", wrong_username.as_str()] {
+            assert_eq!(request(&f.app, auth, "GET", "/vault", None).await.0, 401);
+        }
+    }
+    // Exactly the remaining authenticated burst is available, not an unbounded bypass.
+    for _ in 0..3 {
+        assert_eq!(f.call("GET", "/vault", None).await.0, 200);
+    }
+    assert_eq!(f.call("GET", "/vault", None).await.0, 429);
+    assert_eq!(
+        request(&f.app, "", "GET", "/health/ready", None).await.0,
+        204
+    );
+}
+
+#[tokio::test]
 async fn actual_couch_revisions_conflicts_deletion_and_resurrection() {
     let f = Fixture::new().await;
     f.import(json!({"_id":"note.md","_rev":"1-root","type":"plain","value":"base"}))

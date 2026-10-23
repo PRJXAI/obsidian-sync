@@ -1,0 +1,13 @@
+# Combine with docker-compose.yml for an already verified/imported local image.
+# Host paths and ports remain in the operator's private .env, not this repository.
+services:
+  server:
+    image: ${SYNC_RELEASE_IMAGE:?Set the verified release image reference}
+    pull_policy: never
+    labels:
+      org.opencontainers.image.revision: ${SYNC_RELEASE_REVISION:?Set the application source revision}
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

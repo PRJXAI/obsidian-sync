@@ -3,11 +3,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # Never read/use the operator's current kubeconfig. kind is the only cluster creator.
 work=$(mktemp -d)
+# Fence every kind invocation, including teardown, from inherited operator state.
+export KUBECONFIG="$work/kubeconfig"
 cluster="obsidian-sync-smoke-$$"
-cleanup() { kind delete cluster --name "$cluster" >/dev/null 2>&1 || true; rm -rf "$work"; }
+forward=""
+cleanup() {
+  if [[ -n "$forward" ]]; then kill "$forward" 2>/dev/null || true; wait "$forward" 2>/dev/null || true; fi
+  kind delete cluster --name "$cluster" --kubeconfig "$work/kubeconfig" >/dev/null 2>&1 || true
+  rm -rf "$work"
+}
 trap cleanup EXIT
 kind create cluster --name "$cluster" --kubeconfig "$work/kubeconfig" --wait 120s \
-  --image kindest/node:v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5
+  --image kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
 k() { kubectl --kubeconfig "$work/kubeconfig" "$@"; }
 kind load docker-image obsidian-sync:local --name "$cluster"
 k apply -k deploy/kustomize/overlays/filesystem
@@ -39,4 +46,5 @@ wait_running
 k -n obsidian-sync exec deployment/obsidian-sync -- /server --version
 kill "$forward" 2>/dev/null || true
 wait "$forward" 2>/dev/null || true
+forward=""
 printf 'Disposable Kubernetes smoke passed; LiveSync adapter readiness is 204. Default kind CNI does not verify NetworkPolicy enforcement.\n'
