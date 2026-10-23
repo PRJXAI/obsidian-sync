@@ -6,6 +6,8 @@ use std::{net::SocketAddr, path::PathBuf};
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub listen: SocketAddr,
+    #[serde(default)]
+    pub http: HttpConfig,
     pub metadata_dir: PathBuf,
     pub storage: StorageConfig,
     pub max_blob_bytes: u64,
@@ -59,6 +61,75 @@ fn validate_cloud(name: &str, prefix: &str) -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct HttpConfig {
+    pub allowed_origins: Vec<String>,
+    pub max_request_bytes: usize,
+    pub max_document_bytes: usize,
+    pub max_response_bytes: usize,
+    pub max_batch_docs: usize,
+    pub max_requests: usize,
+    pub requests_per_minute: u32,
+    pub burst: u32,
+    pub longpoll_seconds: u64,
+}
+impl Default for HttpConfig {
+    fn default() -> Self {
+        Self {
+            allowed_origins: Vec::new(),
+            max_request_bytes: 16 * 1024 * 1024,
+            max_document_bytes: 1024 * 1024,
+            max_response_bytes: 16 * 1024 * 1024,
+            max_batch_docs: 128,
+            max_requests: 8,
+            requests_per_minute: 6000,
+            burst: 256,
+            longpoll_seconds: 20,
+        }
+    }
+}
+impl HttpConfig {
+    fn validate(&self) -> Result<()> {
+        if !(4096..=32 * 1024 * 1024).contains(&self.max_request_bytes)
+            || !(4096..=4 * 1024 * 1024).contains(&self.max_document_bytes)
+            || self.max_document_bytes > self.max_request_bytes
+            || !(4096..=32 * 1024 * 1024).contains(&self.max_response_bytes)
+            || self.max_response_bytes < self.max_document_bytes
+            || !(1..=256).contains(&self.max_batch_docs)
+            || !(2..=16).contains(&self.max_requests)
+            || self.max_requests * self.max_request_bytes > 256 * 1024 * 1024
+            || !(1..=60000).contains(&self.requests_per_minute)
+            || !(1..=1024).contains(&self.burst)
+            || !(1..=30).contains(&self.longpoll_seconds)
+            || self.allowed_origins.len() > 16
+        {
+            return Err(Error::Invalid);
+        }
+        for origin in &self.allowed_origins {
+            if origin.len() > 256 || origin.contains(['*', '\r', '\n', '@', '#', '?']) {
+                return Err(Error::Invalid);
+            }
+            let uri: axum::http::Uri = origin.parse().map_err(|_| Error::Invalid)?;
+            if uri.authority().is_none()
+                || !matches!(
+                    uri.scheme_str(),
+                    Some("https" | "app" | "capacitor" | "http")
+                )
+                || uri.path() != "/"
+            {
+                return Err(Error::Invalid);
+            }
+            if uri.scheme_str() == Some("http")
+                && !matches!(uri.host(), Some("localhost" | "127.0.0.1"))
+            {
+                return Err(Error::Invalid);
+            }
+        }
+        Ok(())
+    }
+}
+
 impl Config {
     pub async fn load(path: &std::path::Path) -> Result<Self> {
         use tokio::io::AsyncReadExt;
@@ -75,8 +146,10 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<()> {
+        self.http.validate()?;
         if !self.metadata_dir.is_absolute()
             || self.max_blob_bytes == 0
+            || self.http.max_document_bytes as u64 > self.max_blob_bytes
             || self.max_blob_bytes > 1024 * 1024 * 1024
             || self.vault_quota_bytes < self.max_blob_bytes.max(4096)
             || self.vault_quota_bytes > i64::MAX as u64

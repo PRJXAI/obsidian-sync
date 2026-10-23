@@ -1,4 +1,4 @@
-//! Local administrative credential provisioning, independent of the unknown plugin auth.
+//! Revocable device keys and grants shared by LiveSync Basic/Bearer authentication.
 use crate::{Error, Result, db::Database};
 use rusqlite::{Connection, OptionalExtension, params};
 use sha2::{Digest, Sha256};
@@ -36,6 +36,14 @@ impl Database {
         let id = Uuid::new_v4();
         self.run(move |c| {
             let tx = c.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+            let archived: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM couch_archives WHERE vault=?1)",
+                [vault.to_string()],
+                |r| r.get(0),
+            )?;
+            if archived {
+                return Err(Error::Invalid);
+            }
             tx.execute(
                 "INSERT INTO principals(id,digest) VALUES(?1,?2)",
                 params![id.to_string(), digest],

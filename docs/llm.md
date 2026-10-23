@@ -1,35 +1,35 @@
-# LLM context: read this before changing the repository
+# LLM context: read before changing this repository
 
-## Current product boundary
+## Product boundary
 
-This began as an EMPTY repository. The requested Obsidian plugin was not named and no protocol sources existed. The owner has been asked for authoritative sources. **There is no implemented client sync wire protocol, authentication adapter, or compatibility evidence.** `/health/live` returns 204; `/health/ready` deliberately returns 503. Do not turn this core into an invented REST/CouchDB server and claim compatibility. No UI/plugin/mobile app is in scope.
+The owner selected **Self-hosted LiveSync** (`vrtmrz/obsidian-livesync`). The authoritative source pin, package versions and pre-implementation consistency contract are in [livesync-protocol.md](livesync-protocol.md). The server implements its CouchDB/PouchDB document replication interface; do not invent a file REST protocol or map offline branches to last-write-wins CAS. No client UI/mobile replacement is in scope. MCP is explicitly deferred until this server phase is finished.
 
-## Implemented architecture
+## Architecture
 
-One stable-Rust binary, Tokio, Axum operational probes, SQLite FULL/WAL metadata, a bounded blocking/connection pool, persistent process-lifetime writer lock, core principal grants, reservation-first immutable uploads, transactional CAS/replay/rename/tombstones/change pages, and a single persisted integrity worker. The internal logical model is provisional until the real plugin contract is understood. Credentials/revisions/cursor semantics may need adapter-driven changes.
+One stable-Rust binary: Tokio, Axum, SQLite FULL/WAL, pre-parse JSON complexity and aggregate working-set budgets, bounded admission/response/upload concurrency, bounded blocking/connection pools and a process-lifetime writer lock. `src/couch/` adds the compatible revision DAG, database aliases, local checkpoints, body publication and HTTP adapter. Immutable JSON revision bodies use the same `BlobStorage` trait as the original core. Filesystem always enabled; optional features `s3`, `gcs`, `azure`; all eight combinations are checked. MinIO is an S3 provider, not the client protocol. Server storage mode never changes the client's remote type: select CouchDB.
 
-`BlobStorage` is object-safe and provider-independent. `Store` wraps a shared trait object. Adapters: hardened filesystem, S3-compatible (including MinIO interface), native GCS, native Azure. All compile by default; filesystem always enabled, optional features `s3`, `gcs`, `azure`. Same storage contract is used for all; native cloud end-to-end validation requires disposable credentials. S3 is not the client-facing protocol.
+The original `src/sync.rs` internal single-head CAS model remains for its existing tests/administration infrastructure; it is NOT the LiveSync revision model and must NOT be used for future MCP note mutations. MCP must eventually use LiveSync's document/chunk and E2EE semantics through shared authentication/authorization. A token authorizes stored data; it does not decrypt client-encrypted notes.
 
-## Invariants
+Schema v3 preserves v1 core and v2 Couch data. It adds Couch aliases/active generations, revision DAG, heads, checkpoints, server identity, scoped reset managers, archives and retired grant snapshots. See [operations](operations.md) for persistence/backups, and [protocol contract](livesync-protocol.md) for publication/interruption rules.
 
-- Read [consistency.md](consistency.md) BEFORE changing mutations, jobs or storage publication.
-- Content is durable and verified before references commit. Metadata/revision/CAS/replay happen atomically in SQLite, not an in-memory lock. Concurrent writes never silently win over a competing revision.
-- Authorize every core operation against a live principal + vault grant, including idempotency replay, changes, blobs and job status. Secrets/content/signed URLs are never logged. Local admin access is trusted and offline.
-- Backend roots and parents are service-controlled. UUID dirfd/no-follow operations enforce confinement and no-clobber hard-link publication. Never allow agents to edit backend files.
-- The writer lock MUST outlive canceled blocking tasks; DB work captures it explicitly. Separate metadata copies over one bucket/root are NOT coordinated. No NFS/multi-writer/HPA/lease claims.
-- No automatic final-blob GC or history expiry. Reservations charge max(size, 4 KiB); 100,000 revisions/vault bounds metadata. Quotas/terminal job records can eventually require future supported archival tooling. Do not "fix" exhaustion by deleting SQLite rows.
-- Jobs are read-only, at-least-once, token-fenced, quota-limited and round-robin. Startup recovers process-owned jobs only after writer lock acquisition. No exactly-once claim.
-- Native cloud adapters use staging plus conditional copy; provider staging lifecycle and actual-provider tests remain acceptance requirements. Azure uses expiring HTTPS-only container-scoped SAS, not account keys; workload identity refresh is not implemented.
-- Runtime image is Distroless static/nonroot, application binary only; no shell/config/secrets copied. Compose binds loopback. Kubernetes is internal-only with Recreate, PVC, restrictive contexts and NetworkPolicy. Readiness is intentionally false.
+## Security and integrity invariants
 
-## Navigation and evidence
+- Basic username = device principal UUID; password = generated random 256-bit token. Bearer tokens use the same verifier. SHA-256 digests only at rest; no human-password crypto or default credentials. Grants/revocation checked on every operation. Local CLI administration is offline under the same writer lock; Global HTTP administration and physical purge are not granted. Optional `issue --allow-database-reset` creates a narrow per-database bootstrap capability for the upstream first-device reset/recreate workflow: archive old data, move grants to a fresh UUID, retire old grants to fence uploads, inherit charged quota, and cap resets at 16 archives. Ordinary keys cannot reset.
+- Bodies are reserved and durably verified before a SQLite transaction publishes revision references. Import ancestry, branches, current winner, quota and sequence update atomically. `new_edits=false` retries deduplicate by database/document/revision, preserve the FIRST immutable body and reject contradictory ancestry. Fresh E2EE IV/salt changes ciphertext for the same plaintext revision; bytewise rejection would break real LiveSync (differentially verified). Internal explicit idempotency keys remain payload-bound; upload reservation keys include the raw body digest.
+- Preserve all conflict leaves and explicit historical bodies. `_deleted` is branch-specific; LiveSync `deleted` is opaque logical deletion. Renames are client operations (write destination + logical deletion), NOT an invented server atomic note-rename endpoint.
+- `_local` checkpoints use separate `0-N` CAS revisions and never replicate. Changes expose current document leaves with monotonically increasing persistent counters encoded with the database-generation UUID; stale epochs fail after an authorized reset; byte-limited pages preserve `last_seq` and `pending` rather than dropping data.
+- No final-body/revision/tombstone GC, purge or finite history expiration. Logical allocations include orphan reservations. Revision/local-checkpoint/tree quotas fail closed. Do not edit backend files/SQLite by hand.
+- All roots are service-controlled; UUID/no-follow dirfd storage is unrelated to client IDs/paths. Duplicate filesystem publication re-syncs existing content and its directory before returning a recoverable conflict.
+- A DB blocking task captures the process lock even when its async caller is canceled. No separate metadata copies sharing a writable namespace, NFS, multi-host writer/HPA/lease claims, or forced PVC failover without node fencing.
+- CPU-heavy JSON/hash work and SQLite/fs sync use bounded pools. Transfer bodies/batches/responses, connections, request slots and token buckets are bounded. Waiting change feeds have a separate admission cap and release execution slots while sleeping so writes cannot starve.
+- Enforce exact CORS allowlists and reject unapproved Origin on actual operations. No secret/content/signed-URL/raw-provider-error logging. Fixed first-party tracing filter only. Remote Basic/Bearer requires private HTTPS termination.
+- Native cloud adapters require actual provider tests/lifecycle configuration before production acceptance. No hard provider-side staging quota or automatic credential refresh claims. Azure uses expiring HTTPS-only container SAS.
+- Distroless static/nonroot image adds only `/server`, never shell/config/secrets. Compose binds loopback. Kustomize uses ClusterIP, Recreate, one PVC, restrictive security context/NetworkPolicy and readiness 204 after initialization. No Funnel/public ingress/HPA.
 
-- [Generated source map](source-map.md)
-- [Storage contract/adapters](storage.md)
-- [Threat model](threat-model.md)
-- [Build/run/backup/recovery](operations.md)
-- [Actual results and blockers](results.md)
-- `.agents/skills/maintain-docs/SKILL.md`: safe create/update/delete and source-drift review.
-- `.agents/skills/security-release/SKILL.md`: acceptance workflow.
+## Evidence and workflow
 
-Run `scripts/check.sh`, `scripts/check-features.sh`, `scripts/test-s3.sh`, `scripts/validate-deployments.sh`, image build + `scripts/scan-security.sh`, then disposable smoke scripts. Never touch the operator's current kubecontext: `scripts/smoke-kubernetes.sh` owns its temporary cluster/kubeconfig. No real infrastructure, images published, or existing vaults modified. Fresh scanners plus passing tests mean no known unresolved findings in the performed checks, never "vulnerability-free".
+- [Actual results/limitations](results.md), [threat model](threat-model.md), [storage](storage.md), [source map](source-map.md), [maintenance](maintenance.md).
+- Real Commonlib/PouchDB tests are in `tests/compat/`; use `scripts/test-livesync.py` against disposable data, `scripts/test-s3.sh` against disposable RustFS and optionally the same fixture against Apache CouchDB with `scripts/test-reference-couch.py`.
+- Real GUI/mobile testing is separate from Commonlib/PouchDB tests. Known upstream Commonlib 0.1.44 warm compression-cache behavior was reproduced against Apache CouchDB too; fixtures verify moved durable content through a fresh reader. Do not hide or attribute it to the Rust server without evidence.
+- Run `scripts/check.sh`, `scripts/check-features.sh`, client/provider tests, deployment rendering, Docker Linux test target/runtime verification, fresh scanners and disposable smoke tests. Never use the current kubecontext; the kind script creates its own kubeconfig/cluster and deletes it.
+- Follow `.agents/skills/maintain-docs/SKILL.md` and `security-release/SKILL.md`. Regenerate config copies/source map, review affected docs, then acknowledge source fingerprints. No real vault/infrastructure changes or image publication without separate permission.

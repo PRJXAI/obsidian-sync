@@ -80,6 +80,78 @@ impl Fixture {
     }
 }
 #[tokio::test]
+async fn upload_capacity_backpressures_bounded_callers_without_false_quota_errors() {
+    use tokio::io::AsyncWriteExt;
+    struct StartedReader {
+        inner: tokio::io::DuplexStream,
+        started: std::sync::Arc<tokio::sync::Notify>,
+    }
+    impl tokio::io::AsyncRead for StartedReader {
+        fn poll_read(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buffer: &mut tokio::io::ReadBuf<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            self.started.notify_one();
+            std::pin::Pin::new(&mut self.inner).poll_read(cx, buffer)
+        }
+    }
+    let f = Fixture::new().await;
+    let store = Store::open(
+        &StorageConfig::Filesystem {
+            root: f.root.join("blobs"),
+        },
+        BlockingPool::new(2).unwrap(),
+        1024 * 1024,
+        30,
+    )
+    .await
+    .unwrap();
+    let engine = Engine::new(f.db.clone(), store, 1, 1024 * 1024, Duration::from_secs(5)).unwrap();
+    let a = engine
+        .reserve(&f.who, f.vault, 4, Sha256::digest(b"note").into(), "wait-a")
+        .await
+        .unwrap();
+    let b = engine
+        .reserve(&f.who, f.vault, 4, Sha256::digest(b"note").into(), "wait-b")
+        .await
+        .unwrap();
+    let (mut writer, reader) = tokio::io::duplex(8);
+    let started = std::sync::Arc::new(tokio::sync::Notify::new());
+    let signal = started.clone();
+    let first = engine.clone();
+    let who = f.who.clone();
+    let first = tokio::spawn(async move {
+        first
+            .upload(
+                &who,
+                a,
+                Box::pin(StartedReader {
+                    inner: reader,
+                    started: signal,
+                }),
+            )
+            .await
+    });
+    tokio::time::timeout(Duration::from_secs(2), started.notified())
+        .await
+        .unwrap();
+    let second = engine.clone();
+    let who = f.who.clone();
+    let second = tokio::spawn(async move {
+        second
+            .upload(&who, b, Box::pin(std::io::Cursor::new(b"note")))
+            .await
+    });
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    assert!(!second.is_finished());
+    writer.write_all(b"note").await.unwrap();
+    writer.shutdown().await.unwrap();
+    first.await.unwrap().unwrap();
+    second.await.unwrap().unwrap();
+}
+
+#[tokio::test]
 async fn concurrent_cas_and_scoped_idempotency() {
     let f = Fixture::new().await;
     let info = f.blob("upload").await;

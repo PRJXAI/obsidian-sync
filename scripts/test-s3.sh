@@ -36,3 +36,4 @@ text+='\nallow_insecure_loopback = true\n'
 PY
 export SYNC_S3_TEST_CONFIG="$work/config.toml" S3_ACCESS_KEY_FILE="$work/access" S3_SECRET_KEY_FILE="$work/secret" SYNC_S3_CREATE_BUCKET=yes
 cargo test --locked --test storage_contract s3_contract -- --ignored --exact
+python3 scripts/test-livesync.py --storage-config "$SYNC_S3_TEST_CONFIG"

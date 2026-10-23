@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use obsidian_sync_server::{
     Error, Result,
     config::Config,
+    couch::Couch,
     db::Database,
     jobs::Queue,
     storage::{BlockingPool, Store},
@@ -14,7 +15,7 @@ use uuid::Uuid;
 #[derive(Parser)]
 #[command(
     version,
-    about = "Private sync persistence service. Client protocol not yet configured."
+    about = "Private Self-hosted LiveSync-compatible replication service."
 )]
 struct Args {
     #[arg(
@@ -32,11 +33,18 @@ enum Command {
     CheckConfig,
     VerifyStorage,
     CreateVault,
+    CreateDatabase {
+        #[arg(long)]
+        name: String,
+    },
+    ListDatabases,
     Issue {
         #[arg(long)]
         vault: Uuid,
         #[arg(long)]
         read_only: bool,
+        #[arg(long, conflicts_with = "read_only")]
+        allow_database_reset: bool,
     },
     Revoke {
         #[arg(long)]
@@ -90,7 +98,7 @@ fn main() {
 async fn run(args: Args) -> Result<()> {
     let config = Config::load(&args.config).await?;
     if matches!(args.command, Command::CheckConfig) {
-        println!("configuration valid; plugin protocol NOT configured");
+        println!("configuration valid; Self-hosted LiveSync CouchDB adapter enabled");
         return Ok(());
     }
     let pool = BlockingPool::new(4)?;
@@ -113,8 +121,24 @@ async fn run(args: Args) -> Result<()> {
             println!("storage capability probe passed");
         }
         Command::CreateVault => println!("{}", db.create_vault(config.vault_quota_bytes).await?),
-        Command::Issue { vault, read_only } => {
+        Command::CreateDatabase { name } => println!(
+            "{}",
+            db.create_database(&name, config.vault_quota_bytes).await?
+        ),
+        Command::ListDatabases => {
+            for (name, vault, active) in db.databases().await? {
+                println!("database={name} vault={vault} active={active}");
+            }
+        }
+        Command::Issue {
+            vault,
+            read_only,
+            allow_database_reset,
+        } => {
             let (id, token) = db.issue(vault, !read_only).await?;
+            if allow_database_reset {
+                db.allow_database_reset(id, vault).await?;
+            }
             // Explicit CLI secret output, never tracing. Protect/redirection belongs to operator.
             println!("principal={id}\ntoken={token}");
         }
@@ -146,19 +170,34 @@ async fn run(args: Args) -> Result<()> {
             )
             .await?;
             let (tx, rx) = tokio::sync::watch::channel(false);
+            let couch = Couch::new(db.clone(), store.clone(), &config, rx.clone())?;
+            let app = obsidian_sync_server::couch::http::router(couch)?;
             let mut worker = tokio::spawn(queue.worker(
                 store,
                 Duration::from_secs(config.operation_timeout_secs),
                 rx,
             ));
-            tracing::info!("started; client protocol unavailable; readiness remains false");
-            // Worker failure is fatal, not a silently degraded background task.
-            tokio::select! {
-                result=transport::serve(config.listen,shutdown_signal())=>{result?;}
-                result=&mut worker=>{result??;return Err(Error::Backend);}
-            }
+            tracing::info!("started Self-hosted LiveSync replication adapter");
+            let shutdown_tx = tx.clone();
+            let server = transport::serve(config.listen, app, async move {
+                shutdown_signal().await;
+                let _ = shutdown_tx.send(true);
+            });
+            tokio::pin!(server);
+            // A worker completing AFTER shutdown is normal, not an operational failure.
+            let worker_done = tokio::select! {
+                result=&mut server=>{result?;false}
+                result=&mut worker=>{
+                    result??;
+                    if !*tx.borrow() {return Err(Error::Backend);}
+                    tokio::time::timeout(Duration::from_secs(30),&mut server).await.map_err(|_|Error::Timeout)??;
+                    true
+                }
+            };
             let _ = tx.send(true);
-            worker.await??;
+            if !worker_done {
+                worker.await??;
+            }
             db.checkpoint().await?;
             tracing::info!("shutdown complete");
         }

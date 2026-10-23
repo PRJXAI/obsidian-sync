@@ -29,7 +29,7 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/health/live)" = 204 ]
-[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/health/ready)" = 503 ]
+[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18090/health/ready)" = 204 ]
 if k -n obsidian-sync exec deployment/obsidian-sync -- /server create-vault > "$work/lock.log" 2>&1; then
   printf 'ERROR: runtime writer fencing failed\n' >&2; exit 1
 fi
@@ -39,4 +39,4 @@ wait_running
 k -n obsidian-sync exec deployment/obsidian-sync -- /server --version
 kill "$forward" 2>/dev/null || true
 wait "$forward" 2>/dev/null || true
-printf 'Disposable Kubernetes smoke passed; readiness is deliberately false. Default kind CNI does not verify NetworkPolicy enforcement.\n'
+printf 'Disposable Kubernetes smoke passed; LiveSync adapter readiness is 204. Default kind CNI does not verify NetworkPolicy enforcement.\n'

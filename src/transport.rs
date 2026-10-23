@@ -1,6 +1,6 @@
-//! Only operational probes exist until an actual plugin protocol is identified.
+//! Bounded connection transport; the LiveSync protocol router is supplied by startup.
 use crate::Result;
-use axum::{Router, http::StatusCode, routing::get};
+use axum::Router;
 use std::{
     future::Future,
     io,
@@ -17,24 +17,16 @@ use tokio::{
     time::Sleep,
 };
 
-pub fn router() -> Router {
-    Router::new()
-        .route("/health/live", get(|| async { StatusCode::NO_CONTENT }))
-        .route(
-            "/health/ready",
-            get(|| async { (StatusCode::SERVICE_UNAVAILABLE, "protocol_not_configured\n") }),
-        )
-        .fallback(|| async { StatusCode::NOT_FOUND })
-}
 pub async fn serve(
     address: SocketAddr,
+    app: Router,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<()> {
     let listener = LimitedListener {
         inner: TcpListener::bind(address).await?,
         slots: Arc::new(Semaphore::new(64)),
     };
-    axum::serve(listener, router())
+    axum::serve(listener, app)
         .with_graceful_shutdown(shutdown)
         .await?;
     Ok(())
@@ -55,7 +47,7 @@ impl axum::serve::Listener for LimitedListener {
                             BoundedConnection {
                                 inner,
                                 _permit: permit,
-                                deadline: Box::pin(tokio::time::sleep(Duration::from_secs(15))),
+                                deadline: Box::pin(tokio::time::sleep(Duration::from_secs(90))),
                             },
                             address,
                         );

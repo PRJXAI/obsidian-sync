@@ -2,7 +2,7 @@
 
 `src/storage/mod.rs` defines object-safe `BlobStorage: Send + Sync` with asynchronous `put(BlobInfo, Reader)` and `get(BlobKey) -> Reader`. `Store` wraps `Arc<dyn BlobStorage>`; synchronization code does not branch on provider. `Store::from_adapter` accepts a new implementation for tests/extensions. The factory uses typed `StorageConfig`. All four adapters compile by default; optional Cargo features are `s3`, `gcs`, `azure`, with filesystem always present. MinIO is an S3 implementation, not a different client protocol.
 
-The interface deliberately has **no overwrite, rename, arbitrary path, arbitrary endpoint, listing or final-object delete** operation. Logical rename/deletion live in SQLite. `get` is an internal raw stream; the engine authorizes access first and returns its stored size/digest. A future protocol adapter must apply read deadlines/backpressure and use those integrity attributes, not expose `Store` directly. Storage has no knowledge of HTTP identities.
+The interface deliberately has **no overwrite, rename, arbitrary path, arbitrary endpoint, listing or final-object delete** operation. LiveSync logical note changes are Couch revision/metadata documents; the legacy internal CAS model also maintains logical rename/deletion in SQLite. Neither mode renames physical blobs. `get` is an internal raw stream; the engine authorizes access first and returns its stored size/digest. The LiveSync adapter applies read deadlines/backpressure, verifies bodies against those integrity attributes before decoding/responding, and never exposes `Store` directly. Storage has no knowledge of HTTP identities.
 
 ## Shared contract
 

@@ -12,7 +12,7 @@ outputs = {
 }
 for provider in ("s3", "gcs", "azure"):
     outputs[ROOT / f"deploy/kustomize/overlays/{provider}/config.toml"] = (ROOT / f"config/{provider}.toml").read_text()
-paths = {str(p.relative_to(ROOT)) for folder in ("src", "tests", "config", "scripts", "examples", "deploy", ".github", ".agents") for p in (ROOT / folder).rglob("*") if p.is_file() and "__pycache__" not in str(p)}
+paths = {str(p.relative_to(ROOT)) for folder in ("src", "tests", "config", "scripts", "examples", "deploy", ".github", ".agents") for p in (ROOT / folder).rglob("*") if p.is_file() and "__pycache__" not in str(p) and "node_modules" not in p.parts}
 paths.update(str(p.relative_to(ROOT)) for p in outputs)
 paths = sorted(paths)
 outputs[ROOT / "docs/source-map.md"] = "# Generated source map\n\nRun `python3 scripts/sync-generated.py` after moving source files.\n\n" + "".join(f"- `{p}`\n" for p in paths)

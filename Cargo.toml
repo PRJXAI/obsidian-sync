@@ -1,6 +1,6 @@
 [package]
 name = "obsidian-sync-server"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
@@ -8,18 +8,23 @@ publish = false
 
 [features]
 default = ["s3", "gcs", "azure"]
-s3 = ["dep:reqwest", "dep:rusty-s3", "dep:tokio-util", "dep:futures-util"]
-gcs = ["dep:object_store", "object_store/gcp", "dep:tokio-util", "dep:futures-util"]
-azure = ["dep:object_store", "object_store/azure", "dep:tokio-util", "dep:futures-util", "dep:url"]
+s3 = ["dep:reqwest", "dep:rusty-s3", "dep:tokio-util"]
+gcs = ["dep:object_store", "object_store/gcp", "dep:tokio-util"]
+azure = ["dep:object_store", "object_store/azure", "dep:tokio-util", "dep:url"]
 
 [dependencies]
 async-trait = "0.1"
+async-stream = "0.3"
+base64 = "0.23"
+serde_urlencoded = "0.7"
+tower-http = { version = "0.6", default-features = false, features = ["cors"] }
 object_store = { version = "0.14.2", optional = true, default-features = false }
-axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "json"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 fs2 = "0.4"
-futures-util = { version = "0.3", optional = true, default-features = false, features = ["std"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 hex = "0.4"
+percent-encoding = "2.3"
 rand = "0.10"
 reqwest = { version = "0.13", optional = true, default-features = false, features = ["rustls", "stream"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
@@ -27,10 +32,10 @@ rustix = { version = "1.1.5", features = ["fs"] }
 rusty-s3 = { version = "0.10.2", optional = true, default-features = false, features = ["rustcrypto"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11.1"
 thiserror = "2"
 tempfile = "3"
-tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio = { version = "1.54.1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-util = { version = "0.7", optional = true, features = ["io"] }
 toml = "0.9"
 tracing = "0.1"

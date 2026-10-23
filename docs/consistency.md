@@ -1,12 +1,12 @@
 # Consistency contract (protocol-independent core)
 
-Status: client protocol BLOCKED: this repository contained no plugin or protocol. The internal operations below are not a wire protocol or a claim of plugin compatibility. A protocol adapter may need to change the logical revision model before release.
+Historical/internal-core contract: these operations describe `src/sync.rs`, not LiveSync's wire semantics. The owner selected **Self-hosted LiveSync**; its authoritative revision-tree, encrypted replay, checkpoint and reset contract is in [livesync-protocol.md](livesync-protocol.md). Never translate offline CouchDB branches into this legacy single-head model.
 
 ## Authority and isolation
 
 One process owns the metadata directory, enforced by an OS advisory file lock held for its lifetime, not a Kubernetes replica count. SQLite on local POSIX storage is authoritative (WAL, synchronous=FULL, foreign keys, immediate write transactions). Never use NFS or separate metadata copies pointing at the same blob namespace. Each installation requires an exclusive S3 prefix. A shared local lock does NOT coordinate different hosts; cross-host multi-writer deployments are unsupported.
 
-All logical operations require an authenticated, revocable principal and an explicit vault grant. Principals are independent of vault IDs. Credentials are random 256-bit bearer secrets stored only as SHA-256 digests (not human passwords); the protocol adapter must use the actual plugin authentication contract. Administrative operations are local CLI operations requiring access to metadata, never HTTP routes. Health probes disclose no vault data.
+All logical operations require an authenticated, revocable principal and an explicit vault grant. Principals are independent of vault IDs. Credentials are random 256-bit bearer secrets stored only as SHA-256 digests (not human passwords); the LiveSync adapter verifies these keys as Basic UUID/password credentials (or Bearer tokens) through the same identity/grant layer. Optional per-database bootstrap reset permission is separate from ordinary write permission. Administrative operations are local CLI operations requiring access to metadata, never HTTP routes. Health probes disclose no vault data.
 
 ## Publication and races
 
@@ -33,4 +33,4 @@ SQLite recovery replays WAL; startup recovers jobs previously running under the 
 - After commit, before response: retry retrieves the same result.
 - During integrity job: startup requeues; claim tokens reject stale completion.
 
-Backups must capture SQLite consistently plus all immutable blobs (including staging/reservations for accounting). See operations.md. The service is deliberately not ready for plugin synchronization until an actual adapter is supplied and compatibility tests pass.
+Backups must capture SQLite consistently plus all immutable blobs (including staging/reservations for accounting). See operations.md. The service now runs the tested LiveSync-compatible adapter; readiness is available after initialization and unavailable during shutdown. Keep the distinction between the wire DAG and the internal CAS model explicit.

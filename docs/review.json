@@ -1,17 +1,17 @@
 {
-  "reason": "Reviewed all architecture/evidence docs and maintenance hardening: explicit public checksum entries, committed-clean-only doc deletion, nested doc coverage, exact Git scanner trust path and layer matching",
+  "reason": "Reviewed pinned LiveSync DAG/import semantics, encrypted replay/reference CouchDB, scoped reset/schema-v3 recovery, bounded JSON/admission, actual native/S3/distroless client fixtures, patched Tokio/ctutils and final scans/deployments/benchmarks",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
-      "sha256": "44d06c23961061aaf47acee219826f7bcc9132afe0beebeb4da8996bd817e6ea"
+      "sha256": "e6902dd13f7bb19e364a9af88c060005c5683252287e172444771421fb6f7856"
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "b156de66029c8202447a7a091efc52a9f4960822b8c02c3df2d6e5b402816e12"
+      "sha256": "593c7872f4ed9fb4675054ff0ae04f3d18e269f0ef36aff97e63d66510846996"
     },
     {
       "path": ".dockerignore",
-      "sha256": "35fca3e512e8dc508316568910c1ff94d702a23b3c6953eb2c367e55cbf29d3a"
+      "sha256": "ac898804b5b508fbf35cb0ec9a8f6497acb57f98b2b19feae6fb34cf29e5c1b3"
     },
     {
       "path": ".env.example",
@@ -19,23 +19,23 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "6f089e16493ed8ea9b7bd9e9126296ba2d80c860e91af7400be8af6282663774"
+      "sha256": "6e93f44aaa2a22315b4f862b55ec667de899868414c84a2d724852d0234af598"
     },
     {
       "path": ".gitignore",
-      "sha256": "26eaa3a785871e437e5114ea018b95b515a4e98ea0cb015dfb74fd956d779c86"
+      "sha256": "42b3c544ec8e3e487f82332fcd2a5cae1f671da309402a708de3c5b248c0ab74"
     },
     {
       "path": "AGENTS.md",
-      "sha256": "235b9d5dbedb9ca07954c56158c9c729840f8fa1f27c09abd465254352218b79"
+      "sha256": "823469e70cb33c18a117d39414395847f7e1daf31332056faf5c71483705e647"
     },
     {
       "path": "Cargo.lock",
-      "sha256": "7df5b62730a012d239977babadc72f220d561a05e2d2736607d74e230daf9b83"
+      "sha256": "3c6f159c08d85c0ba67d8325c205510aa37b5b9816b072db69e303869c9cc28a"
     },
     {
       "path": "Cargo.toml",
-      "sha256": "f17f5eedd78a563e64f31082222fc29d7f67e878990d6284b15d61926c1cbab0"
+      "sha256": "b082d85124c0d52e3c32c05f7900d33cf74d361d5db2ac5e797779f78a08342b"
     },
     {
       "path": "Dockerfile",
@@ -47,19 +47,19 @@
     },
     {
       "path": "config/azure.toml",
-      "sha256": "37bb731eb11d777392967d172fcdd8954b951d48eddb8f02263f285e08ce63f0"
+      "sha256": "33bf602f7f411ef3b05146b2eb5ab3819cdf0bc3b55caa38ef3198b9f75e9dfe"
     },
     {
       "path": "config/filesystem.toml",
-      "sha256": "ac983c2d42423432702d6e98ca790489e0ce152c1611c4ab5afb367f91ce8655"
+      "sha256": "e5cdc83af988fa12d45b60901458b1d89f64371ba359fa9f8d9d5ae5c0a1ca5a"
     },
     {
       "path": "config/gcs.toml",
-      "sha256": "7e1a5dea7d5480c07673070aa1083750781849b109e47c921c1fad6ae2808023"
+      "sha256": "63d9edc863c963f897d040c1333dc9900b859353430ed3da1dd5ed2bef33cfb9"
     },
     {
       "path": "config/s3.toml",
-      "sha256": "dc8fd4d7127318a5b9372f45ff34ffd2526e8187be59e3408481907cb6ecab93"
+      "sha256": "126ca5124ba8091228a9bc0cb55b1d9376897637f6333e1a53ee61f836880c2f"
     },
     {
       "path": "deny.toml",
@@ -67,7 +67,7 @@
     },
     {
       "path": "deploy/kustomize/base/config.toml",
-      "sha256": "ac983c2d42423432702d6e98ca790489e0ce152c1611c4ab5afb367f91ce8655"
+      "sha256": "e5cdc83af988fa12d45b60901458b1d89f64371ba359fa9f8d9d5ae5c0a1ca5a"
     },
     {
       "path": "deploy/kustomize/base/deployment.yaml",
@@ -95,7 +95,7 @@
     },
     {
       "path": "deploy/kustomize/overlays/azure/config.toml",
-      "sha256": "37bb731eb11d777392967d172fcdd8954b951d48eddb8f02263f285e08ce63f0"
+      "sha256": "33bf602f7f411ef3b05146b2eb5ab3819cdf0bc3b55caa38ef3198b9f75e9dfe"
     },
     {
       "path": "deploy/kustomize/overlays/azure/credentials.yaml",
@@ -115,7 +115,7 @@
     },
     {
       "path": "deploy/kustomize/overlays/gcs/config.toml",
-      "sha256": "7e1a5dea7d5480c07673070aa1083750781849b109e47c921c1fad6ae2808023"
+      "sha256": "63d9edc863c963f897d040c1333dc9900b859353430ed3da1dd5ed2bef33cfb9"
     },
     {
       "path": "deploy/kustomize/overlays/gcs/credentials.yaml",
@@ -131,7 +131,7 @@
     },
     {
       "path": "deploy/kustomize/overlays/s3/config.toml",
-      "sha256": "dc8fd4d7127318a5b9372f45ff34ffd2526e8187be59e3408481907cb6ecab93"
+      "sha256": "126ca5124ba8091228a9bc0cb55b1d9376897637f6333e1a53ee61f836880c2f"
     },
     {
       "path": "deploy/kustomize/overlays/s3/credentials.yaml",
@@ -179,7 +179,7 @@
     },
     {
       "path": "scripts/docs.py",
-      "sha256": "bca229577e404a961a9e368da6fb84b94c8e6f1ea22171a8d32fc6747b617060"
+      "sha256": "626a0e5e9ee1dff8b5304057cffea2407b9071dc257d99ac93c5be20a65dce73"
     },
     {
       "path": "scripts/scan-security.sh",
@@ -187,19 +187,27 @@
     },
     {
       "path": "scripts/smoke-compose.sh",
-      "sha256": "bced1e35a97b88d51c7e6cc6cc9eb97c5da270b38986b6e88827066d325da852"
+      "sha256": "47415e1818fbe4b2a870f156ee1b39c914f8d45b7782aeefc0b59181b69e485e"
     },
     {
       "path": "scripts/smoke-kubernetes.sh",
-      "sha256": "a7a38307cbb9803426e568815d79139da3c9a566782f704d8d0f8bb2b75012a8"
+      "sha256": "39585d560a3229968e612998b41f508ec52ab8fb1fee85e625e66c675c3f31cf"
     },
     {
       "path": "scripts/sync-generated.py",
-      "sha256": "349d7184f622a8e721aba30b667c3f176dad0d21a9922e5047bdc9e4137c6d75"
+      "sha256": "c346fa76b2152b13162d820da22a5a8518bc75ef209b80c08156627442f239b4"
+    },
+    {
+      "path": "scripts/test-livesync.py",
+      "sha256": "54e5a043ee73b2f68babb278e9e0e19fd089fe92ea6ae0f83e9397b3cbf3e89c"
+    },
+    {
+      "path": "scripts/test-reference-couch.py",
+      "sha256": "6252e8c91784de8892ddef10ecaad4f308e4a1900a682bf416480a5f95838a24"
     },
     {
       "path": "scripts/test-s3.sh",
-      "sha256": "e64bff987ec12f4e7259d351cce0bbe74cde9aab45f433a43abdcb9bf19bcb07"
+      "sha256": "91cdd300f5dfd4ec4f15298aa4360460e5cad8f219f1344a5c2e38e15bb2601f"
     },
     {
       "path": "scripts/validate-deployments.sh",
@@ -211,19 +219,43 @@
     },
     {
       "path": "src/auth.rs",
-      "sha256": "943f087e991dc171045885af19d5c86379dbd37beae189b7e44b127a937d7bbc"
+      "sha256": "c70cd22f26186675ff366082443d3ef80499e12ae38edeecb9d705dae2c97849"
     },
     {
       "path": "src/config.rs",
-      "sha256": "c94d2b3c00ecfd783ef7605f66eed3f7736a5187db7213330f02f570b95cc24c"
+      "sha256": "6c72a69e7d17efb597daec8c532d7280c1208f6c2c53bd49bd2f013819aa3c39"
+    },
+    {
+      "path": "src/couch/http.rs",
+      "sha256": "842708f4e654d900152145bad4eea24b5324c3459100119e8d31e4f88db69662"
+    },
+    {
+      "path": "src/couch/json.rs",
+      "sha256": "f97d5bde19314596395f6152bb0a414f7abda3c7835a787529595a1d630964de"
+    },
+    {
+      "path": "src/couch/lifecycle.rs",
+      "sha256": "a480f8628acb33367bef0b309427abef816cd499a580bb339b439fd716cc2c72"
+    },
+    {
+      "path": "src/couch/mod.rs",
+      "sha256": "5d3c32fd21635a40020888d451321262da1c616d3dd9219d8a2f70de16d120f6"
+    },
+    {
+      "path": "src/couch/reads.rs",
+      "sha256": "30e12db2a849a42a9db40657a50dfc14bd350a2083041ef0311e361adbf8db7a"
+    },
+    {
+      "path": "src/couch/revisions.rs",
+      "sha256": "4a27d549731e281f238e5f5e09e4db816ddb947104251ecb288002a9814f501b"
     },
     {
       "path": "src/db.rs",
-      "sha256": "ce67c929cb1c48ede6ef99388406a433e3ec7475e768c8eefed26f40f2350d41"
+      "sha256": "13bfbb0e7ac8732d5a23660b6f8501476d4d2eb23fd31c51dadc3d70d07e662e"
     },
     {
       "path": "src/error.rs",
-      "sha256": "1924f1c1f1246c532d7649d3fcc52ef7f9a08d4c9ad71a8c500192fc4a72eb33"
+      "sha256": "36195fb065afd696e6341ba263b9fedeafcbf1c76c6031bffb6e9d264b7c915c"
     },
     {
       "path": "src/jobs.rs",
@@ -231,11 +263,11 @@
     },
     {
       "path": "src/lib.rs",
-      "sha256": "dfe4455be3253f8d8b106c33f5b6ed12f291f2c45bd5b17535c3a6cdc6ee4417"
+      "sha256": "cd1d9d966513663f78c4cd0777c958515578b83e7e62f918e28442c83c4ce9ca"
     },
     {
       "path": "src/main.rs",
-      "sha256": "60a3c29688f72cf36c1eb9fa9df9ddfe0e27140d1fb21f5a940d6530922c4cbf"
+      "sha256": "1e5e964213479f4aae3a3871b6cb5128c7e4107471fea2f5eb404e5a2586f174"
     },
     {
       "path": "src/storage/cloud.rs",
@@ -247,7 +279,7 @@
     },
     {
       "path": "src/storage/mod.rs",
-      "sha256": "79acab375604fd08222a64eb8553e17422eb3179202696083e24b7b7b7bd396e"
+      "sha256": "65622dd2824734a5519b8611647a30d0ae50c03f247dba01adc21f6f6e10b909"
     },
     {
       "path": "src/storage/s3.rs",
@@ -255,19 +287,43 @@
     },
     {
       "path": "src/sync.rs",
-      "sha256": "6ecaeb0d8106ef83bb3fa97f9a9ccc981790db484a1b1e3c69018c5746fdbe3b"
+      "sha256": "0dd75ed42e7bbfdeeb3751aa964b4a3c71cf2aeb96ec9a416744fabb99c23db5"
     },
     {
       "path": "src/transport.rs",
-      "sha256": "44b3b7f34cd231f1ea80b913b09e49ef225634b3225e2642f05cc9223f8d370a"
+      "sha256": "77e340df08bfc30836f03b9d5eb1a040b363243572cbb8ceb5585cfda26bd481"
+    },
+    {
+      "path": "tests/compat/benchmark.mjs",
+      "sha256": "12e95c849d2f99a7ee5d7078a50c58b8d80497720fdd792bab5bfe2b122419e8"
+    },
+    {
+      "path": "tests/compat/livesync.mjs",
+      "sha256": "78b3f3e26e7ac4fb11ce0be555bef42d014ce6d43591b446513e4f613ab6df28"
+    },
+    {
+      "path": "tests/compat/package-lock.json",
+      "sha256": "6388c5cba51e7566496f8bde54a55f356c2e54e613a4b19e7b679ed1ef27b671"
+    },
+    {
+      "path": "tests/compat/package.json",
+      "sha256": "1aa6202523c61660e9d53617066a7ba75458acf4f3612222e0909d7454f56971"
     },
     {
       "path": "tests/config_transport.rs",
-      "sha256": "0d70b727c3ba71ffa7f3b754f303aa0b221c55f157e7f346175e49b63f53ab7d"
+      "sha256": "6eda909dee9f259fc68cdb9827058a058224b766d0b1eabe99b787946cec127c"
     },
     {
       "path": "tests/core.rs",
-      "sha256": "ac8f35299464501b841bd6b29accd15f354b364d11d206d313b35a468dcc8c59"
+      "sha256": "c334b1022b20c04ae5d1b407a5badd31f34d588d00ed14b053e3f4ee37ae21e7"
+    },
+    {
+      "path": "tests/couch.rs",
+      "sha256": "87f248abab5e6cef2175c31107b2426a593a7a88b073828f36d9b988e0365e1c"
+    },
+    {
+      "path": "tests/couch_migration.rs",
+      "sha256": "1d5157ac68f11f48fbf88d5057762598e1b5a7f05e5559eb57bf27a654e479fa"
     },
     {
       "path": "tests/interruption.rs",

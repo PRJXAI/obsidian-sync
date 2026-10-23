@@ -1,10 +1,10 @@
-# Build, run and operations
+# Build, run and operate the LiveSync server
 
-**Not a usable Obsidian plugin server yet.** Supply the plugin name/source; there is no client connection setting that works today. The only HTTP routes are operational probes. Readiness intentionally returns 503. Do not deploy this unfinished protocol integration to a real vault.
+Target: **Self-hosted LiveSync 1.0.39 / Commonlib 0.1.44 / PouchDB 9**, pinned in [protocol contract](livesync-protocol.md). This is a Rust CouchDB-compatible replication subset, not Apache CouchDB. Actual Commonlib/PouchDB and reference-CouchDB fixtures are provided; GUI/mobile Obsidian validation is separate. MCP is deferred. Never test against an existing vault or real infrastructure without separate authorization.
 
-## Local development
+## Build and checks
 
-Requirements: pinned Rust via rustup, C compiler (bundled SQLite), Python 3.11+, Docker/Compose; Kustomize, kubectl and kind for deployment tests. Security tool versions are in CI.
+Rustup installs pinned stable 1.99.1; a C compiler is needed for bundled SQLite. Python 3.11+, Node 24.20.0+ and Docker/Compose are needed for client tests; Kustomize, kubectl and kind for disposable deployments.
 
 ```sh
 cargo build --locked
@@ -16,113 +16,171 @@ cargo install cargo-audit --version 0.22.1 --locked
 cargo install cargo-deny --version 0.20.2 --locked
 scripts/check.sh
 scripts/check-features.sh
+python3 scripts/test-livesync.py
+docker build -t obsidian-sync:local .
+python3 scripts/test-livesync.py --image obsidian-sync:local
 scripts/test-s3.sh
+python3 scripts/test-reference-couch.py
 scripts/validate-deployments.sh
 ```
 
-`rust-toolchain.toml` pins stable 1.99.1. Cargo.lock must be included in source-control commits. The final container is digest-pinned Chainguard static (distroless/nonroot); only `/server`, a statically linked musl binary, is added to the base. Base CA certificates/non-root identity files are retained; no application shell, package manager or config/secret is baked in.
+Node packages are test-only, exact versions/lockfile committed, installed with lifecycle scripts disabled. The final image is digest-pinned Chainguard static **distroless/nonroot**; only the statically linked musl `/server` executable is added. No Node runtime, shell, package manager, application config or secret is included. Test/build stages are not runtime ancestors.
 
-## Docker Compose (Linux)
+## Compose: provision before starting
 
 ```sh
 cp .env.example .env
 sudo install -d -o 65532 -g 65532 -m 0700 data
-# Review config/filesystem.toml and .env first.
 docker compose build
+# Locally provision the lowercase database alias, not a filesystem vault directory:
+docker compose run --rm server create-database --name myvault
+# Use the returned vault UUID. This command deliberately prints a new secret once:
+docker compose run --rm server issue --vault VAULT_UUID --allow-database-reset
 docker compose up -d
 curl -i http://127.0.0.1:8080/health/live   # 204
-curl -i http://127.0.0.1:8080/health/ready  # 503: protocol_not_configured
+curl -i http://127.0.0.1:8080/health/ready  # 204; 503 while shutting down
 ```
 
-The parent `/data` mount must be writable by UID 65532. Its service-created `metadata` and `blobs` directories must stay private 0700. Do not mount a real Obsidian vault. HTTP is loopback-bound on the host. Remote access, after future protocol validation, must use private TLS:
+Protect credential output; do not forward one-shot `issue` output into centralized logs. No application request logs contain tokens or note bodies. The bootstrap credential's username is its printed `principal` UUID and password is its printed 64-character `token`. There are no default passwords. Keep the service private: Compose binds host loopback. For native execution change `listen` to `127.0.0.1:8080`; container configs use `0.0.0.0` only inside their isolated network.
+
+`/data` must be writable by UID 65532. Service-created metadata/blob roots are private 0700. Never mount a real Obsidian vault or let agents edit internal files. Database aliases are locally provisioned lowercase ASCII names (maximum 80 bytes); `health` is reserved for probes. Remote arbitrary database creation is denied.
+
+### Private Tailscale HTTPS
+
+After the administrator has enabled tailnet HTTPS certificates:
 
 ```sh
 tailscale serve --bg --https=443 http://127.0.0.1:8080
-# Inspect private configuration; NEVER run tailscale funnel.
 tailscale serve status
 ```
 
-Use restrictive tailnet ACLs/device approval. Tailnet HTTPS names require the administrator's Tailscale HTTPS setup. The app does not manage Tailscale credentials or enable Funnel. Do not publish another host port or public ingress.
+This is private Serve, never Funnel. Use restrictive tailnet ACLs and approved devices. Do not publish another host port/public ingress. Basic/Bearer credentials must never cross a remote plaintext connection. The server does not manage Tailscale credentials or enable exposure automatically. Use a root URL (no unstripped reverse-proxy path prefix).
 
-For S3/MinIO edit `config/s3.toml`, set `SYNC_CONFIG_FILE=./config/s3.toml` and credential FILE paths in `.env`, then:
+## Configure the existing Obsidian plugin
+
+Use a NEW disposable vault first, with other sync engines disabled. In Self-hosted LiveSync's onboarding choose **Configure a remote manually → CouchDB**. Set:
+
+| Field | Value |
+|---|---|
+| URL | Private Tailscale Serve HTTPS URL, without `/myvault` |
+| Database | `myvault` |
+| Username | Generated bootstrap principal UUID |
+| Password | Generated bootstrap token |
+| JWT | Disabled |
+| Remote type | CouchDB, including when the SERVER uses S3/GCS/Azure |
+
+The upstream manual setup's **Check server requirements** step is optional and partly requires Apache administrator/config APIs. Skip its automatic fixes here; this server deliberately does not expose global `_node/_config`, `_users`, `_security` editing or arbitrary JavaScript execution. Proceed with the ordinary connection test against the already provisioned database.
+
+The first-device workflow's “Restart and Initialise Server / Overwrite Server” calls database destroy/recreate. It requires the explicit bootstrap reset capability above. A successful reset ARCHIVES the previous generation instead of deleting its content, then permits reactivation of that same alias. Other clients must be stopped during intentional rebuild. Reset copies grants to a new generation, retires old-generation grants (fencing old uploads), preserves cumulative quota usage, and changes the cursor epoch. At most 16 archived generations are allowed. It does NOT grant global CouchDB administration, create arbitrary aliases, purge objects or erase history. Ordinary write keys cannot reset a database.
+
+After initialization and a verified test note, pause synchronization and replace the bootstrap key with a normal device key:
+
+```sh
+docker compose stop
+docker compose run --rm server list-databases
+# Reset changes the vault UUID: use the CURRENT UUID from list-databases.
+docker compose run --rm server issue --vault CURRENT_VAULT_UUID
+docker compose run --rm server revoke --principal BOOTSTRAP_PRINCIPAL_UUID
+docker compose up -d
+```
+
+Update this device's username/password. Generate a Setup URI from the working device to carry compatible encryption/sync settings to other devices, then configure each device with its OWN separately issued principal/token for the same current database. Avoid sharing a bootstrap or regular device credential between agents/devices.
+
+E2EE, compression, chunk hashes and path obfuscation belong to the upstream client. The server stores opaque JSON; an authentication token does not decrypt E2EE notes. Keep the encryption passphrase/security seed separate and backed up securely. Server authentication is Basic (UUID/key) or Bearer (same key verifier), not client-generated JWT. A later MCP service can reuse this verifier with a separately revocable agent key, but still needs the appropriate client-side decryption material for encrypted notes.
+
+Ordinary note rename/move is the client's destination write plus source logical deletion, not an invented atomic file-rename endpoint. Revision trees preserve competing branches and tombstones. Native CouchDB `_attachments` are unsupported; LiveSync's own chunked binary attachments are supported within transfer/document quotas.
+
+### Limits and supported settings
+
+`[http]` is typed/validated. Examples explicitly allow `app://obsidian.md`, `capacitor://localhost`, `http://localhost`; add only the exact origins you need. Wildcards, credentials in origins and remote plaintext origins are rejected; unapproved Origin is rejected on actual requests as well as excluded from CORS responses.
+
+Defaults: 16 MiB request/response, 1 MiB canonical document, 128 documents/page or mutation batch, 8 active execution/response slots, 16 total normal admissions (at most 8 queued, 1-second queue deadline), 32 bounded change-feed admissions, 64 sockets, 90-second connection lifetime, 20-second maximum long-poll. Waiting feeds release execution slots so they cannot starve writes. Uploads await the four-slot storage gate within their operation deadline; a short burst is not falsely reported as exhausted storage. `_changes` POST filters are capped at 256 KiB. JSON also has an independent 65,536 structural-token preflight and conservative 16 MiB working-set charge, including aggregate response construction; bytes alone do not bound allocation. Normal/body parsing has deadlines; JSON/hash work uses a two-slot blocking CPU pool, SQLite/fs sync a bounded pool. Per-principal limit is 6,000 requests/minute with burst 256; global admission is additionally bounded. The integration fixture uses burst 1,024 for its deliberately intense short workload, not disabled rate limits.
+
+Use normal LiveSync batch size 25 and a modest batch queue (e.g. 2). Transfer bounds can require smaller client batches. Byte-limited change pages return resumable `last_seq`/`pending`; keyed bulk reads/mutations fail explicitly when over budget rather than omitting requested documents. Large direct Commonlib calls with more than 128 chunks in one bulk request must be split by their caller or use an explicitly reviewed server batch limit; standard PouchDB replication already batches. Unsupported filters/selectors, Mango/views, purge, general attachments and administrator routes fail explicitly. Supported change selectors are `_doc_ids` and the upstream on-demand `type` equality/inequality form.
+
+Imported revisions (`new_edits=false`) use CouchDB first-body-wins replay semantics: fresh E2EE IV/salt can produce different ciphertext for an identical revision. Replays never replace the immutable stored body or advance its sequence; contradictory ancestry fails. Explicit internal-core idempotency keys remain payload-bound. Normal updates require their parent revision and return conflicts instead of force-overwriting; after an ambiguous normal PUT, re-read the revision before retrying.
+
+## Storage modes
+
+Canonical configurations: [filesystem](../config/filesystem.toml), [S3](../config/s3.toml), [GCS](../config/gcs.toml), [Azure](../config/azure.toml). Metadata remains local and persistent in ALL modes.
+
+For S3/MinIO, pre-create a private bucket, choose an exclusive installation prefix and configure endpoint/region/addressing style. Set `SYNC_CONFIG_FILE=./config/s3.toml` and credential FILE paths in `.env`:
 
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.s3.yml config --quiet
 docker compose -f docker-compose.yml -f docker-compose.s3.yml up -d
 ```
 
-Secret files must be readable by the non-root container UID and not other untrusted users. Docker Compose bind-backed secrets do not reliably remap UID/mode: provision ownership/permissions explicitly (e.g. dedicated group + 0440). Do not put secret values into `.env`. MinIO requires HTTPS remotely, a pre-created private bucket, and support for conditional PUT. S3 credentials need GetObject/PutObject only within the exclusive prefix; never grant bucket administration or cross-prefix access. Provider versioning is strongly recommended.
+Mounted credentials: `S3_ACCESS_KEY_FILE`, `S3_SECRET_KEY_FILE`; require GetObject/PutObject only in the installation prefix. HTTPS required remotely; plain HTTP is accepted only for explicitly enabled literal-loopback tests. Conditional PUT is probed at startup; unsupported guarantees fail startup. MinIO/AWS are not certified merely because RustFS passed.
 
-Native GCS/Azure use their config examples and corresponding mounted secret-file environment variables listed in [storage.md](storage.md). Kustomize overlays include the mounts; Compose users can supply an additional local override mounting only the chosen credential. They remain unvalidated against real cloud accounts. Azure requires an expiring HTTPS-only container-scoped SAS (`sr=c`, exactly `sp=rcwd`) mounted via `AZURE_SAS_TOKEN_FILE`. Grant it only to a dedicated private container; Entra/workload identity refresh is not implemented.
+Native GCS: mounted `GCS_SERVICE_ACCOUNT_FILE`, bucket-scoped service-account IAM. Native Azure: mounted `AZURE_SAS_TOKEN_FILE`, expiring HTTPS-only container-scoped SAS (`sr=c`, exactly `sp=rcwd`). No account-wide Azure key, workload identity refresh or S3 session-token support is claimed. Native providers need separately authorized disposable-account tests before acceptance. Restart after credential-file rotation.
 
-Compose resources: 2 CPUs, 2 GiB memory, 128 PIDs; tmpfs spooling is limited to 1100 MiB and charged against memory. Keep `max_inflight * max_blob_bytes` below the spool and memory budget. Larger settings require explicitly increasing resources, never disabling limits. Filesystem uploads do not use this spool.
+Compose bind-backed secret files must actually be readable by UID/group 65532 and not untrusted users (e.g. dedicated group, 0440); Compose does not reliably remap their ownership/mode. Never place real values in `.env`/config examples. Size S3 anonymous local spooling for `max_inflight * max_blob_bytes`; Compose's 1100 MiB tmpfs counts against its 2 GiB memory budget. Native cloud staging needs a >7-day lifecycle/abandoned-upload cleanup, never applied to final objects; hard remote staging quota enforcement is a known limitation. See [storage](storage.md).
 
-## Offline administration
+## Local administration and jobs
 
-All administration is local; there is no remote admin HTTP API. Commands acquire the same writer lock, so stop the service before running them. Credentials are a core facility, not a plugin connection recipe.
+Stop the service for every local admin command; each acquires the same writer lock. Useful commands:
 
 ```sh
-docker compose stop
-docker compose run --rm server create-vault
-# Substitute the printed vault UUID. Protect stdout: issue prints a secret ONCE.
-docker compose run --rm server issue --vault VAULT_UUID
-# For an independently revocable read-only agent:
-docker compose run --rm server issue --vault VAULT_UUID --read-only
+docker compose run --rm server list-databases
+docker compose run --rm server issue --vault CURRENT_UUID --read-only
 docker compose run --rm server revoke --principal PRINCIPAL_UUID
 docker compose run --rm server verify-storage
 docker compose run --rm server checkpoint
-docker compose up -d
 ```
 
-`enqueue-integrity --vault UUID --credential-file /mounted/token --request-id UNIQUE_KEY` durably enqueues a job; use a private credential file containing ONLY its token, not the `principal=`/`token=` labels printed by `issue`. Mount it read-only into a one-shot container. `job-status --job UUID --credential-file /mounted/token` requires a vault grant. Start `serve` to run the single worker. Jobs retain terminal records against their per-vault quota; no purge command exists yet. Retry is exponential with jitter, maximum attempts configured. Inspect logs for safe error classes, not content.
+`create-vault` remains a legacy internal-core operation; use `create-database --name NAME` for LiveSync. Do not issue credentials to archived vault UUIDs (the CLI rejects this). There is no public archive browser/restore/purge API; archive recovery is an operator backup/restore concern until dedicated reviewed tooling exists.
+
+`enqueue-integrity --vault UUID --credential-file /mounted/token --request-id KEY` durably enqueues a read-only integrity job. The mounted private file contains ONLY its token. `job-status --job UUID --credential-file /mounted/token` requires its current vault grant. Start `serve` to run the bounded worker. Claims are persistent/fenced, retries finite with exponential jitter, and claims round-robin across vaults. Terminal jobs remain within the quota. Archived job records remain persisted but retired grants no longer authorize old-generation inspection. No exactly-once external effects are claimed.
 
 ## Kubernetes
 
-The base and overlays use ClusterIP, a dedicated restricted namespace, PVC, Recreate strategy, replicas=1, no service-account token, probes, CPU/memory/ephemeral limits, dropped capabilities, read-only rootfs and NetworkPolicy. There is no Ingress, LoadBalancer, Tailscale operator annotation or HPA. Readiness 503 deliberately prevents Service routing to this unfinished adapter.
+Base and filesystem/S3/GCS/Azure overlays provide ClusterIP, restricted namespace/security context, Recreate/replicas=1, a persistent PVC, no service-account token, limits/probes and NetworkPolicy. No public Ingress, LoadBalancer, HPA, Funnel or bundled Tailscale process is installed. The Rust runtime stays binary-only.
 
 ```sh
 kustomize build deploy/kustomize/overlays/filesystem
 kustomize build deploy/kustomize/overlays/s3
 kustomize build deploy/kustomize/overlays/gcs
 kustomize build deploy/kustomize/overlays/azure
-```
-
-Do not apply these to real infrastructure without separate authorization. Before future use: select a local POSIX CSI volume/storage class, replace the image with your privately built immutable digest, configure storage, provision Secret references and narrow cloud egress. Secret names/keys: `sync-s3-credentials` (`access-key`, `secret-key`), `sync-gcs-credentials` (`service-account.json`), `sync-azure-credentials` (`sas-token`). Secret default mode 0440 is readable through fsGroup. Config copies are generated from `config/`; edit originals and run `scripts/sync-generated.py`.
-
-Filesystem data AND metadata use the PVC. **Every cloud mode also requires the PVC for SQLite/WAL, authorization, jobs and cursor state.** S3/GCS/Azure do not make this server stateless. Only temporary spools use emptyDir. Never clone metadata PVCs onto the same writable blob namespace. Never force-delete/detach an old writer on a partitioned node without fencing that node first. Advisory flock protects a shared local metadata directory; it is not a distributed lock. No multi-host writer correctness is claimed.
-
-Disposable validation, never the current kubecontext:
-
-```sh
 scripts/smoke-compose.sh
 scripts/smoke-kubernetes.sh
 ```
 
-The kind script creates/deletes its own cluster and kubeconfig, server-dry-runs all overlays, tests restart, probes and second-writer rejection. Default kind does not enforce NetworkPolicy; run CNI-specific isolation tests before production acceptance.
+Smoke tests use disposable resources and an explicit temporary kind kubeconfig, never the current context. The kind script server-dry-runs overlays and verifies PVC restart, readiness and writer exclusion. Its default CNI does NOT prove NetworkPolicy enforcement. Run policy-aware CNI tests before production acceptance.
 
-## Persistent-state inventory and backup
+Before authorized real use: choose a local POSIX CSI class, replace the image with your immutable private digest, configure/provider-test storage, provision Secrets and narrow cloud egress. Secret keys: `sync-s3-credentials` (`access-key`, `secret-key`), `sync-gcs-credentials` (`service-account.json`), `sync-azure-credentials` (`sas-token`). 0440 secret files are readable via fsGroup. Pre-provision users/database through one isolated admin pod while the controller is stopped, then remove it before starting the server. Private remote access still needs HTTPS termination and matching ingress policy; ClusterIP is not itself a TLS proxy.
 
-- `/data/metadata/state.sqlite3`, `-wal`, `-shm`: heads/revisions/change cursors, retained tombstones, blob reservations/readiness, allocated quota, credential digests/revocation/grants, scoped idempotency results, job state/ownership/retry counters.
-- `/data/metadata/writer.lock`: OS lock inode; not a lease or source of truth. Never unlink/replace it while a process runs.
-- Filesystem `/data/blobs/VAULT/OBJECT`: immutable content, plus incomplete deterministic `.stage-OBJECT` files recovered at startup.
-- Cloud bucket/container `PREFIX/VAULT/OBJECT`: immutable final content; native cloud staging under `PREFIX/staging/`. One-byte startup probes use nil-vault keys. Separate exclusive prefix for every installation.
-- Configuration and provider secrets are independent of data backups; store them securely with the backup recovery key. Device token plaintext cannot be recovered from SQLite; revoke/reissue after a suspected compromise.
+**Cloud modes require the metadata PVC too.** Only spooling is emptyDir. Never use NFS, clone metadata copies onto one writable blob namespace, force-detach a partitioned writer without fencing its node, or scale to multiple writers. The local file lock is not a distributed lease. Recreate alone is not the runtime fence; the held lock and shared authoritative metadata are.
 
-For a consistent operator backup, stop all writers and keep them stopped for the entire snapshot. Run the offline command (destination must be absolute and nonexistent):
+## Persistent state, backup and tested restoration
+
+- `/data/metadata/state.sqlite3` plus WAL/SHM: core authorization/grants/revocation, blobs/reservations/quota/jobs/replays; schema-v3 Couch aliases/active state, full revision DAG and blob references, current heads/sequences, local `0-N` checkpoints, instance UUID, scoped reset permissions, archived generations and retired grant snapshots.
+- `writer.lock`: process-lifetime OS lock inode; never unlink/replace it while running.
+- Filesystem `/data/blobs/VAULT/OBJECT`: immutable bodies and bounded deterministic incomplete staging; startup removes incomplete stages under authority.
+- Cloud `PREFIX/VAULT/OBJECT`: immutable final bodies, including archived generations; native-cloud staging is separate. Startup one-byte probes are retained.
+- Provider credentials, client E2EE passphrases/security seeds, configuration and plaintext device keys are separate recovery material. SQLite stores only token digests; lost plaintext device keys must be revoked/reissued.
+
+Stop all writers for the full operator snapshot. `backup` uses SQLite VACUUM INTO followed by file and parent-directory synchronization; destination must be absolute and nonexistent:
 
 ```sh
 docker compose stop
 docker compose run --rm server backup --destination /data/metadata-backup.sqlite3
-# As an authorized Linux operator, archive metadata-backup.sqlite3 plus blobs/.
-# Use encrypted backup tooling; preserve UID/mode; fsync/archive verification is the tooling's responsibility.
+# Archive this snapshot plus ALL immutable blobs (active, historical, archived/orphaned).
+# Keep writers stopped until the matched blob snapshot is complete; encrypt/verify backups.
 ```
 
-For cloud modes, retain/snapshot the matching prefix (including immutable historical objects) and SQLite backup together. Do not configure a final-object expiration policy. Bucket contents alone are NOT a backup of sync state. For Kubernetes, stop the controller and take a CSI snapshot plus cloud prefix snapshot, or run one isolated admin pod against the stopped PVC with the same mounts/UID/config. Never back up SQLite by copying its main file while ignoring WAL.
+For cloud modes retain a matching prefix snapshot/provider versioning plus the SQLite backup; bucket contents alone do not contain synchronization/auth state. No final-object expiry policy. For Kubernetes use stopped-writer CSI/prefix snapshots or one isolated admin pod, never copy SQLite's main file while ignoring WAL.
 
-Restore into a fresh private directory/PVC with the service stopped: copy the SQLite backup as `metadata/state.sqlite3`, copy all required filesystem blobs or restore the matching cloud prefix, restore config/secrets/ownership, then start the same binary version. Do not copy a stale WAL over a VACUUM backup. Run authorized integrity jobs and verify expected feeds before exposing clients. The automated `sqlite_backup_restore` test exercises a real SQLite backup restored into a new metadata directory and verifies feed/blob hashes; this is not a tested operator-level cloud/PVC disaster recovery drill.
+Restore into fresh private directories/PVC with the service stopped: copy the backup as `metadata/state.sqlite3`, restore matching blobs/config/secrets/ownership, and start the same compatible binary. Do not add stale WAL to a VACUUM backup. Tests restore a real Couch snapshot plus copied filesystem blobs into a new installation, authenticate, read/hash content, preserve epochs/checkpoints/archives and reject future cursors from after the snapshot. This is NOT a cloud/PVC operational disaster-recovery drill. A backup also rolls back revocations; after a security incident revoke/reissue keys and rotate provider secrets using a separately verified revocation record.
 
-## Upgrades, rollback and failures
+## Upgrades, rollback and interruptions
 
-Stop, back up, test restoration in an isolated location, upgrade exactly one writer, and verify integrity. Schema v1 only is supported; unknown schema versions fail before schema modification. No automatic destructive migration exists. Roll back only to a binary compatible with the same schema; otherwise restore a matched metadata/blob backup, with explicit acceptance of changes lost since that snapshot. Do not downgrade just the metadata or reuse a copied metadata database as a second writer.
+Schema v1/v2 migrate transactionally to v3; authorization/core history and existing Couch aliases/revisions are retained. v2 gains active-generation lifecycle state. Unknown newer schemas fail before modification. This migration does not convert legacy core single-head notes into LiveSync metadata/chunk documents.
 
-After crash SQLite replays WAL; old running jobs requeue under the process lock with new claim tokens. Incomplete local filesystem stages are removed on next storage open, while charged reservations/final orphans stay retained. Retry uploads/mutations with the same identity/vault/operation/idempotency key and identical payload. After quota or the fixed revision budget is exhausted, fail closed; finite retention/reclamation/archival tooling is not implemented. Do not repair by editing SQLite/blob files. Missing/corrupt blobs must be recovered from a verified backup before resuming service.
+Stop, back up, test restoration in isolation, upgrade one writer, then verify client replication/integrity before access. Roll back only with a binary supporting the schema; otherwise restore a matched metadata/blob backup with explicit acceptance of post-snapshot changes lost. No downgrade of metadata alone. Old v0.1 binaries cannot open schema v3.
+
+After crash SQLite recovers WAL; old running jobs requeue under the writer lock with new claim tokens. Partial bodies/reservations stay charged; incomplete filesystem staging is removed at restart. Duplicate imports safely resume after lost responses. A reset changes the opaque cursor epoch; stale/future cursors fail, requiring client checkpoint/rebuild coordination, never silent sequence reuse. If interrupted between destroy/recreate, the alias remains inactive across restart: stop the service, list its CURRENT UUID, issue a replacement bootstrap key if necessary, then retry authenticated `PUT /DATABASE` before rebuilding clients. Keep old clients offline during rebuild and rejoin them using LiveSync's normal workflow.
+
+Shutdown marks readiness unavailable, stops new data work, wakes waiting feeds and stops worker claims; drains are bounded. A shutdown timeout is an error, not a false clean completion; unacknowledged requests retry after restart. Published acknowledgements remain durable.
+
+No final-history GC/purge/reclamation is implemented. Per-document tree/leaf/ancestry limits, one-million current-generation sequence budget, retained allocations, local-checkpoint limits and terminal-job quotas eventually require reviewed archival/repair tooling. Do not recover space by editing internal tables/files. Restore missing/corrupt bodies from a verified matched backup instead.

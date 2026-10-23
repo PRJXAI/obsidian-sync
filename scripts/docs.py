@@ -37,7 +37,7 @@ def fingerprints():
     folders = ("src", "tests", "config", "deploy", ".github", ".agents", "scripts", "examples")
     files = [ROOT / p for p in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "Dockerfile", ".dockerignore", ".gitignore", ".env.example", "deny.toml", "AGENTS.md", "LICENSE")]
     files += list(ROOT.glob("docker-compose*.yml"))
-    files += [p for folder in folders for p in (ROOT / folder).rglob("*") if p.is_file() and "__pycache__" not in str(p)]
+    files += [p for folder in folders for p in (ROOT / folder).rglob("*") if p.is_file() and "__pycache__" not in str(p) and "node_modules" not in p.parts]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files) if p.exists()}
 
 

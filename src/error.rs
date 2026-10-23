@@ -11,8 +11,14 @@ pub enum Error {
     Unauthorized,
     #[error("revision or idempotency conflict")]
     Conflict,
+    #[error("not found")]
+    NotFound,
+    #[error("unsupported operation")]
+    Unsupported,
     #[error("quota or resource limit exceeded")]
     Limit,
+    #[error("transfer or JSON working-set budget exceeded")]
+    TooLarge,
     #[error("integrity verification failed")]
     Integrity,
     #[error("another writer owns this metadata directory")]

@@ -48,29 +48,30 @@ async fn object_store_endpoints_cannot_disable_remote_tls_or_embed_urls() {
     }
 }
 
-#[tokio::test]
-async fn only_probes_are_exposed_no_invented_plugin_protocol() {
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use tower::ServiceExt;
-    for (path, status) in [
-        ("/health/live", StatusCode::NO_CONTENT),
-        ("/health/ready", StatusCode::SERVICE_UNAVAILABLE),
-        ("/vaults", StatusCode::NOT_FOUND),
-        ("/_changes", StatusCode::NOT_FOUND),
-        ("/jobs", StatusCode::NOT_FOUND),
+#[test]
+fn http_limits_and_cors_are_validated() {
+    let config: Config = toml::from_str(include_str!("../config/filesystem.toml")).unwrap();
+    for origin in [
+        "*",
+        "null",
+        "https://user:password@example.invalid",
+        "https://example.invalid/path",
+        "http://remote.invalid",
     ] {
-        let response = obsidian_sync_server::transport::router()
-            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
-            .await
-            .unwrap();
-        assert_eq!(response.status(), status);
-        assert!(
-            !response
-                .headers()
-                .contains_key("access-control-allow-origin")
-        );
+        let mut invalid = config.clone();
+        invalid.http.allowed_origins = vec![origin.into()];
+        assert!(invalid.validate().is_err());
     }
+    let mut invalid = config.clone();
+    invalid.http.max_requests = 0;
+    assert!(invalid.validate().is_err());
+    let mut invalid = config.clone();
+    invalid.http.max_document_bytes = 8 * 1024 * 1024;
+    assert!(invalid.validate().is_err());
+    let mut invalid = config.clone();
+    invalid.http.longpoll_seconds = 31;
+    assert!(invalid.validate().is_err());
+    let mut invalid = config;
+    invalid.http.burst = 0;
+    assert!(invalid.validate().is_err());
 }

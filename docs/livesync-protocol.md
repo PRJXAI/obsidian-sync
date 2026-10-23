@@ -1,0 +1,45 @@
+# Self-hosted LiveSync protocol contract
+
+Authoritative client identified by the owner: [vrtmrz/obsidian-livesync](https://github.com/vrtmrz/obsidian-livesync), inspected commit `ce0524d49f4e1c840689d83d3f8f18fce383effb`, version 1.0.39. Its lockfile pins `@vrtmrz/livesync-commonlib` 0.1.44 and PouchDB 9.0.0. See upstream `docs/tech_info.md`, `docs/datastructure.md`, `docs/specs_conflict_resolution.md`; executable authority is Commonlib `services/base/RemoteService`, `replication/couchdb/LiveSyncReplicator`, `pouchdb/StreamingFetch`, `API/DirectFileManipulatorV2` and PouchDB's HTTP/replication adapters. No replacement client/UI is built. MCP is deferred.
+
+## Consistency invariants established before implementation
+
+- **Authority:** SQLite metadata is authoritative; immutable opaque JSON bodies use the shared streaming blob interface. Couch document IDs (including slash-containing/obfuscated IDs) are NOT storage paths. One runtime writer; no independent metadata copies sharing a writable namespace, NFS or multi-host deployment.
+- **Identity/authentication:** Basic principal UUID/password key or Bearer key uses the same persistent verifier/grants. Username must match the key's principal. Separate revocable device keys; every database/document/bulk/feed/history/checkpoint path checks the vault scope. E2EE passphrases/security seeds remain client-side.
+- **Revision trees:** offline peers may create sibling revisions. Deterministic winner: live before deleted, higher generation, then lexicographically higher revision ID. Preserve losing branches and ancestry, expose conflicts/open revisions/history. Never coerce them into the legacy single-head CAS model.
+- **Import/retry:** `new_edits=false` preserves supplied revision IDs and ancestry and merges valid branches. A known imported revision preserves its FIRST immutable body, as CouchDB does; contradictory ancestry fails. Commonlib randomized IV/salt produces different ciphertext for an identical plaintext revision on retry, verified with the actual encryption transform against Rust AND Apache CouchDB. Revision IDs are protocol identities, NOT payload-bound request-idempotency keys. Core explicit identity/vault/operation keys remain payload-bound; Couch upload-reservation keys also include canonical raw-body digest. Replays never overwrite bodies or advance their sequence. Normal edits require an existing leaf parent; after an ambiguous normal PUT re-read, never force overwrite.
+- **Publication/visibility:** upload/verify/sync body before one immediate transaction merges ancestry, selects winner and updates head/sequence/quota. No acknowledgement before durable publication. A losing concurrent normal edit returns conflict; an explicit imported sibling is retained. Invalid or half-damaged references fail closed rather than being treated as empty stubs.
+- **Deletes/moves:** Couch tombstones delete specific branches; LiveSync's application `deleted` field is separate opaque data. Normal create can resurrect a deleted winner as its child. A client move is destination metadata write plus source logical deletion, not a made-up atomic file-rename endpoint. No physical final-object deletion.
+- **Feeds:** latest state per document, not every intermediate revision. `style=all_docs` includes all current leaves. Sequences are opaque strings encoding a monotonic counter plus database-generation UUID; reject future/wrong-epoch cursors, preserve cursors across process restart. No-op replay produces no event. Byte/working-set-limited pages preserve `last_seq`/`pending`; never skip an unreturned change. Normal, bounded long-poll and finite resumable continuous NDJSON pages support upstream Fast Fetch. Waiting feeds release execution slots.
+- **Checkpoints:** `_local` CAS revisions `0-N`, durable across restart, excluded from changes/replication. Preserve client session/history fields. Never publish a checkpoint for uncommitted data. Local checkpoint deletion follows CouchDB semantics; normal tombstones/history remain retained.
+- **Reset/bootstrap:** aliases are locally provisioned. Only an explicitly scoped local bootstrap capability permits HTTP destroy/recreate. Destroy atomically archives the old generation, transfers grants to a fresh UUID, retires old grants (fencing late old uploads), inherits allocated quota plus archive charges, and leaves the alias inactive until authenticated reactivation. Restart does not reactivate it implicitly. Old bodies/checkpoints/grant snapshots remain; max 16 archives. Normal keys cannot reset; no global administrator/purge grant.
+- **Recovery/retention:** FULL/WAL metadata, lifetime writer lock retained through canceled blocking tasks, fenced persistent jobs. Recover WAL and old worker claims on restart. Retain all revision branches, tombstones, body references, reservations/replays and archives; no history expiry/final GC. Limits fail closed. Schema v1/v2 migrate transactionally to v3 without converting legacy core notes into LiveSync chunk/metadata documents. Restore matching metadata/blobs/config/decryption material; unknown newer schemas fail, never downgrade automatically.
+
+## Implemented wire surface
+
+All data routes require credentials. Root health probes are availability-only and unauthenticated.
+
+| Route | Implemented subset |
+|---|---|
+| `/`, `/_session`, `/_uuids` | Authenticated server identity, session description and bounded generated UUIDs; no cookie/JWT login/admin shortcut |
+| `/DATABASE` | GET/HEAD info; scoped bootstrap DELETE/archive and PUT/reactivate an already provisioned alias |
+| `/DATABASE/DOCUMENT`, `/DATABASE/_local/ID` | GET/HEAD, PUT/DELETE, revision reads, conflicts, ancestry, open revisions, ETag/parent-CAS; local checkpoints |
+| `/_bulk_docs` (database-relative) | Bounded ordinary edits or explicit-revision imports; per-document failures, CouchDB omission of successful duplicate-import rows |
+| `/_revs_diff`, `/_bulk_get` | Missing revisions, ancestry-aware `latest=true`, descendant leaves without dropping conflict branches |
+| `/_all_docs` | Bounded keyed/ranged/reverse/skip/limit reads; metadata/include_docs/conflicts/update_seq |
+| `/_changes` | GET/POST, normal/longpoll/continuous, since/now, include_docs/revs/conflicts/style/limits; `_doc_ids` and upstream `type` equality/inequality selectors |
+| `/_ensure_full_commit`, `/_revs_limit` | Full-commit acknowledgement (already FULL durability), read-only ancestry limit |
+
+API limits are explicit, not silently ignored flags. No arbitrary JavaScript filters, general Mango/views, `_security`/`_users`/`_node` administration, purge, native CouchDB attachments or arbitrary database creation. LiveSync's own chunked binary attachments are documents and are exercised. Select **CouchDB** in the client regardless of server filesystem/S3/GCS/Azure mode.
+
+HTTP bytes alone do not bound JSON DOM allocation. Input has a 65,536 structural-token preflight before serde parsing; quoted/escaped punctuation does not count. A separate conservative 16 MiB JSON working-set charge bounds request/response trees and aggregate bulk/open-revision construction; transfer bytes remain independently bounded. Changes paginate by either budget; keyed reads fail explicitly rather than omit requested rows. Parsing/serialization/hashing run on a two-slot blocking CPU pool. Normal admission bounds executing AND queued work (default 8 active, 16 admitted total, 1-second queue); 32 bounded feeds wait separately; uploads backpressure within their operation deadline. Permits remain attached through response streaming/canceled blocking tasks.
+
+## Executable evidence / scope
+
+`tests/compat/livesync.mjs` runs actual pinned, unmodified Commonlib/PouchDB libraries against disposable native Rust, RustFS-backed Rust, the final non-root distroless image and digest-pinned Apache CouchDB 3.5.0. It covers offline conflicts, normal CAS races, revision history/tombstones, filtered pagination/checkpoints, Unicode, updates/logical moves, 3 MiB binary files, actual E2EE/compression, encrypted revision replay, upstream Fast Fetch/live feeds, bootstrap reset/recreate and encrypted content after server restart. Rust tests additionally cover authorization/revocation/resource limits, migration, interruption and backup restoration.
+
+Reference CouchDB opaque cursors can differ textually at the SAME logical position. Tests resume from a returned checkpoint and verify no remaining changes, not string equality with a later info call. Do not invent cursor comparison rules from superficial examples.
+
+A Commonlib 0.1.44 warm compressed-chunk cache issue after a logical move reproduces on BOTH servers. Durable moved content is verified through a fresh reader and after restart; this server does not rewrite ciphertext to mask the client issue.
+
+This evidence is not full GUI/mobile Obsidian certification or a claim of all CouchDB features/settings. See [results](results.md) for executed gates and remaining provider, CNI, TLS, hardware/soak and recovery limitations.

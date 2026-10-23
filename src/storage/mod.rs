@@ -146,7 +146,8 @@ where
     R: AsyncRead + Unpin + ?Sized,
     W: tokio::io::AsyncWrite + Unpin,
 {
-    let mut buffer = [0_u8; 65536];
+    // Keep nested transport futures small; a stack array multiplies across async frames.
+    let mut buffer = vec![0_u8; 65536];
     let mut size = 0_u64;
     let mut hash = Sha256::new();
     loop {

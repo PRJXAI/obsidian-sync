@@ -164,11 +164,13 @@ impl Engine {
             .await
     }
     pub async fn upload(&self, who: &Identity, info: BlobInfo, input: Reader) -> Result<()> {
-        let _permit = self
-            .uploads
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| Error::Limit)?;
+        // HTTP execution admission bounds waiters; a busy upload is backpressure,
+        // not storage exhaustion. Preserve one deadline across admission and I/O.
+        let deadline = tokio::time::Instant::now() + self.timeout;
+        let _permit = tokio::time::timeout_at(deadline, self.uploads.clone().acquire_owned())
+            .await
+            .map_err(|_| Error::Timeout)?
+            .map_err(|_| Error::Backend)?;
         let who = who.clone();
         self.db
             .run({
@@ -182,7 +184,7 @@ impl Engine {
                 }
             })
             .await?;
-        tokio::time::timeout(self.timeout, async {
+        tokio::time::timeout_at(deadline, async {
             match self.store.put(info, input).await {
                 Ok(()) | Err(Error::Conflict) => (),
                 Err(e) => return Err(e),

@@ -1,6 +1,6 @@
 # Repository maintenance
 
-Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). Skills are versioned in `.agents/skills/`: `maintain-docs` and `security-release`. They do not run unattended destructive edits or make network/LLM calls.
+Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). Skills are versioned in `.agents/skills/`: `maintain-docs` and `security-release`. Documentation lifecycle tools do not make network/LLM calls or run unattended destructive edits. Security/client checks deliberately fetch public packages/advisories and run disposable local services.
 
 ## Documentation lifecycle
 
@@ -25,20 +25,24 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 ## CI and release gates
 
-[GitHub CI](../.github/workflows/ci.yml) is read-only and does not publish/deploy. It runs all eight Cargo feature combinations (debug/release build, format, Clippy, tests), fresh RustSec/deny checks, maintenance tests/doc drift, actual local S3-compatible contract tests, Linux/musl Docker tests, runtime image verification/scanning, Compose rendering and smoke tests, and server-side validation/smoke tests in a disposable kind cluster. It uploads scanner reports. Native cloud/provider and actual plugin tests still require separately authorized fixtures/credentials.
+[GitHub CI](../.github/workflows/ci.yml) is read-only and does not publish/deploy. It runs all eight Cargo feature combinations (debug/release build, format, Clippy, tests), fresh RustSec/deny checks, maintenance tests/doc drift, actual Commonlib/PouchDB protocol fixtures against native Rust, RustFS-backed Rust, the final distroless runtime and reference Apache CouchDB; npm audit, Linux/musl Docker tests, runtime image verification/scanning, Compose rendering and smoke tests, and server-side validation/smoke tests in a disposable kind cluster. It uploads scanner reports. Native cloud/provider accounts and GUI/mobile Obsidian validation remain separate authorized acceptance checks. Test-only Node dependencies are pinned, installed with lifecycle scripts disabled and excluded from source fingerprints/container context.
 
 ```sh
 scripts/check.sh
 scripts/check-features.sh
+python3 scripts/test-livesync.py
 scripts/test-s3.sh
+python3 scripts/test-reference-couch.py
 scripts/validate-deployments.sh
 docker build --target tests .
 docker build -t obsidian-sync:local .
 python3 scripts/verify-image.py
+python3 scripts/test-livesync.py --image obsidian-sync:local
 scripts/scan-security.sh
 scripts/smoke-compose.sh
 scripts/smoke-kubernetes.sh
 scripts/benchmark.sh
+python3 scripts/test-livesync.py --benchmark  # real Commonlib logical operations, release mode
 ```
 
 Image verification exports an ephemeral container and checks non-root execution, the single `/server` executable, absence of shells/package managers, and no ELF interpreter. Docker-injected hostname/resolver/device marker files are checked separately; they are not application binaries. Scanner reports under `.work/security/` include RustSec, source-candidate/history Gitleaks, runtime image/layer identity, Trivy package inventory and advisory timestamps. Trivy covers runtime OS packages; Cargo audit/deny cover Rust dependencies, since Trivy does not reconstruct a statically linked Rust dependency graph from this binary.

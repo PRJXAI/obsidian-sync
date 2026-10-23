@@ -7,6 +7,9 @@ operation_timeout_secs = 300
 job_quota_per_vault = 100
 job_max_attempts = 5
 
+[http]
+allowed_origins = ["app://obsidian.md", "capacitor://localhost", "http://localhost"]
+
 [storage]
 kind = "s3"
 endpoint = "https://s3.example.internal"

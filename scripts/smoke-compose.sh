@@ -23,11 +23,11 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18089/health/live)" = 204 ]
-[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18089/health/ready)" = 503 ]
+[ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18089/health/ready)" = 204 ]
 if docker compose -p "$project" exec -T server /server create-vault > "$work/second-writer" 2>&1; then
   printf 'ERROR: second writer acquired metadata\n' >&2; exit 1
 fi
 grep -q 'another writer owns' "$work/second-writer"
 docker compose -p "$project" stop -t 35
 docker compose -p "$project" run --rm --no-deps server create-vault
-printf 'Compose smoke passed: private probes, lock exclusion, graceful stop, persistent restart. Readiness intentionally 503.\n'
+printf 'Compose smoke passed: private probes, lock exclusion, graceful stop, persistent restart. LiveSync adapter readiness 204.\n'

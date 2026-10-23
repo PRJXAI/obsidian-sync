@@ -4,7 +4,7 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 
 ## Non-negotiable constraints
 
-- The Obsidian plugin/protocol has NOT been identified. Do not invent client endpoints, claim compatibility, or change readiness to success. Ask for authoritative plugin sources, then implement verified fixtures first.
+- Target is Self-hosted LiveSync (vrtmrz/obsidian-livesync), pinned source and contract in docs/livesync-protocol.md. Preserve PouchDB/CouchDB revision trees, conflicts, tombstones and checkpoints; do not map them to the old single-head CAS model. Implement verified upstream-client tests before claiming compatibility. MCP remains deferred.
 - Priorities: isolation/security, integrity/race protection, reliable async work, performance/simplicity.
 - No first-party unsafe Rust. No note content, bearer tokens, secret keys, signed URLs or raw provider errors in logs.
 - BlobStorage is the common streaming interface. All adapters must preserve create-only publication, vault-scoped server-generated keys, bounded memory and hash/size verification. Never use canonicalization as the only filesystem boundary.
@@ -25,7 +25,8 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 
 ## Ownership map
 
-- src/transport.rs: operational probes only; future authoritative protocol adapter.
+- src/transport.rs: operational probes and bounded Self-hosted LiveSync/CouchDB-compatible transport.
+- src/couch/: LiveSync-compatible revision trees, persistent checkpoints and HTTP contract.
 - src/auth.rs: revocable core principals/vault grants; adapter authentication must honor actual plugin contract.
 - src/sync.rs: upload reservations, CAS mutations, scoped replay, cursor pages.
 - src/db.rs: SQLite schema, bounded connection pool, process authority, backup.

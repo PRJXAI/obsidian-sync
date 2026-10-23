@@ -48,9 +48,18 @@ jobs:
           go install sigs.k8s.io/kustomize/kustomize/v5@v5.8.1
           go install sigs.k8s.io/kind@v0.32.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.20.0'
+          cache: npm
+          cache-dependency-path: tests/compat/package-lock.json
       - run: scripts/validate-deployments.sh
+      - run: python3 scripts/test-livesync.py
       - run: scripts/test-s3.sh
+      - run: python3 scripts/test-reference-couch.py
+      - run: npm audit --prefix tests/compat --audit-level=low
       - run: docker build --target tests .
       - run: docker build -t obsidian-sync:local .
       - run: scripts/smoke-compose.sh
+      - run: python3 scripts/test-livesync.py --image obsidian-sync:local
       - run: scripts/smoke-kubernetes.sh
