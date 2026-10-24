@@ -8,6 +8,8 @@ Review scope: the implementation baseline and subsequent remediation source snap
 
 This is a code/configuration review plus executable checks, not a line-by-line audit of every transitive dependency, proof of absence of vulnerabilities, or a review of GitHub organization/branch-protection settings, production ACLs, host patching or cloud IAM. Native provider tests, policy-aware CNI isolation, disaster recovery and GUI/mobile certification remain separate gates.
 
+The follow-up [regulated-environment assessment](regulated-security-assessment.md) separates package matches from reachable paths and evaluates exfiltration, repository enforcement, egress, auditability, crypto and release-policy gaps. It also documents the history-scanner input minimization fix. Do not infer regulatory readiness or malicious behavior from this image-count table alone.
+
 ## Trust and supply-chain map
 
 1. Untrusted LiveSync/PouchDB clients → private TLS proxy → bounded HTTP transport → persistent credential/grant verifier → vault-scoped revision DAG/checkpoints.

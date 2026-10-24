@@ -9,7 +9,7 @@ Remediation verification (2026-10-23, disposable local arm64):
 | Check | Actual result |
 |---|---|
 | `scripts/check.sh`; all eight subsets via `scripts/check-features.sh` | PASS: default **42 active Rust tests**, 3 provider tests ignored; debug/release, fmt, Clippy, fresh RustSec/deny |
-| Python regression/maintenance tests | PASS: **18 tests**, including image-content substitution/stale evidence, SBOM dev-lock completeness, unpinned image rejection, scanner cancellation cleanup, LLM guide links, ignored-configuration privacy and caller-identity enforcement for both shell Trivy invocations |
+| Python regression/maintenance tests | PASS: **19 tests**, including image-content substitution/stale evidence, SBOM dev-lock completeness, unpinned image rejection, scanner cancellation cleanup, LLM guide links, ignored-configuration privacy and caller-identity enforcement for both shell Trivy invocations and ignored-canary isolation in an independent bare Git history snapshot |
 | Native and final-runtime Commonlib/PouchDB; S3/RustFS contract/client fixture | PASS, including restart; no real vault/provider account |
 | Reference CouchDB | PASS against updated digest-pinned **3.5.3** |
 | Linux/musl Docker test target; static/nonroot image verification | PASS |
@@ -29,6 +29,12 @@ No speedup, wire-performance or production-rollout claim is made by this remedia
 The first published workflow run on the amended source passed all eight Rust feature jobs, Linux build/tests, integration and SBOM generation, but failed security scanning with `mkdir /cache/db: permission denied`. Root with all capabilities dropped could not write runner-owned bind mounts; this was a scanner setup failure, not a successful vulnerability assessment.
 
 Both shell Trivy invocations and the Python supply-chain scanner now use the caller's numeric UID/GID and `HOME=/tmp`. Capability dropping, no-new-privileges, socket isolation and fail-on-findings policy remain unchanged. Offline regressions validate identity/restrictions for database, runtime, builder and per-image commands. A disposable Linux-backed volume smoke reproduced the old root/cap-drop denial and verified that a simulated non-root owner could create the cache and write a Trivy version report with all capabilities still dropped. No credentials, real data or host permission changes were involved. Remote verification on commit `500bb76` completed in [GitHub Actions run 40079991599](https://github.com/PRJXAI/obsidian-sync/actions/runs/40079991599): all eight Rust jobs, Linux build/tests, integration and SBOM jobs passed. The security job's runtime/builder scanning and release-content verification steps passed with zero runtime/builder findings. All ten amd64 supply-chain images produced vulnerability counts, with zero scanner/infrastructure failures or permission errors; seven images failed on findings. The overall workflow therefore remains failed on the intended upstream-image gate, not cache ownership. These upstream findings remain blocking.
+
+## Regulated-data assessment and scanner input isolation
+
+A follow-up [assessment](regulated-security-assessment.md) found that image findings need platform/function/source-version triage and do not establish malicious exfiltration. It also confirmed control gaps relevant to regulated use: unprotected main/zero repository rulesets, broad cloud egress templates, no complete first-party security audit trail and unsigned/runtime-only release evidence. No production settings or real data were inspected or changed.
+
+The history scanner formerly mounted the whole checkout, exposing ignored operator files to the tool. It now receives an independent bare mirror, removes origin configuration, and scans all reachable refs. Synthetic ignored `.env`/data canaries and a detached HEAD regression passed; actual source/history scanning with the mirror completed with zero secret findings. No real-data transmission or exfiltration feature was implemented. Remaining issues and acceptance requirements are documented rather than hidden behind advisory exceptions.
 
 ## Acceptance scope
 

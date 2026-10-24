@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed caller UID/GID and temporary HOME for every Trivy invocation, unchanged capability/failure policies, shell/Python regression guards and disposable Linux permission smoke evidence",
+  "reason": "Reviewed history-scanner input minimization, synthetic ignored-file/detached-HEAD regressions and regulated/exfiltration assessment against CI, storage, network templates, repository enforcement and vendor-source applicability evidence",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -191,7 +191,7 @@
     },
     {
       "path": "scripts/scan-security.sh",
-      "sha256": "5c51b2a1c50bb68b850931b7f63cae1848046a129a3278fb5b16e9c68032b095"
+      "sha256": "6ada8d3a7893506a3d23ce93fc5cda99bb987fd58d82f60cbbe9075ebd78cfb3"
     },
     {
       "path": "scripts/scan-supply-chain.py",
@@ -367,7 +367,7 @@
     },
     {
       "path": "tests/test_scanner_permissions.py",
-      "sha256": "1f3ca31f40f08a2934fdc57a31513ee8a5f8c47c39cca7d57a2fcab5bb3f5e5b"
+      "sha256": "8911a8e068a673cc69d81860ad948a327b4f3a953a7a1d53ec816d048d08c2ee"
     },
     {
       "path": "tests/test_supply_chain.py",

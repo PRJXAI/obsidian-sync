@@ -1,6 +1,6 @@
 # LLM context: read before changing this repository
 
-For build, deployment and day-to-day operations, start with [llms.txt](../llms.txt); this page documents architecture and implementation constraints. Local `.env` files and TOML overrides are ignored; keep real deployment settings out of versioned examples. Generated source maps and review fingerprints must exclude ignored operator files.
+For build, deployment and day-to-day operations, start with [llms.txt](../llms.txt); this page documents architecture and implementation constraints. Local `.env` files and TOML overrides are ignored; keep real deployment settings out of versioned examples. Generated source maps and review fingerprints must exclude ignored operator files. History secret scans mount a fresh bare Git mirror, not the full working tree, and must exclude ignored environment/data canaries. For sensitive-data use, read the [regulated/exfiltration assessment](regulated-security-assessment.md): scanner counts are not reachability proof, network-disabled tools still have output channels, and current evidence does not establish regulated-production acceptance.
 
 ## Product boundary
 

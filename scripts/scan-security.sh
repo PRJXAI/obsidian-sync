@@ -38,11 +38,15 @@ docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
   -v "$work/source:/source:ro" alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63 \
   test -s /source/Cargo.lock
 if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  # History scanning needs Git objects, not the operator's working tree. A fresh
+  # mirror also avoids local hardlinks/alternates and copied credential config.
+  git clone --quiet --mirror --no-local . "$work/history.git"
+  git --git-dir="$work/history.git" config --remove-section remote.origin
   docker run --rm --network none --user "$(id -u):$(id -g)" --cap-drop ALL --security-opt no-new-privileges \
     -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/repo \
-    -v "$PWD:/repo:ro" -v "$PWD/.work/security:/reports" \
+    -v "$work/history.git:/repo:ro" -v "$PWD/.work/security:/reports" \
     ghcr.io/gitleaks/gitleaks:latest@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
-    git /repo --redact=100 --exit-code 1 --report-format json --report-path /reports/gitleaks-history.json
+    git /repo --log-opts=--all --redact=100 --exit-code 1 --report-format json --report-path /reports/gitleaks-history.json
 fi
 # Scan the exact local runtime image, without giving the scanner a Docker socket.
 # Match bind-mount ownership: root with all capabilities dropped cannot bypass
