@@ -14,6 +14,7 @@
 - [Storage adapters](docs/storage.md): filesystem, S3/MinIO, GCS and Azure contracts.
 - [Measured results](docs/results.md) and [security audit](docs/security-audit.md): actual evidence, unresolved findings and acceptance limits.
 - [Regulated-environment and exfiltration assessment](docs/regulated-security-assessment.md): reachable versus unproven findings, output/egress risks, source/release enforcement and controls required before sensitive-data acceptance.
+- [Security remediation plan](docs/security-remediation-plan.md): proposed milestones, finding coverage, dependencies, acceptance tests and required owner approvals; not evidence of implemented controls.
 - [Maintenance and CI](docs/maintenance.md), [source map](docs/source-map.md): docs lifecycle and implementation locations.
 
 ## Safety contract

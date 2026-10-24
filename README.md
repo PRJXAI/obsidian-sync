@@ -53,7 +53,7 @@ See [actual results and limitations](docs/results.md). Native GCS/Azure account 
 - [Build/run, plugin settings, Tailscale, backups and recovery](docs/operations.md)
 - [Original internal-core consistency contract](docs/consistency.md)
 - [Storage interfaces and providers](docs/storage.md)
-- [Threat model](docs/threat-model.md), [security audit and outstanding supply-chain findings](docs/security-audit.md), [regulated-environment/exfiltration assessment](docs/regulated-security-assessment.md)
+- [Threat model](docs/threat-model.md), [security audit and outstanding supply-chain findings](docs/security-audit.md), [regulated-environment/exfiltration assessment](docs/regulated-security-assessment.md), [remediation plan](docs/security-remediation-plan.md)
 - [LLM build/deploy/operations guide](llms.txt), [LLM architecture context](docs/llm.md), [source map](docs/source-map.md), [maintenance/CI](docs/maintenance.md)
 - [Repository instructions](AGENTS.md)
 

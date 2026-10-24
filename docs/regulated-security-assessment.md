@@ -89,6 +89,8 @@ Use least-privilege provider policies, separate staging authority where necessar
 
 Indefinite revision/blob/replay retention supports integrity and recovery but is not a complete legal retention, erasure or legal-hold policy. Requirements differ across sectors, purposes and jurisdictions; no automatic GDPR/HIPAA/financial compliance claim is justified. Determine the applicable retention, archive, recovery and deletion rules before production acceptance. Do not add manual deletion or garbage collection that breaks the protocol's revision/checkpoint guarantees.
 
+The actionable [security remediation plan](security-remediation-plan.md) maps every A/R finding to prioritized milestones, accountable roles, dependencies and closure tests. It is proposed work, not evidence that the gaps have already been closed.
+
 ## Acceptance plan
 
 Before any regulated/customer data:
