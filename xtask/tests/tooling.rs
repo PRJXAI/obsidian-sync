@@ -569,6 +569,22 @@ fn kube_commands_always_use_disposable_config_without_touching_sentinel() -> Res
     Ok(())
 }
 #[test]
+fn restart_waits_for_ready_container_not_merely_running_pod() -> Result {
+    let temp = tempfile::tempdir()?;
+    let config = temp.path().join("kubeconfig");
+    let command = deployment::pod_ready_command(temp.path(), &config);
+    let args = security::recorded_command(&command);
+    assert!(args.contains(&"--for=condition=Ready".into()));
+    assert!(
+        !args
+            .iter()
+            .any(|arg| arg.contains("phase") || arg.contains("Running"))
+    );
+    assert_eq!(args[0], "--kubeconfig");
+    assert_eq!(args[1], config.to_str().unwrap());
+    Ok(())
+}
+#[test]
 fn client_fixture_rejects_non_loopback_s3_and_relocates_state() -> Result {
     let temp = tempfile::tempdir()?;
     for endpoint in [

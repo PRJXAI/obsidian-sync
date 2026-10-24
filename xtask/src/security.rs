@@ -245,9 +245,25 @@ pub fn scan_supply_chain(root: &Path, platform: &str) -> Result {
             &output.join(format!("image-{index:02}.log")),
             240,
         )?;
-        let mut entry = json!({"image":image,"sources":sources,"exit_code":status,"report":report});
-        match util::json(&path).and_then(|r| evidence::findings(&r, Some(&image), Utc::now())) {
+        let mut entry = json!({"image":image,"sources":sources,"exit_code":status,"scanner_exit_code":status,"report":report,"report_bytes":path.metadata().ok().map(|v|v.len()),"report_valid":false});
+        let document = util::json(&path);
+        if let Ok(report) = &document {
+            println!(
+                "VALIDATION index={index} schema={} identity={} name={} fresh={} results={}",
+                report["SchemaVersion"] == 2,
+                report["Metadata"]["ImageID"]
+                    .as_str()
+                    .is_some_and(images::is_digest),
+                report["ArtifactName"] == image,
+                report["CreatedAt"]
+                    .as_str()
+                    .is_some_and(|v| evidence::fresh(v, Utc::now()).is_ok()),
+                report["Results"].as_array().is_some_and(|v| !v.is_empty())
+            );
+        }
+        match document.and_then(|r| evidence::findings(&r, Some(&image), Utc::now())) {
             Ok(findings) => {
+                entry["report_valid"] = json!(true);
                 entry["counts"] = json!(
                     evidence::SEVERITIES
                         .into_iter()
@@ -274,6 +290,10 @@ pub fn scan_supply_chain(root: &Path, platform: &str) -> Result {
             } else {
                 "FAIL"
             }
+        );
+        println!(
+            "REPORT index={index} scanner_exit={status} valid={} bytes={}",
+            entry["report_valid"], entry["report_bytes"]
         );
         summary.push(entry);
     }
@@ -591,9 +611,19 @@ pub fn ledger(root: &Path, platform: &str, revision: &str) -> Result {
             "Reordered/substituted inventory",
         )?;
         let path = output.join(filename);
-        let report = util::json(&path)?;
-        let findings = evidence::findings(&report, Some(image), Utc::now())?;
-        valid &= entry["exit_code"] == if findings.is_empty() { 0 } else { 1 };
+        let report = util::json(&path).inspect_err(|_| {
+            eprintln!("Ledger input rejected: report index {index}, JSON/file validation")
+        })?;
+        let findings = evidence::findings(&report, Some(image), Utc::now()).inspect_err(|_| {
+            eprintln!(
+                "Ledger input rejected: report index {index}, scan schema/identity/time validation"
+            )
+        })?;
+        let expected = if findings.is_empty() { 0 } else { 1 };
+        if entry["exit_code"] != expected {
+            eprintln!("Ledger input incomplete: unexpected scanner status at report index {index}");
+            valid = false;
+        }
         let findings = findings.iter().map(|v| { let key = json!([platform,image,report["Metadata"]["ImageID"],v["_scan_target"],v["PkgPath"],v["PkgName"],v["InstalledVersion"],v["VulnerabilityID"]]); json!({"id":util::digest(key.to_string().as_bytes()),"target":v["_scan_target"],"package_path":v["PkgPath"],"advisory":v["VulnerabilityID"],"package":v["PkgName"],"installed_version":v["InstalledVersion"],"fixed_version":v["FixedVersion"],"severity":v["Severity"],"status":"under_investigation","applicability_evidence":null,"owner":null}) }).collect::<Vec<_>>();
         records.push(json!({"image":image,"config_digest":report["Metadata"]["ImageID"],"layers":report["Metadata"]["DiffIDs"],"report_sha256":util::hash(&path)?,"findings":findings}));
     }

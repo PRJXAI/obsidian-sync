@@ -34,6 +34,10 @@ Full supply-chain scanning remains failed, with native applicability unresolved.
 
 A Docker build-context canary reproduced how allowing a parent directory can re-include private children. Explicit nested child-deny/public-file exceptions now exclude synthetic environment, local TOML, Cargo-credential, data and node_modules canaries while preserving required public inputs. No real operator file was opened for this test.
 
+### First remote migration run
+
+[Run 40099216841](https://github.com/PRJXAI/obsidian-sync/actions/runs/40099216841), commit `7c7d37d`: all eight Rust jobs, shared Linux build/tests/image verification and SBOM job passed. Security passed fresh Rust/secret/runtime/builder scans and content binding; all client/S3/reference/Compose tests passed. The workflow nevertheless **failed**: Kubernetes attempted post-restart execution while the replacement pod was Running but its container was not ready, and amd64 ledger generation rejected scan evidence. `Required CI` correctly rejected the workflow. The Kubernetes fix strengthens the wait to pod Ready; report-size/exit/validation diagnostics were added without publishing raw output. A local amd64 rerun produced all ten reports and a complete ledger while retaining the seven-image vulnerability failure; the remote-only validation failure is not yet claimed resolved.
+
 `Required CI` now aggregates every producer fail-closed. Public security artifacts contain allowlisted count/status summaries only; raw reports/ledgers stay local pending an approved durable private archive. Source/release protection, reviewer teams, signed authorization, audit policy, crypto/retention and provider/operational acceptance remain blocked. None is implied by the language migration.
 
 ## Historical audit/remediation baseline — 2026-10-23

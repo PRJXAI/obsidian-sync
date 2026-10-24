@@ -393,6 +393,23 @@ pub fn fenced_command(root: &Path, kubeconfig: &Path, program: &str, args: &[&st
     c.env("KUBECONFIG", kubeconfig).args(args);
     c
 }
+pub fn pod_ready_command(root: &Path, kubeconfig: &Path) -> Command {
+    fenced_command(
+        root,
+        kubeconfig,
+        "kubectl",
+        &[
+            "-n",
+            "obsidian-sync",
+            "wait",
+            "--for=condition=Ready",
+            "pod",
+            "-l",
+            "app=obsidian-sync",
+            "--timeout=2s",
+        ],
+    )
+}
 impl Cluster {
     pub fn kind(&self, args: &[&str]) -> Command {
         fenced_command(&self.root, &self.kubeconfig, "kind", args)
@@ -400,30 +417,16 @@ impl Cluster {
     pub fn kubectl(&self, args: &[&str]) -> Command {
         fenced_command(&self.root, &self.kubeconfig, "kubectl", args)
     }
-    fn wait_running(&self) -> Result {
+    fn wait_ready(&self) -> Result {
         let deadline = Instant::now() + Duration::from_secs(270);
         while Instant::now() < deadline {
             util::check_cancelled()?;
-            if util::quiet(
-                &mut self.kubectl(&[
-                    "-n",
-                    "obsidian-sync",
-                    "wait",
-                    "--for=jsonpath={.status.phase}=Running",
-                    "pod",
-                    "-l",
-                    "app=obsidian-sync",
-                    "--timeout=2s",
-                ]),
-                10,
-            )
-            .is_ok()
-            {
+            if util::quiet(&mut pod_ready_command(&self.root, &self.kubeconfig), 10).is_ok() {
                 return Ok(());
             }
             thread::sleep(Duration::from_secs(1));
         }
-        Err("Disposable pod failed to become Running".into())
+        Err("Disposable pod failed to become Ready".into())
     }
 }
 impl Drop for Cluster {
@@ -496,7 +499,7 @@ pub fn kubernetes(root: &Path) -> Result {
             60,
         )?;
     }
-    cluster.wait_running()?;
+    cluster.wait_ready()?;
     let port = clients::port()?;
     let log = fs::File::create(work.path().join("port-forward.log"))?;
     let mut c = cluster.kubectl(&[
@@ -540,7 +543,7 @@ pub fn kubernetes(root: &Path) -> Result {
         ]),
         90,
     )?;
-    cluster.wait_running()?;
+    cluster.wait_ready()?;
     util::run(
         &mut cluster.kubectl(&[
             "-n",

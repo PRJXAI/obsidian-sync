@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed final Rust tooling including native-only cleanup isolation, cancellation, combined-stream lock fencing, build-context privacy, CI/evidence guards and all updated authored guides",
+  "reason": "Reviewed stronger disposable pod Ready wait and regression, privacy-safe fixed-field scan diagnostics, first remote CI failures and explicit unresolved ledger investigation",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -339,7 +339,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "cb0c237af302cc2ed523567490ddbdfbeb0bb19e58fcf2f1d5093ef7b4e875cd"
+      "sha256": "649033928d602b48378848ef0c3906983afde0451750dc8cac2335a0e15a1aca"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -371,7 +371,7 @@
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "231f0559678a976d427773453bae7bab8141cfcc784a22c2391ef07bfd20649b"
+      "sha256": "fb920bd7c187b42276c9fddbdca37e3d600d5e6433958829e90a7764c76a8335"
     },
     {
       "path": "xtask/src/util.rs",
@@ -383,7 +383,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "1f6b40413e5a09548304dfbb80a36536fe4a69a67a73cda53b2e0c8f51acdc10"
+      "sha256": "a4c4f46f61e8a9a5664ad128dd0bf4e806b4cd621ed73a83ad8462f32bead413"
     }
   ]
 }
