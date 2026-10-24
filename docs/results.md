@@ -9,7 +9,7 @@ Remediation verification (2026-10-23, disposable local arm64):
 | Check | Actual result |
 |---|---|
 | `scripts/check.sh`; all eight subsets via `scripts/check-features.sh` | PASS: default **42 active Rust tests**, 3 provider tests ignored; debug/release, fmt, Clippy, fresh RustSec/deny |
-| Python regression/maintenance tests | PASS: **17 tests**, including image-content substitution/stale evidence, SBOM dev-lock completeness, unpinned image rejection, scanner cancellation cleanup, LLM guide links and ignored-configuration privacy |
+| Python regression/maintenance tests | PASS: **18 tests**, including image-content substitution/stale evidence, SBOM dev-lock completeness, unpinned image rejection, scanner cancellation cleanup, LLM guide links, ignored-configuration privacy and caller-identity enforcement for both shell Trivy invocations |
 | Native and final-runtime Commonlib/PouchDB; S3/RustFS contract/client fixture | PASS, including restart; no real vault/provider account |
 | Reference CouchDB | PASS against updated digest-pinned **3.5.3** |
 | Linux/musl Docker test target; static/nonroot image verification | PASS |
@@ -23,6 +23,12 @@ Remediation verification (2026-10-23, disposable local arm64):
 Exact locally rebuilt runtime OCI index: `sha256:7893527e4e4956f1c68376842855e84f66f63a7bb95fa1d774599d46acc53c64`; exported configuration: `sha256:c9cd12708a9dc6ce2d12ac14bf5acae8c8a211d41b5e160441ea74b6c07a85b6`. These image measurements came from a pre-publication remediation source snapshot, not a release certification. Regenerate release evidence against the committed source. Scanner DB: Trivy 0.76.1, updated 2026-10-23 07:12:39 UTC; RustSec 1,350 advisories at `f7b2f6bc663452200bbe639ebb75e0c762b3422b`. Raw evidence: ignored `.work/security-audit/`, `.work/security/`, `.work/sbom/`.
 
 No speedup, wire-performance or production-rollout claim is made by this remediation. Machine-specific benchmark profiles and deployment-specific receipts are excluded from this document. Native GCS/Azure, production ACL/CNI/DR and full GUI/mobile checks remain outstanding. SBOM/materials and content verification are unsigned; trusted CI/operator delivery remains required.
+
+## Linux scanner permissions regression
+
+The first published workflow run on the amended source passed all eight Rust feature jobs, Linux build/tests, integration and SBOM generation, but failed security scanning with `mkdir /cache/db: permission denied`. Root with all capabilities dropped could not write runner-owned bind mounts; this was a scanner setup failure, not a successful vulnerability assessment.
+
+Both shell Trivy invocations and the Python supply-chain scanner now use the caller's numeric UID/GID and `HOME=/tmp`. Capability dropping, no-new-privileges, socket isolation and fail-on-findings policy remain unchanged. Offline regressions validate identity/restrictions for database, runtime, builder and per-image commands. A disposable Linux-backed volume smoke reproduced the old root/cap-drop denial and verified that a simulated non-root owner could create the cache and write a Trivy version report with all capabilities still dropped. No credentials, real data or host permission changes were involved. Remote revalidation of the fix is tracked separately from these executed local checks; the upstream-image findings remain blocking.
 
 ## Acceptance scope
 

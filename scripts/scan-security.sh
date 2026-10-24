@@ -45,10 +45,12 @@ if git rev-parse --verify HEAD >/dev/null 2>&1; then
     git /repo --redact=100 --exit-code 1 --report-format json --report-path /reports/gitleaks-history.json
 fi
 # Scan the exact local runtime image, without giving the scanner a Docker socket.
+# Match bind-mount ownership: root with all capabilities dropped cannot bypass
+# runner-owned cache/report permissions. Keep auxiliary HOME writes in /tmp.
 docker image inspect obsidian-sync:local --format '{{.Id}}' > .work/security/image-id.txt
 docker image inspect obsidian-sync:local > .work/security/image-inspect.json
 docker save obsidian-sync:local -o "$work/runtime.tar"
-docker run --rm --cap-drop ALL --security-opt no-new-privileges --entrypoint /bin/sh \
+docker run --rm --user "$(id -u):$(id -g)" --env HOME=/tmp --cap-drop ALL --security-opt no-new-privileges --entrypoint /bin/sh \
   -v "$work/runtime.tar:/runtime.tar:ro" -v "$PWD/.work/security:/reports" -v "$PWD/.work/trivy-cache:/cache" \
   aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
   -c 'status=0; trivy --cache-dir /cache image --input /runtime.tar --scanners vuln --list-all-pkgs --exit-code 1 --format json --output /reports/trivy.json || status=$?; trivy --cache-dir /cache --version > /reports/trivy-version.txt; exit "$status"'
@@ -63,7 +65,7 @@ PY
 # OS package metadata. Scan the actual populated builder stage, not just its base.
 if "$cleanup_builder"; then docker build --target build -t "$builder" .; fi
 docker save "$builder" -o "$work/builder.tar"
-docker run --rm --cap-drop ALL --security-opt no-new-privileges \
+docker run --rm --user "$(id -u):$(id -g)" --env HOME=/tmp --cap-drop ALL --security-opt no-new-privileges \
   -v "$work/builder.tar:/builder.tar:ro" -v "$PWD/.work/security:/reports" -v "$PWD/.work/trivy-cache:/cache" \
   aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c \
   --cache-dir /cache image --input /builder.tar --scanners vuln --list-all-pkgs --exit-code 1 --format json --output /reports/trivy-builder.json

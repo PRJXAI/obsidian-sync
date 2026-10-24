@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed privacy-safe published evidence, root llms.txt build/deploy/operate guidance, ignored local configuration rules and exclusion from generated source maps/fingerprints alongside prior security/CI remediation",
+  "reason": "Reviewed caller UID/GID and temporary HOME for every Trivy invocation, unchanged capability/failure policies, shell/Python regression guards and disposable Linux permission smoke evidence",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -191,11 +191,11 @@
     },
     {
       "path": "scripts/scan-security.sh",
-      "sha256": "47c9a5f3113fdf0428ccba451958fd63fa5a3ebaf0bf273f70c7e0b437c9ee52"
+      "sha256": "5c51b2a1c50bb68b850931b7f63cae1848046a129a3278fb5b16e9c68032b095"
     },
     {
       "path": "scripts/scan-supply-chain.py",
-      "sha256": "faf0b98d0107ca7fc56caac683be0ad8a3a1a6ca49996f86b17a15c5497c25bd"
+      "sha256": "3df00e0c120f9512cc9b7cd2cc1db03d7d76d431c1f00098649f5a21a2f317d8"
     },
     {
       "path": "scripts/smoke-compose.sh",
@@ -366,8 +366,12 @@
       "sha256": "c3405a5cd7cee27ad3ce397a0e01ad6e8306404f8a139d7ac96e36d4b9d315d9"
     },
     {
+      "path": "tests/test_scanner_permissions.py",
+      "sha256": "1f3ca31f40f08a2934fdc57a31513ee8a5f8c47c39cca7d57a2fcab5bb3f5e5b"
+    },
+    {
       "path": "tests/test_supply_chain.py",
-      "sha256": "db00b2e958e398609adb6c5c373228977894c565dbbeee320c6ab1cd834d7545"
+      "sha256": "b784d08e39c2771b2c6a8b5ad36161d74754d9ee12e11325b6491b25d32c4741"
     }
   ]
 }

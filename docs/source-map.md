@@ -80,4 +80,5 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `tests/test_maintenance.py`
 - `tests/test_release.py`
 - `tests/test_sbom.py`
+- `tests/test_scanner_permissions.py`
 - `tests/test_supply_chain.py`

@@ -7,6 +7,7 @@ reachability/platform triage; they are not proof of a runtime exploit.
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -65,7 +66,9 @@ def run_scan(root, output, platform):
     (output / "summary.json").unlink(missing_ok=True)
     cache = root / ".work/trivy-cache"
     cache.mkdir(parents=True, exist_ok=True)
-    command = ["docker", "run", "--rm", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "128", "--memory", "2g", "--cpus", "2", "-v", f"{output}:/reports", "-v", f"{cache}:/cache", SCANNER, "--cache-dir", "/cache"]
+    # Numeric caller identity works without a passwd entry and preserves host
+    # bind-mount ownership on Linux while retaining the capability restrictions.
+    command = ["docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "--env", "HOME=/tmp", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "128", "--memory", "2g", "--cpus", "2", "-v", f"{output}:/reports", "-v", f"{cache}:/cache", SCANNER, "--cache-dir", "/cache"]
     with (output / "database.log").open("w") as log:
         result = scanner_run(command, ["image", "--download-db-only", "--quiet"], log, 600)
         if result.returncode:

@@ -60,13 +60,16 @@ class SupplyChainTests(unittest.TestCase):
                         return subprocess.CompletedProcess(command, 0)
                     self.assertFalse(any("docker.sock" in str(arg) for arg in command))
                     self.assertNotIn("--ignore-unfixed", command)
-                    self.assertIn("--cap-drop", command)
+                    self.assertEqual(command[command.index("--user") + 1], "1001:1001")
+                    self.assertIn("HOME=/tmp", command)
+                    self.assertEqual(command[command.index("--cap-drop") + 1], "ALL")
+                    self.assertIn("no-new-privileges", command)
                     if "--download-db-only" in command:
                         return subprocess.CompletedProcess(command, 0)
                     self.assertIn("--exit-code", command)
                     (output / "image-00.json").write_text(json.dumps({"Results": []}))
                     return subprocess.CompletedProcess(command, status)
-                with mock.patch.object(module.subprocess, "run", side_effect=fake_run):
+                with mock.patch.object(module.os, "getuid", return_value=1001), mock.patch.object(module.os, "getgid", return_value=1001), mock.patch.object(module.subprocess, "run", side_effect=fake_run):
                     self.assertEqual(module.run_scan(root, output, "linux/arm64"), int(status != 0))
                 summary = json.loads((output / "summary.json").read_text())
                 self.assertEqual(summary["images"][0]["exit_code"], status)
