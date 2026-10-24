@@ -47,6 +47,7 @@ scripts/**
 .github/workflows/**
 !.github/workflows/ci.yml
 !.github/security-readiness.json
+!.github/scanner-transition.json
 !.cargo
 .cargo/**
 !.cargo/config.toml

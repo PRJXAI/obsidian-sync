@@ -61,7 +61,7 @@ jobs:
 
   security:
     name: Security / secrets / documentation / supply chain
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -74,23 +74,29 @@ jobs:
           (cd .work/ci-images && sha256sum -c SHA256SUMS)
           docker load -i .work/ci-images/runtime.tar
           docker load -i .work/ci-images/builder.tar
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with: {name: sbom-materials, path: .work/sbom}
       - run: cargo install cargo-audit --version 0.22.1 --locked
       - run: cargo install cargo-deny --version 0.20.2 --locked
       - run: cargo audit && cargo deny check
       - run: cargo test --locked -p xtask
       - run: cargo xtask sync-generated --check && cargo xtask docs check
-      - name: Scan Rust, source/history secrets, exact runtime and builder
-        env:
-          SYNC_SECURITY_BUILDER_IMAGE: obsidian-sync:builder
-        run: scripts/scan-security.sh
-      - name: Verify the runtime-to-release content binding
-        run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/security/trivy.json
-      - name: Scan every declared public build/test/scanner image
+      - name: Audit Rust and scan minimized source/history inputs
+        run: cargo xtask scan-sources
+      - name: Grype scans the exact source/runtime/builder Syft SBOMs offline
+        run: cargo xtask scan-sbom --sbom-dir .work/sbom
+      - name: Verify bound SBOM/report/config/layer runtime content
+        if: always()
+        run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
+      - name: Syft catalogs every declared image; Grype scans each SBOM offline
         if: always()
         run: cargo xtask scan-supply-chain --platform linux/amd64
       - name: Build artifact-specific findings ledger without waivers
         if: always()
         run: cargo xtask findings-ledger --platform linux/amd64 --source-revision "$GITHUB_SHA"
+      - name: Reject unreconciled baseline-only scanner findings
+        if: always()
+        run: cargo xtask check-scanner-transition
       - name: Prepare allowlisted public summaries, never raw matches or logs
         id: publish
         if: always()
@@ -159,10 +165,13 @@ jobs:
           path: |
             .work/sbom/source.cdx.json
             .work/sbom/source.spdx.json
+            .work/sbom/source.syft.json
             .work/sbom/runtime.cdx.json
             .work/sbom/runtime.spdx.json
+            .work/sbom/runtime.syft.json
             .work/sbom/builder.cdx.json
             .work/sbom/builder.spdx.json
+            .work/sbom/builder.syft.json
             .work/sbom/native-toolchain.txt
             .work/sbom/materials.json
           retention-days: 30

@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed stronger disposable pod Ready wait and regression, privacy-safe fixed-field scan diagnostics, first remote CI failures and explicit unresolved ledger investigation",
+  "reason": "Reviewed Syft-native SBOM generation, offline Grype receipts/DB/matches including suppressions, isolated per-invocation output mounts, same-config baseline comparison, transition denial, updated default CI and all affected guides/results",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -7,7 +7,7 @@
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "3de450f44a688cf94a99c3aeff3f6bbc89ccd31450d92466fbb190c5b955e593"
+      "sha256": "71cbf0d41c654d90050d820d31c19ee3f303a727d9db7089fd17290eb4808fd8"
     },
     {
       "path": ".cargo/config.toml",
@@ -15,11 +15,15 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "a06449efa57535dcac549a0c60b59633ddf732999f1306e542d8f629af154ef8"
+      "sha256": "e7e241337608a386aabb359fa6ae4a8ef788516d652bf5c8a2bb14ef9f4b34e6"
     },
     {
       "path": ".env.example",
       "sha256": "339f314c41d67665cbd7806b09c6d69212d7abd90b78949278291c1a393ebfb8"
+    },
+    {
+      "path": ".github/scanner-transition.json",
+      "sha256": "3ea37b9a4cbcfbb533ffda8186ba4cbb06af9f92c4cc3db62648803d6a601ea9"
     },
     {
       "path": ".github/security-readiness.json",
@@ -27,7 +31,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "4ca5612ea9beee3969f7304b75835cdede81bade86bcf6cfd113f4a516491c7f"
+      "sha256": "ce10f5c1112f058f9efe17335f0203e0e75654b46699fce28ba0c76d4e0550c4"
     },
     {
       "path": ".gitignore",
@@ -35,7 +39,7 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "9d1e776b04cf7697329ee8cf0f80c6f7578b7a26dae63cecb5bbf8e25a7e55af"
+      "sha256": "67cd351bc0f8937e7d83333b050040ef81f10cfe6d1200efa225239592329481"
     },
     {
       "path": "Cargo.lock",
@@ -350,16 +354,20 @@
       "sha256": "515953123b697330ceebaa924ed6672e453497460cd1f5520087a51f1ea88a5b"
     },
     {
+      "path": "xtask/src/grype.rs",
+      "sha256": "fb6cb3f409b530d3d5430f0fa7d23cefdaa783cb90b7c8dfd1298f18b8585650"
+    },
+    {
       "path": "xtask/src/images.rs",
-      "sha256": "cc9942b90141d964a09671182988c6803f230226aadd8921ce76387d34d1e844"
+      "sha256": "c33b8a12c5fda6b448663caca145b2a4348429a34f8be930ee3aae6e8a0909d7"
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "ff8ec38f2d6974d2548fc22248f1e4367ec97e2723d609546beab8c0ee1c05aa"
+      "sha256": "6ee449b46bef6913eafdc881204a542c78fc49e012c357b65efb2ae05ec7117c"
     },
     {
       "path": "xtask/src/main.rs",
-      "sha256": "6f61ea35b9efe3bd00378a3c08643b448816d2e9cdff40e130eafc41f2a971b0"
+      "sha256": "04a700f68df388f7fa0aa4d541ef5eed88c8a31b8856fe0dfa56b7fe8b5c1430"
     },
     {
       "path": "xtask/src/policy.rs",
@@ -367,23 +375,31 @@
     },
     {
       "path": "xtask/src/sbom.rs",
-      "sha256": "529e782f8a1645ff0ef5fa74e4e761abeafebc6f50928d9b8380f541411594d6"
+      "sha256": "97567c6e8388ef334b6ab83228c86282594c11f1fca55079c6a723be516f0eac"
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "fb920bd7c187b42276c9fddbdca37e3d600d5e6433958829e90a7764c76a8335"
+      "sha256": "1e5a4af00200f85eff075987f4b185877aabbcc257ccf29821a4ce4a974cad6d"
+    },
+    {
+      "path": "xtask/src/supply_sbom.rs",
+      "sha256": "e7c77318f39d9aba35469b488dc78755341fcacaee954022678d3634f22522e5"
     },
     {
       "path": "xtask/src/util.rs",
-      "sha256": "503eba433a50d44b2e3899b4f5e4d4137bc3f658b99cd8c9205433a75280db09"
+      "sha256": "4f5a45b20edb2b70546468306268c4ad9b7e72a3aa95cd56f9f5ada0e4343750"
     },
     {
       "path": "xtask/tests/cancellation.rs",
       "sha256": "bbe9fc046143f4313c683b868247e24317ccc50169dfcfd6721d686adfb26536"
     },
     {
+      "path": "xtask/tests/grype.rs",
+      "sha256": "c1bc6a61bb01d914883e91ac47e9e66647d55aa6c67c109fc4e4fa0f5385e717"
+    },
+    {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "a4c4f46f61e8a9a5664ad128dd0bf4e806b4cd621ed73a83ad8462f32bead413"
+      "sha256": "0e323dde8cf148c6ec17decb2855e171ee98770565193c01dc6f60c22397fcb8"
     }
   ]
 }

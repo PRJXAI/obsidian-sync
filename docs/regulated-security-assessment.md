@@ -8,7 +8,11 @@ This assessment does **not** establish that any image is malicious, that exfiltr
 
 No jurisdiction, data classification or mandated control framework was specified. The findings below are control gaps and risk decisions, not a legal opinion, certification or a claim that every regulated workload has identical requirements.
 
-## What the seven image findings mean
+## Scanner transition follow-up
+
+The current Rust pipeline uses [Syft → native SBOM → offline Grype](scanner-pipeline.md); the seven-image table below records the prior Trivy baseline. Grype reported additional builder/tool matches and different advisory IDs. A same-config amd64 comparison retains 27 baseline-only asset/advisory pairs as under investigation; a separate CI transition gate rejects unreviewed coverage changes. Default CI no longer executes Trivy or downloads its Java DB. Trivy remains an explicit comparison tool/pinned comparison asset, not a silently discarded finding set. Raw match counts do not establish exploitability or regulatory readiness.
+
+## What the seven baseline image findings mean
 
 These images are build, test or security-tool dependencies, **not ancestors of the final Distroless runtime**, which adds only the Rust executable. Their vulnerabilities can still matter through CI compromise, artifact poisoning, scanner input/output handling or future reuse outside disposable tests. Runtime/Cargo scans also do not reconstruct every statically linked native component.
 

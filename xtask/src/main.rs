@@ -40,6 +40,21 @@ enum Task {
         builder_archive: Option<PathBuf>,
     },
     ScanSecurity,
+    ScanSources,
+    CheckScannerTransition,
+    CompareTrivy,
+    CompareScannerBaseline {
+        #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
+        platform: String,
+    },
+    CompareTrivySupplyChain {
+        #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
+        platform: String,
+    },
+    ScanSbom {
+        #[arg(long, default_value = ".work/sbom")]
+        sbom_dir: PathBuf,
+    },
     ScanSupplyChain {
         #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
         platform: String,
@@ -130,7 +145,17 @@ fn execute(command: Task) -> Result {
             runtime_archive.as_deref().zip(builder_archive.as_deref()),
         ),
         Task::ScanSecurity => security::scan_security(&root),
-        Task::ScanSupplyChain { platform } => security::scan_supply_chain(&root, &platform),
+        Task::ScanSources => security::scan_sources(&root),
+        Task::CheckScannerTransition => xtask::grype::transition(&xtask::util::json(
+            &root.join(".github/scanner-transition.json"),
+        )?),
+        Task::CompareTrivy => security::compare_trivy(&root),
+        Task::CompareScannerBaseline { platform } => {
+            xtask::supply_sbom::compare_baseline(&root, &platform)
+        }
+        Task::CompareTrivySupplyChain { platform } => security::scan_supply_chain(&root, &platform),
+        Task::ScanSbom { sbom_dir } => xtask::grype::scan_generated(&root, &sbom_dir),
+        Task::ScanSupplyChain { platform } => xtask::supply_sbom::scan(&root, &platform),
         Task::TestLivesync {
             storage_config,
             image,
@@ -153,9 +178,9 @@ fn execute(command: Task) -> Result {
         Task::FindingsLedger {
             platform,
             source_revision,
-        } => security::ledger(&root, &platform, &source_revision),
+        } => xtask::supply_sbom::ledger(&root, &platform, &source_revision),
         Task::PublishSecuritySummary { source_revision } => {
-            security::public_summary(&root, &source_revision)
+            xtask::supply_sbom::public_summary(&root, &source_revision)
         }
     }
 }

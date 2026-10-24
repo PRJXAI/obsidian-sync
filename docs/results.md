@@ -1,5 +1,29 @@
 # LiveSync implementation evidence
 
+## Syft → SBOM → Grype trial/adoption — 2026-10-24
+
+The [Rust SBOM-first path](scanner-pipeline.md) was executed, not just configured. Syft 1.55.0 generated native JSON, SPDX and CycloneDX for source/runtime/builder (nine inventories); Grype 0.121.0 consumed the native SBOMs offline. Tool images are digest-pinned and Grype's own image is included in scanning. DB retrieval is separate from offline matching. Per-invocation output scratch prevents a writable alias to the SBOM or prior evidence. Tool JSON remains bounded (64 MiB/two million structural tokens); server HTTP limits are unchanged.
+
+| Check | Actual result |
+|---|---|
+| Rust tooling tests / Clippy | PASS: **44 tests** (36 general, six Grype/transition, two cancellation/subprocess); workspace Clippy `-D warnings` |
+| Full local regression/deployment rerun | PASS: `scripts/check.sh`, all eight feature subsets, real S3/reference fixtures, fresh Linux/musl Docker tests, static/nonroot image verification, actual runtime client restart, Compose, disposable kind and rendering; fresh RustSec/deny and source/history Gitleaks |
+| Native/CDX source completeness | PASS: all 292 registry Rust packages and all 129 npm lock entries, including workspace/development dependencies |
+| Grype source / runtime | PASS: **0 / 0 effective matches** |
+| Grype populated builder | **FAIL: 19 effective matches — one Critical, six High, twelve Medium**; all remain under investigation |
+| Runtime content binding | PASS: bound native SBOM/report hashes, config/layers and immutable daemon identity verified; not release authorization |
+| Declared/comparison images, linux/amd64 | All **11** cataloged/scanned; **10** with matches, zero catalog/scan errors; gate exit 1 retained |
+| CouchDB Java inventory | PASS: 126 Java archive packages cataloged; Grype scanned the SBOM without a separate Trivy Java DB download |
+| Findings ledger | PASS as inventory only; no advisory waiver, all matches under investigation |
+| Same-config baseline comparison | **FAIL / reconciliation pending:** 27 Trivy-only asset/advisory pairs (21 distinct IDs); aliases included and no baseline asset omitted |
+| Scanner-transition gate | Explicitly blocked in `.github/scanner-transition.json`; a candidate clean report cannot erase unreconciled baseline findings |
+
+The builder matches include `perl 5.42.2-r1` / `CVE-2026-8376` (Critical), binutils and BusyBox associations. Trivy's earlier zero does not disprove them, nor does Grype establish exploitability or absence of distro backports. Counts are detector/data associations requiring independent exact-binary/platform review. Raw data: ignored `.work/sbom/`, `.work/security/sbom-chain/amd64/`, `.work/grype-trial/`.
+
+Grype's cold DB retrieval succeeded inside the standard **3 GiB memory / 1536 MiB tmpfs** profile; its installed database occupied about **3.1 GiB disk**. This avoids the separate Java DB path, but is not a tiny/no-database scanner or a general speedup claim. Explicit comparison-only Trivy remains available: a cold CouchDB scan reproduced `no space left on device` with 1536 MiB scratch; bounded 5 GiB memory / 3 GiB scratch completed with **356 retained findings**, not a clean result. No Java analysis or severity was disabled.
+
+Default CI now generates SBOMs before Grype scans them; Trivy is no longer executed by the default path. Its comparison pin/baseline remains conservatively inventoried, and transition closure requires independent evidence. Current image findings, the 27 baseline-only pairs, private durable raw-evidence archival and the other acceptance blockers remain OPEN. These local receipts describe a dirty adoption snapshot, not a signed/clean-commit release certification or successful remote run of this new pipeline. No real vault, cloud account, cluster or image publication was used.
+
 ## Rust tooling migration — 2026-10-24
 
 First-party tooling/infrastructure tests moved to the Rust `xtask/` workspace crate; Python implementations were removed and shell scripts became thin launchers. npm/Node remain only the pinned upstream JavaScript client bridge. No server schema, protocol, authorization, storage publication or retention logic changed. The egress sandbox is explicitly deferred.
@@ -36,7 +60,7 @@ A Docker build-context canary reproduced how allowing a parent directory can re-
 
 ### First remote migration run
 
-[Run 40099216841](https://github.com/PRJXAI/obsidian-sync/actions/runs/40099216841), commit `7c7d37d`: all eight Rust jobs, shared Linux build/tests/image verification and SBOM job passed. Security passed fresh Rust/secret/runtime/builder scans and content binding; all client/S3/reference/Compose tests passed. The workflow nevertheless **failed**: Kubernetes attempted post-restart execution while the replacement pod was Running but its container was not ready, and amd64 ledger generation rejected scan evidence. `Required CI` correctly rejected the workflow. The Kubernetes fix strengthens the wait to pod Ready; report-size/exit/validation diagnostics were added without publishing raw output. A local amd64 rerun produced all ten reports and a complete ledger while retaining the seven-image vulnerability failure; the remote-only validation failure is not yet claimed resolved.
+[Run 40099216841](https://github.com/PRJXAI/obsidian-sync/actions/runs/40099216841), commit `7c7d37d`: all eight Rust jobs, shared Linux build/tests/image verification and SBOM job passed. Security passed fresh Rust/secret/runtime/builder scans and content binding; all client/S3/reference/Compose tests passed. The workflow nevertheless **failed**: Kubernetes attempted post-restart execution while the replacement pod was Running but its container was not ready, and amd64 ledger generation rejected scan evidence. `Required CI` correctly rejected the workflow. The Kubernetes fix strengthens the wait to pod Ready; report-size/exit/validation diagnostics were added without publishing raw output. A local amd64 rerun produced all ten reports and a complete ledger while retaining the seven-image vulnerability failure; the validation failure was not treated as a clean scan. [Run 40101883009](https://github.com/PRJXAI/obsidian-sync/actions/runs/40101883009), commit `2a6c7ca`, then passed all eight Rust jobs, shared build, complete integration including corrected Kubernetes readiness, and SBOM generation. Classified diagnostics traced the remaining missing report specifically to CouchDB; the cold Java DB scratch failure and bounded comparison fix are documented above. The workflow and required aggregate correctly remained failed.
 
 `Required CI` now aggregates every producer fail-closed. Public security artifacts contain allowlisted count/status summaries only; raw reports/ledgers stay local pending an approved durable private archive. Source/release protection, reviewer teams, signed authorization, audit policy, crypto/retention and provider/operational acceptance remain blocked. None is implied by the language migration.
 

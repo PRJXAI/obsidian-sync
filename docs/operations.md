@@ -55,11 +55,11 @@ Use [the release override](../deploy/compose.release.yml) with an already scanne
 docker compose -p PRIVATE_PROJECT -f docker-compose.yml -f deploy/compose.release.yml config --quiet
 ```
 
-Verify imported configuration digest AND filesystem layers against a **trusted** clean runtime scan before starting. Obtain the raw report through an approved authenticated private operator/evidence channel; current public CI security artifacts contain summaries only, not a deployable raw runtime report. A protected durable raw-evidence archive is still pending. Arbitrary JSON is not an authenticity proof. Reports older than 24 hours, findings including UNKNOWN, missing results and content substitution fail closed:
+Verify imported configuration digest AND filesystem layers against a **trusted** clean runtime scan before starting. Current [Syft/Grype receipts](scanner-pipeline.md) require adjacent `runtime.syft.json` and `runtime.grype.json`; all hashes, source/config/layers, report freshness, DB validity and effective matches are checked. Obtain the complete bundle through an approved private evidence channel. Obtain the raw report through an approved authenticated private operator/evidence channel; current public CI security artifacts contain summaries only, not a deployable raw runtime report. A protected durable raw-evidence archive is still pending. Arbitrary JSON is not an authenticity proof. Reports older than 24 hours, findings including UNKNOWN, missing results and content substitution fail closed:
 
 ```sh
 # Start with the imported tag/reference from the private .env; use this verified ID for up.
-SYNC_RELEASE_IMAGE="$(cargo xtask verify-release --image PRIVATE_IMPORTED_TAG --scan-report /trusted/security-reports/trivy.json)"
+SYNC_RELEASE_IMAGE="$(cargo xtask verify-release --image PRIVATE_IMPORTED_TAG --scan-report /trusted/security-evidence/runtime.scan.json)"
 export SYNC_RELEASE_IMAGE
 docker compose -p PRIVATE_PROJECT -f docker-compose.yml -f deploy/compose.release.yml up -d --no-build --pull never
 ```

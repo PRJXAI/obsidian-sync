@@ -16,6 +16,7 @@ use std::{
 };
 
 pub const JSON_LIMIT: u64 = 64 * 1024 * 1024;
+pub const STRUCTURAL_LIMIT: usize = 2_000_000;
 static CANCELLED: OnceLock<Arc<AtomicBool>> = OnceLock::new();
 pub fn install_cancellation() -> Result {
     let flag = CANCELLED.get_or_init(|| Arc::new(AtomicBool::new(false)));
@@ -78,7 +79,7 @@ pub fn strict_json(bytes: &[u8]) -> Result<Value> {
             tokens += 1;
         }
         ensure(
-            tokens <= 500_000,
+            tokens <= STRUCTURAL_LIMIT,
             "Evidence exceeds structural allocation budget",
         )?;
     }

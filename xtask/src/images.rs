@@ -133,7 +133,7 @@ pub fn verify_release(root: &Path, image: &str, report: &Path) -> Result {
         regex::Regex::new(r"^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,255}$")?.is_match(image),
         "Invalid local reference",
     )?;
-    let report = util::json(report)?;
+    let report = crate::grype::receipt(report, Utc::now())?;
     let inspected = inspect(root, image)?;
     let archive = tempfile::NamedTempFile::new()?;
     util::quiet(

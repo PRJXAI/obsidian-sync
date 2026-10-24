@@ -137,6 +137,26 @@ pub fn sandbox_args(name: &str) -> Vec<String> {
     .map(String::from)
     .collect()
 }
+pub fn trivy_sandbox_args(name: &str) -> Vec<String> {
+    let mut args = sandbox_args(name);
+    // Cold Java DB retrieval holds two ~943 MiB compressed copies in /tmp.
+    let memory = args
+        .iter()
+        .position(|v| v == "--memory")
+        .expect("memory bound");
+    args[memory + 1] = "5g".into();
+    let scratch = args
+        .iter()
+        .position(|v| v == "--tmpfs")
+        .expect("scratch bound");
+    args[scratch + 1] = "/tmp:rw,noexec,nosuid,nodev,size=3g,mode=1777".into();
+    args
+}
+fn trivy_sandbox(root: &Path, container: &util::Container) -> Command {
+    let mut command = util::cmd("docker", &[], root);
+    command.args(trivy_sandbox_args(&container.name));
+    command
+}
 fn sandbox(root: &Path, container: &util::Container) -> Command {
     let mut c = util::cmd("docker", &[], root);
     c.args(sandbox_args(&container.name));
@@ -166,7 +186,7 @@ fn scan_remote(
     timeout: u64,
 ) -> Result<i32> {
     let container = util::Container::new(root, "sync-chain-scan");
-    let mut c = sandbox(root, &container);
+    let mut c = trivy_sandbox(root, &container);
     mount(&mut c, output, "/reports", false)?;
     mount(&mut c, cache, "/cache", false)?;
     c.args([TRIVY, "--cache-dir", "/cache"]).args(args);
@@ -245,7 +265,7 @@ pub fn scan_supply_chain(root: &Path, platform: &str) -> Result {
             &output.join(format!("image-{index:02}.log")),
             240,
         )?;
-        let mut entry = json!({"image":image,"sources":sources,"exit_code":status,"scanner_exit_code":status,"report":report,"report_bytes":path.metadata().ok().map(|v|v.len()),"report_valid":false});
+        let mut entry = json!({"image":image,"sources":sources,"exit_code":status,"scanner_exit_code":status,"report":report,"report_bytes":path.symlink_metadata().ok().filter(|v|v.is_file()).map(|v|v.len()),"report_valid":false});
         let document = util::json(&path);
         if let Ok(report) = &document {
             println!(
@@ -391,7 +411,7 @@ fn secret_scan(root: &Path, source: &Path, output: &Path, history: bool) -> Resu
 }
 fn archive_scan(root: &Path, archive: &Path, output: &Path, cache: &Path, builder: bool) -> Result {
     let container = util::Container::new(root, "sync-image-scan");
-    let mut c = sandbox(root, &container);
+    let mut c = trivy_sandbox(root, &container);
     mount(&mut c, archive, "/image.tar", true)?;
     mount(&mut c, output, "/reports", false)?;
     mount(&mut c, cache, "/cache", false)?;
@@ -452,24 +472,17 @@ pub fn native_identity(root: &Path, builder: &str) -> Result<Vec<u8>> {
     Ok(result)
 }
 pub fn scan_security(root: &Path) -> Result {
+    scan_sources(root)?;
+    crate::sbom::generate(root, "obsidian-sync:local", "obsidian-sync:builder", None)?;
+    crate::grype::scan_generated(root, &root.join(".work/sbom"))?;
+    crate::grype::transition(&util::json(&root.join(".github/scanner-transition.json"))?)
+}
+pub fn scan_sources(root: &Path) -> Result {
     util::local_docker(root)?;
     let output = root.join(".work/security");
-    let cache = root.join(".work/trivy-cache");
     fs::create_dir_all(&output)?;
     fs::set_permissions(&output, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
-    fs::create_dir_all(&cache)?;
-    for name in [
-        "rustsec.json",
-        "gitleaks.json",
-        "gitleaks-history.json",
-        "trivy.json",
-        "trivy-builder.json",
-        "trivy-version.txt",
-        "image-inspect.json",
-        "image-id.txt",
-        "native-toolchain.txt",
-        "cargo-metadata.json",
-    ] {
+    for name in ["rustsec.json", "gitleaks.json", "gitleaks-history.json"] {
         let p = output.join(name);
         if p.exists() {
             fs::remove_file(p)?;
@@ -507,6 +520,16 @@ pub fn scan_security(root: &Path) -> Result {
         history_snapshot(root, &mirror)?;
         secret_scan(root, &mirror, &output, true)?;
     }
+    Ok(())
+}
+pub fn compare_trivy(root: &Path) -> Result {
+    scan_sources(root)?;
+    let output = root.join(".work/security");
+    let cache = root.join(".work/trivy-cache");
+    fs::create_dir_all(&cache)?;
+    let work = tempfile::Builder::new()
+        .prefix("trivy-compare-")
+        .tempdir_in(root.join(".work"))?;
     let inspected = images::inspect(root, "obsidian-sync:local")?;
     util::write_json(&output.join("image-inspect.json"), &json!([inspected]))?;
     fs::write(
@@ -556,7 +579,7 @@ pub fn scan_security(root: &Path) -> Result {
         )?,
     )?;
     let container = util::Container::new(root, "sync-scanner-version");
-    let mut c = sandbox(root, &container);
+    let mut c = trivy_sandbox(root, &container);
     c.args(["--network", "none", TRIVY, "--version"]);
     fs::write(output.join("trivy-version.txt"), util::output(&mut c, 30)?)?;
     fs::write(

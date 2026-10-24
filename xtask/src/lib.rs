@@ -4,10 +4,12 @@ pub mod clients;
 pub mod deployment;
 pub mod docs;
 pub mod evidence;
+pub mod grype;
 pub mod images;
 pub mod policy;
 pub mod sbom;
 pub mod security;
+pub mod supply_sbom;
 pub mod util;
 
 pub type Result<T = ()> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;

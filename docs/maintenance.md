@@ -1,6 +1,6 @@
 # Repository maintenance
 
-Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). All first-party implementation, tests and automation are Rust. The `xtask/` workspace crate owns documentation, infrastructure, security, image/SBOM and release-content tooling. Shell scripts are four-line launchers, not independent implementations. Python is not permitted. Node/npm are confined to the pinned upstream Commonlib/PouchDB compatibility bridge; neither ships in the runtime.
+Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). All first-party implementation, tests and automation are Rust in `xtask/`. Shell scripts are four-line launchers. No Python. Node/npm are confined to the pinned upstream Commonlib/PouchDB compatibility bridge and never ship in the runtime.
 
 ## Documentation lifecycle
 
@@ -8,24 +8,24 @@ Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). All first-party implem
 cargo xtask docs check
 cargo xtask docs create docs/topic.md --title 'Topic'
 cargo xtask docs update docs/topic.md --from-file /path/to/reviewed-content.md
-# First move useful content and remove inbound links; committed history is required.
+# Preserve useful prose and remove inbound links first; committed history is required.
 cargo xtask docs delete docs/obsolete.md --reason 'Superseded by topic.md' --yes
 cargo xtask sync-generated
-# ONLY after reviewing affected authored documents against implementation and tests:
+# ONLY after reviewing implementation, tests and affected authored pages:
 cargo xtask docs review --reason 'Describe reviewed behavior and evidence'
 cargo xtask docs check
 cargo test --locked -p xtask
 ```
 
-`docs/review.json` records source fingerprints, not proof that prose is correct. Never acknowledge drift without reading affected implementation, tests and prose. Documentation writes use descriptor-relative no-follow traversal; escapes, symlink parents/targets, hardlinked update targets, untracked/dirty deletion, missing confirmation and inbound links are rejected. Git retains deleted authored history. No network/LLM calls or unattended prose deletion occur.
+The review manifest records fingerprints, not proof that prose is correct. Writes use descriptor-relative no-follow traversal; escaping/symlink parents/targets, hardlinked updates, untracked/dirty deletion, missing confirmation and inbound links are rejected. No network/LLM calls or unattended deletion occur. Git retains authored history.
 
-`config/` is canonical. `cargo xtask sync-generated` deterministically refreshes Kustomize config copies and the source map; it never rewrites authored runbooks. The checker includes [llms.txt](../llms.txt). Source fingerprints/maps include public tracked or non-ignored candidates, including `xtask/` and `.cargo/`, never ignored operator overrides. `.env` variants and local TOML remain ignored except explicit build/policy manifests and shipped templates. Ignore rules do not scrub history. Keep operational receipts and machine profiles outside authored docs.
+`config/` is canonical. Generated Kustomize copies/source map are deterministic and never rewrite authored runbooks. Link checks include [llms.txt](../llms.txt). Fingerprints/maps include public tracked/non-ignored candidates, including `xtask/` and `.cargo/`, not ignored operator overrides. Ignore rules do not scrub Git history. Operational receipts and machine profiles stay outside authored docs.
 
-## CI and acceptance
+## CI and evidence
 
-[CI](../.github/workflows/ci.yml) has eight Rust feature cells, a shared Linux/musl build/test, security, integration and SBOM producers, plus the stable **Required CI** aggregate. Every producer must succeed; missing, skipped, canceled and failed results reject the aggregate. Enforcing that check through repository rules is still owner-side work. Checkouts do not persist credentials; Actions are commit-pinned; default tokens are read-only. No image is published or real infrastructure deployed.
+[CI](../.github/workflows/ci.yml) runs eight Rust feature cells, one shared Linux/musl build/test, SBOM generation, security and integration, plus **Required CI**. Every producer must succeed; missing/skipped/canceled/failed results reject the aggregate. Source/release protections and actual reviewer teams remain owner-side work. Checkouts do not persist credentials, Actions are commit-pinned and tokens read-only. No image publication or real deployment occurs.
 
-The build job exports checksum-verified runtime/builder archives. Downstream jobs use those exact images. SBOM generation can accept both original archives, validates their saved configuration/layers against the imported images and hashes their original bytes rather than a newly serialized `docker save` archive. Six SPDX/CycloneDX inventories, native libc identity and `materials.json` bind source/locks/images/SBOMs. Source completeness includes the tooling workspace and npm development dependencies. Inventories and content hashes are unsigned, not builder trust or release authorization.
+The build job exports checksum-verified runtime/builder archives. SBOM generation consumes those exact archive bytes, checks config/layers and emits **native Syft JSON + SPDX + CycloneDX** for source/runtime/builder, native libc identity and bound materials. Both native and CycloneDX source inventories must include Cargo/workspace/npm development lock graphs. The security job consumes those native SBOMs with Grype offline; it does not rebuild/re-catalog them. Declared image scanning uses Syft registry retrieval followed by offline Grype. Full details, command order, suppression accounting and receipt validation: [scanner pipeline](scanner-pipeline.md).
 
 ```sh
 scripts/check.sh
@@ -40,28 +40,32 @@ docker build --target build -t obsidian-sync:builder .
 docker build -t obsidian-sync:local .
 cargo xtask verify-image
 cargo xtask test-livesync --image obsidian-sync:local
-SYNC_SECURITY_BUILDER_IMAGE=obsidian-sync:builder scripts/scan-security.sh
-cargo xtask scan-supply-chain --platform linux/arm64  # amd64 in CI; findings remain blocking
+cargo xtask scan-sources
 cargo xtask generate-sbom
-cargo xtask verify-release --image obsidian-sync:local --scan-report .work/security/trivy.json
+cargo xtask scan-sbom --sbom-dir .work/sbom
+cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
+cargo xtask scan-supply-chain --platform linux/amd64
+cargo xtask check-scanner-transition
 scripts/smoke-compose.sh
 scripts/smoke-kubernetes.sh
 scripts/benchmark.sh
 cargo xtask test-livesync --benchmark
 ```
 
-Docker fixtures require a local Unix-socket daemon. Kubernetes tests must enter through `scripts/smoke-kubernetes.sh`; Rust creates a disposable kind cluster and fences every kind/kubectl invocation with its own kubeconfig, including teardown. They require pod **Ready**, not merely phase Running, before execution and after replacement; Running can precede container creation. They verify readiness, writer exclusion and PVC-backed restart, not production CNI enforcement. Real GCS/Azure accounts, GUI/mobile Obsidian, private TLS/ACLs and operational recovery need separately authorized validation.
+`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Trivy is **comparison-only**, not the default CI scanner; the retained comparison image is conservatively included in the 11-image inventory. Do not remove its baseline findings because Grype reports different IDs/counts. The scanner-transition policy rejects unreconciled differences even if a candidate report becomes clean.
 
-## Scanner isolation and evidence handling
+## Isolation and failure behavior
 
-Rust inventories pinned Docker/frontend/deployment images and image constants in `xtask/src/`. All severities, UNKNOWN, incomplete/invalid/stale reports and scanner failures remain failures. Fixed-field report index/size/exit-code/validation diagnostics are observable without exposing raw report data or provider errors. No ignore list or severity downgrade is introduced. Scanners use caller UID/GID, `HOME=/tmp`, read-only rootfs, dropped capabilities, no-new-privileges, 128 PIDs, two CPUs, 3 GiB memory and a 1536 MiB bounded tmpfs. Inputs are read-only, cache/reports separate, and no Docker socket is mounted. Offline Syft/Gitleaks retain `--network none`. Named container guards remove timed-out containers; captured subprocesses have bounded output and owned process-group cleanup. SIGINT/SIGTERM latch cancellation so work fails while bounded cleanup still runs. Native-only fixtures have inert Docker guards and never invoke container cleanup. Raw scanner stdout/stderr are retained privately rather than printed into CI logs. These controls do not prove a vulnerable vendor tool benign.
+Fixtures require a local Unix-socket Docker daemon. Kubernetes tests must enter through `scripts/smoke-kubernetes.sh`. Rust creates/deletes a disposable kind cluster and fences every kind/kubectl command with a private kubeconfig, including teardown. Wait for pod **Ready**, not just phase Running, before execution and after replacement. Verify private readiness, classified second-writer denial and PVC restart; this is not CNI enforcement or a provider DR drill.
 
-Source scans stage only public Git-eligible inputs and reject symlinks. History scans receive an independent bare mirror, no hardlinks/alternates or origin configuration, supporting detached HEAD/all refs while excluding ignored canaries. Use only public source/synthetic data: network isolation does not prevent copying inputs to reports or logs.
+Scanner roots/inputs are read-only, resources/time/tmpfs bounded, capabilities dropped, no-new-privileges enabled and no Docker socket mounted. Grype analysis is offline; only separate DB retrieval and Syft registry cataloging have networking. Each invocation receives an isolated output scratch directory, never a writable alias to inputs/earlier evidence. Host Rust validates and copies only expected bounded regular JSON files. Tool JSON is limited to 64 MiB and two million structural tokens; server HTTP JSON limits are unchanged.
 
-Raw reports remain under ignored `.work/security/`. `cargo xtask findings-ledger --platform linux/arm64 --source-revision COMMIT_SHA` produces an artifact/platform-specific local ledger with stable IDs and unresolved native-review categories. All findings begin **under investigation**; this is triage inventory, not an applicability decision or waiver. An approved durable private archive, reviewer ownership and supplier fixes are pending.
+SIGINT/SIGTERM latch cancellation: owned work fails while bounded cleanup remains runnable. Subprocess outputs are bounded; owned process groups and named containers are fenced on timeout. Native-only fixtures have inert Docker guards. Raw provider/tool errors are private, not printed into public CI logs. Source/history Gitleaks retain redaction and minimized mounts: Git-eligible source candidates, independent bare mirror, no local hardlinks/alternates/origin configuration, detached/all-ref coverage and ignored-file canaries.
 
-Public `security-reports` artifacts now contain only allowlisted count/status summaries. Raw matches, authors, filenames, image configuration environment and provider/tool logs are not copied. Missing inputs are reported as errors, never zero findings. Output validation is defense in depth, not general DLP. Build archives retain one day, public summaries 14 days and SBOM/materials 30 days. SBOM inputs remain explicitly public; no classified inputs may enter this public CI boundary.
+Public security artifacts are count/status summaries only. Raw matches/logs and local triage/comparison ledgers require an approved durable private archive, still pending. Public inventory/materials uploads have explicit file allowlists. All inputs remain public source/images or synthetic fixtures: these controls are not general DLP or proof that suppliers are benign.
 
-`cargo xtask verify-release` requires a trusted complete clean runtime scan no older than 24 hours and checks saved-config/layer/non-root/entrypoint identities before emitting an immutable ID. It is **not** signature verification, whole-chain acceptance or permission to deploy. Current public summaries are not raw runtime reports. `cargo xtask check-release-policy --source-revision COMMIT_SHA` separately fails closed on unset scope/teams, deferred/open milestones, missing reviewed evidence or unverifiable source/release protections; it only reads settings. It does not create rules/CODEOWNERS, issue signatures or certify the underlying closure evidence.
+## Acceptance remains blocked
 
-The expanded supply-chain gate still has unresolved upstream-image findings. General egress-sandbox support is explicitly deferred, not waived. Audit schema/sink, framework/data class, provider, crypto, retention and reviewer decisions are pending. See [remediation plan](security-remediation-plan.md), [assessment](regulated-security-assessment.md) and [actual results](results.md). Never suppress advisories, remove tests or claim regulated acceptance to complete a tooling migration.
+All reported severities, Unknown/Negligible, suppressed matches, incomplete/stale/substituted reports and scanner errors remain failures. No severity threshold, `--only-fixed`, advisory ignore or automatic VEX waiver. Runtime content receipts bind hashes/config/layers through a trusted channel; they are not signatures, builder trust or release authorization.
+
+Current Grype matches and **27 baseline-only asset/advisory pairs** remain under investigation. General egress-sandbox support is deferred. Actual protection/reviewer configuration, private raw-evidence archival, audit schema/sink, framework/data class, provider IAM, crypto/retention and independent operational acceptance remain open. See [results](results.md), [assessment](regulated-security-assessment.md) and [remediation plan](security-remediation-plan.md). Never suppress findings or remove checks merely to complete this migration.

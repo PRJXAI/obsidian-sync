@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "baseline_scanner": "trivy",
+  "candidate_cataloger": "syft:1.55.0",
+  "candidate_scanner": "grype:0.121.0",
+  "state": "under_investigation",
+  "unresolved_baseline_asset_advisory_pairs": 27,
+  "comparison_evidence_sha256": "d85c6e198bc4236f24fff0d1e11d31e75b5a75b4d29900593b07e206478c0ea8",
+  "closure_evidence_sha256": []
+}

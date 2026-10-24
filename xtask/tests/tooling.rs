@@ -371,9 +371,10 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
     Ok(())
 }
 #[test]
-fn repository_inventory_covers_all_ten_declared_images() -> Result {
+fn repository_inventory_covers_all_declared_and_comparison_images() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 10);
+    assert_eq!(images.len(), 11);
+    assert!(images.contains_key(xtask::grype::GRYPE));
     for pin in [
         security::TRIVY,
         security::GITLEAKS,
@@ -725,7 +726,10 @@ fn first_party_automation_is_rust_and_shell_is_only_launchers() -> Result {
 fn evidence_rejects_duplicate_keys_and_structural_bombs() -> Result {
     assert!(util::strict_json(br#"{"status":"pass","status":"fail"}"#).is_err());
     assert!(util::strict_json(br#"{"nested":{"x":1,"x":2}}"#).is_err());
-    assert!(util::strict_json(format!("[{}0]", "0,".repeat(500_001)).as_bytes()).is_err());
+    assert!(
+        util::strict_json(format!("[{}0]", "0,".repeat(util::STRUCTURAL_LIMIT + 1)).as_bytes())
+            .is_err()
+    );
     assert_eq!(
         util::strict_json(br#"{"string":"[\\\"{}]","number":2.5,"array":[null,true]}"#)?["number"],
         json!(2.5)

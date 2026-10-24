@@ -5,6 +5,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `.agents/skills/maintain-docs/SKILL.md`
 - `.agents/skills/security-release/SKILL.md`
 - `.cargo/config.toml`
+- `.github/scanner-transition.json`
 - `.github/security-readiness.json`
 - `.github/workflows/ci.yml`
 - `config/azure.toml`
@@ -76,12 +77,15 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/deployment.rs`
 - `xtask/src/docs.rs`
 - `xtask/src/evidence.rs`
+- `xtask/src/grype.rs`
 - `xtask/src/images.rs`
 - `xtask/src/lib.rs`
 - `xtask/src/main.rs`
 - `xtask/src/policy.rs`
 - `xtask/src/sbom.rs`
 - `xtask/src/security.rs`
+- `xtask/src/supply_sbom.rs`
 - `xtask/src/util.rs`
 - `xtask/tests/cancellation.rs`
+- `xtask/tests/grype.rs`
 - `xtask/tests/tooling.rs`

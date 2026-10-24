@@ -98,6 +98,9 @@ pub fn scan(
     output: &Path,
     name: &str,
 ) -> Result {
+    let temporary = tempfile::Builder::new()
+        .prefix("syft-output-")
+        .tempdir_in(root.join(".work"))?;
     let container = util::Container::new(root, "sync-sbom");
     let mut c = util::cmd("docker", &[], root);
     c.args(security::sandbox_args(&container.name));
@@ -113,7 +116,7 @@ pub fn scan(
         "--env",
         "SYFT_CHECK_FOR_APP_UPDATE=false",
         "--volume",
-        &format!("{}:/reports", output.display()),
+        &format!("{}:/reports", temporary.path().display()),
         "--volume",
         &format!("{}:{mountpoint}:ro", source.display()),
         SYFT,
@@ -122,12 +125,65 @@ pub fn scan(
         &format!("cyclonedx-json=/reports/{name}.cdx.json"),
         "-o",
         &format!("spdx-json=/reports/{name}.spdx.json"),
+        "-o",
+        &format!("syft-json=/reports/{name}.syft.json"),
     ]);
     util::logged(&mut c, &output.join(format!("{name}.log")), 600)?;
-    validate_output(output, name)
+    publish_catalog(temporary.path(), output, name)
+}
+fn publish_catalog(temporary: &Path, output: &Path, name: &str) -> Result {
+    validate_output(temporary, name)?;
+    for suffix in ["syft.json", "cdx.json", "spdx.json"] {
+        let file = format!("{name}.{suffix}");
+        fs::write(
+            output.join(&file),
+            util::read(&temporary.join(file), util::JSON_LIMIT)?,
+        )?;
+    }
+    Ok(())
+}
+pub fn catalog_registry(
+    root: &Path,
+    image: &str,
+    platform: &str,
+    output: &Path,
+    name: &str,
+) -> Result {
+    let temporary = tempfile::Builder::new()
+        .prefix("syft-registry-output-")
+        .tempdir_in(root.join(".work"))?;
+    let container = util::Container::new(root, "sync-syft-registry");
+    let mut c = util::cmd("docker", &[], root);
+    c.args(security::sandbox_args(&container.name));
+    c.args([
+        "--env",
+        "SYFT_CHECK_FOR_APP_UPDATE=false",
+        "--env",
+        "SYFT_JAVASCRIPT_INCLUDE_DEV_DEPENDENCIES=true",
+        "--env",
+        "SYFT_PARALLELISM=4",
+        "--volume",
+        &format!("{}:/reports", temporary.path().display()),
+        SYFT,
+        &format!("registry:{image}"),
+        "--platform",
+        platform,
+        "-o",
+        &format!("syft-json=/reports/{name}.syft.json"),
+        "-o",
+        &format!("cyclonedx-json=/reports/{name}.cdx.json"),
+        "-o",
+        &format!("spdx-json=/reports/{name}.spdx.json"),
+    ]);
+    util::logged(&mut c, &output.join(format!("{name}.syft.log")), 600)?;
+    publish_catalog(temporary.path(), output, name)
 }
 pub fn validate_output(output: &Path, name: &str) -> Result {
-    for (suffix, key) in [("cdx.json", "components"), ("spdx.json", "packages")] {
+    for (suffix, key) in [
+        ("cdx.json", "components"),
+        ("spdx.json", "packages"),
+        ("syft.json", "artifacts"),
+    ] {
         ensure(
             util::json(&output.join(format!("{name}.{suffix}")))?[key]
                 .as_array()
@@ -178,6 +234,13 @@ pub fn generate(
             &output,
             name,
         )?;
+        let catalog = util::json(&output.join(format!("{name}.syft.json")))?;
+        let subject = crate::grype::image_subject(&catalog)?;
+        ensure(
+            subject["ImageID"] == image_materials[name]["config_digest"]
+                && subject["DiffIDs"] == image_materials[name]["layers"],
+            "Catalog/archive configuration or layers differ",
+        )?;
     }
     scan(root, "dir:/source", &source, "/source", &output, "source")?;
     source_complete(
@@ -185,6 +248,12 @@ pub fn generate(
         util::json(&output.join("source.cdx.json"))?["components"]
             .as_array()
             .ok_or("Missing source inventory")?,
+    )?;
+    source_complete(
+        root,
+        util::json(&output.join("source.syft.json"))?["artifacts"]
+            .as_array()
+            .ok_or("Missing native source inventory")?,
     )?;
     fs::write(
         output.join("native-toolchain.txt"),
@@ -198,10 +267,13 @@ pub fn generate(
     let artifacts = [
         "runtime.cdx.json",
         "runtime.spdx.json",
+        "runtime.syft.json",
         "builder.cdx.json",
         "builder.spdx.json",
+        "builder.syft.json",
         "source.cdx.json",
         "source.spdx.json",
+        "source.syft.json",
         "native-toolchain.txt",
     ]
     .into_iter()
@@ -234,6 +306,6 @@ pub fn generate(
         &manifest,
         &json!({"schema_version":1,"generator_image":SYFT,"source_revision":revision,"source_tree_digest":format!("sha256:{}",util::digest(&serde_json::to_vec(&sources)?)),"working_tree_dirty":dirty,"dependency_inputs":dependencies,"images":image_materials,"artifacts":artifacts,"limitations":["Unsigned inventory, not builder trust or release authorization","Native/toolchain patches require separate review","Lock graph includes test and target-specific dependencies"]}),
     )?;
-    println!("Generated six SPDX/CycloneDX inventories, native identity and bound materials");
+    println!("Generated nine Syft/SPDX/CycloneDX inventories, native identity and bound materials");
     Ok(())
 }

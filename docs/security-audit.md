@@ -10,6 +10,10 @@ This is a code/configuration review plus executable checks, not a line-by-line a
 
 The follow-up [regulated-environment assessment](regulated-security-assessment.md) separates package matches from reachable paths and evaluates exfiltration, repository enforcement, egress, auditability, crypto and release-policy gaps. It also documents the history-scanner input minimization fix. Do not infer regulatory readiness or malicious behavior from this image-count table alone.
 
+## SBOM-first scanner follow-up
+
+Default CI now uses [Syft → native SBOM → offline Grype](scanner-pipeline.md), with original image-archive/config/layer binding, native/CDX lock completeness, isolated per-invocation output and hash-bound content receipts. Trivy is comparison-only. Grype source/runtime results were zero, but the populated builder had 19 matches (one Critical), and ten of eleven declared/comparison images had matches. A same-config comparison retained 27 baseline-only asset/advisory pairs; CI explicitly blocks unapproved transition/coverage closure. No baseline finding was silently waived. The Trivy tables below are historical, not claims that the new scanner agrees or that the builder remains clean under every detector. Grype's own image is inventoried/scanned too.
+
 ## Rust tooling follow-up
 
 First-party infrastructure, security, documentation, SBOM and content-verification tooling and its regression tests now live in the Rust `xtask/` workspace crate. Shell files only launch Rust. The original audit measurements below are historical; current migration checks are recorded in [results](results.md). npm remains exclusively the pinned upstream client bridge, not infrastructure logic or a runtime dependency.
