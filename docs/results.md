@@ -24,6 +24,12 @@ Grype's cold DB retrieval succeeded inside the standard **3 GiB memory / 1536 Mi
 
 Default CI now generates SBOMs before Grype scans them; Trivy is no longer executed by the default path. Its comparison pin/baseline remains conservatively inventoried, and transition closure requires independent evidence. Current image findings, the 27 baseline-only pairs, private durable raw-evidence archival and the other acceptance blockers remain OPEN. These local receipts describe a dirty adoption snapshot, not a signed/clean-commit release certification or successful remote run of this new pipeline. No real vault, cloud account, cluster or image publication was used.
 
+### Remote SBOM-first verification
+
+[Run 40110455636](https://github.com/PRJXAI/obsidian-sync/actions/runs/40110455636), commit `2569909`: all eight Rust jobs, shared Linux build/tests/image verification, and nine-format SBOM/materials generation passed. Security passed fresh Cargo audit/deny, all tooling tests, documentation/source checks, minimized source/history secret scans and the bound Grype runtime content check. Grype returned **source 0 / runtime 0 / builder 19**; all **11** image catalogs/scans and the ledger completed, **10** images had matches and **zero scan errors** were reported. The candidate/transition gates and `Required CI` correctly failed; no default Trivy execution or Java DB retrieval was used.
+
+That run's integration job also failed separately in the genuine reference-CouchDB client fixture: Commonlib reported `Direct database version or features are not compatible` during encrypted initialization, after earlier reference scenarios passed. Later integration steps were skipped in this run; they are not claimed passed remotely here. The local final reference/runtime/Compose/kind checks and the complete earlier remote integration run passed, but this new failure remains recorded for investigation rather than hidden by a retry or test removal. Overall CI is **FAILED**, not a release receipt.
+
 ## Rust tooling migration — 2026-10-24
 
 First-party tooling/infrastructure tests moved to the Rust `xtask/` workspace crate; Python implementations were removed and shell scripts became thin launchers. npm/Node remain only the pinned upstream JavaScript client bridge. No server schema, protocol, authorization, storage publication or retention logic changed. The egress sandbox is explicitly deferred.
