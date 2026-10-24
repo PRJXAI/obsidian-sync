@@ -100,7 +100,20 @@ pub fn ledger(root: &Path, platform: &str, revision: &str) -> Result {
             "Substituted/incomplete scan",
         )?;
         let evidence = grype::receipt(&output.join(name), Utc::now())?;
-        let findings=evidence["raw_matches"].as_array().ok_or("Missing matches")?.iter().map(|v| {
+        let matches = evidence["raw_matches"]
+            .as_array()
+            .ok_or("Missing matches")?;
+        ensure(
+            entry["findings"] == matches.len()
+                && entry["status"]
+                    == if matches.is_empty() {
+                        "pass"
+                    } else {
+                        "findings"
+                    },
+            "Contradictory scan summary",
+        )?;
+        let findings=matches.iter().map(|v| {
             let key=json!([platform,image,evidence["Metadata"]["ImageID"],v["artifact"]["id"],v["vulnerability"]["id"]]);
             json!({"id":util::digest(key.to_string().as_bytes()),"advisory":v["vulnerability"]["id"],"severity":v["vulnerability"]["severity"],"package":v["artifact"]["name"],"installed_version":v["artifact"]["version"],"locations":v["artifact"]["locations"],"fix":v["vulnerability"]["fix"],"status":"under_investigation","owner":null,"applicability_evidence":null})
         }).collect::<Vec<_>>();
@@ -108,7 +121,7 @@ pub fn ledger(root: &Path, platform: &str, revision: &str) -> Result {
     }
     util::write_json(
         &destination,
-        &json!({"schema_version":1,"created_at":Utc::now().to_rfc3339(),"source_revision":revision,"platform":platform,"cataloger_image":sbom::SYFT,"scanner_image":grype::GRYPE,"images":records,"native_review":"pending","baseline_trivy_findings":"remain open pending explicit reconciliation; scanner change is not closure","authorization":"none"}),
+        &json!({"schema_version":1,"created_at":Utc::now().to_rfc3339(),"source_revision":revision,"platform":platform,"cataloger_image":sbom::SYFT,"scanner_image":grype::GRYPE,"images":records,"native_review":"pending","authorization":"none"}),
     )
 }
 pub fn public_summary(root: &Path, revision: &str) -> Result {
@@ -163,78 +176,6 @@ pub fn public_summary(root: &Path, revision: &str) -> Result {
     util::write_json(
         &output.join("summary.json"),
         &json!({"schema_version":2,"source_revision":revision,"results":Value::Object(results),"raw_reports_published":false,"raw_evidence_archive":"owner_approved_private_destination_pending"}),
-    )
-}
-pub fn compare_baseline(root: &Path, platform: &str) -> Result {
-    let directory = output(root, platform)?;
-    let current = util::json(&directory.join("summary.json"))?;
-    let old_directory = root
-        .join(".work/security/supply-chain")
-        .join(platform.split('/').next_back().ok_or("Invalid platform")?);
-    let old = util::json(&old_directory.join("summary.json"))?;
-    ensure(
-        old["scanner"] == security::TRIVY && old["platform"] == platform,
-        "Untrusted comparison baseline",
-    )?;
-    let mut records = Vec::new();
-    let mut unresolved = 0;
-    for entry in old["images"]
-        .as_array()
-        .ok_or("Missing baseline inventory")?
-    {
-        let image = entry["image"].as_str().ok_or("Missing image")?;
-        let index = current["images"]
-            .as_array()
-            .ok_or("Missing current inventory")?
-            .iter()
-            .position(|v| v["image"] == image)
-            .ok_or("Baseline asset omitted")?;
-        let baseline_file = entry["report"].as_str().ok_or("Missing baseline file")?;
-        ensure(
-            std::path::Path::new(baseline_file).components().count() == 1
-                && !baseline_file.starts_with('.'),
-            "Escaping baseline report",
-        )?;
-        let baseline = util::json(&old_directory.join(baseline_file))?;
-        let evidence = grype::receipt(
-            &directory.join(format!("image-{index:02}.scan.json")),
-            Utc::now(),
-        )?;
-        ensure(
-            baseline["Metadata"]["ImageID"] == evidence["Metadata"]["ImageID"],
-            "Compared different binary/platform configurations",
-        )?;
-        let before = crate::evidence::findings(&baseline, Some(image), Utc::now())?
-            .iter()
-            .filter_map(|v| v["VulnerabilityID"].as_str().map(String::from))
-            .collect::<std::collections::BTreeSet<_>>();
-        let mut after = std::collections::BTreeSet::new();
-        for value in evidence["raw_matches"]
-            .as_array()
-            .ok_or("Missing Grype matches")?
-        {
-            if let Some(id) = value["vulnerability"]["id"].as_str() {
-                after.insert(id.to_string());
-            }
-            if let Some(related) = value["relatedVulnerabilities"].as_array() {
-                for v in related {
-                    if let Some(id) = v["id"].as_str() {
-                        after.insert(id.to_string());
-                    }
-                }
-            }
-        }
-        let missing = before.difference(&after).cloned().collect::<Vec<_>>();
-        unresolved += missing.len();
-        records.push(json!({"image":image,"config_digest":evidence["Metadata"]["ImageID"],"baseline_advisories":before.len(),"grype_advisories_including_aliases":after.len(),"baseline_only_under_investigation":missing}));
-    }
-    util::write_json(
-        &directory.join("scanner-comparison.json"),
-        &json!({"images":records,"unresolved_baseline_only_advisories":unresolved,"disposition":"under_investigation; changing scanners does not close findings"}),
-    )?;
-    ensure(
-        unresolved == 0,
-        "Scanner applicability/coverage differences require review",
     )
 }
 fn output_for_summary(root: &Path) -> Result<std::path::PathBuf> {

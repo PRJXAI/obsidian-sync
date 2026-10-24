@@ -12,7 +12,7 @@ The follow-up [regulated-environment assessment](regulated-security-assessment.m
 
 ## SBOM-first scanner follow-up
 
-Default CI now uses [Syft → native SBOM → offline Grype](scanner-pipeline.md), with original image-archive/config/layer binding, native/CDX lock completeness, isolated per-invocation output and hash-bound content receipts. Trivy is comparison-only. Grype source/runtime results were zero, but the populated builder had 19 matches (one Critical), and ten of eleven declared/comparison images had matches. A same-config comparison retained 27 baseline-only asset/advisory pairs; CI explicitly blocks unapproved transition/coverage closure. No baseline finding was silently waived. The Trivy tables below are historical, not claims that the new scanner agrees or that the builder remains clean under every detector. Grype's own image is inventoried/scanned too.
+Default CI now uses [Syft → native SBOM → offline Grype](scanner-pipeline.md), with original image-archive/config/layer binding, native/CDX lock completeness, isolated per-invocation output and hash-bound content receipts. Trivy and its comparison/transition gate are now retired by explicit owner request. Earlier Grype source/runtime results were zero, but the populated builder had 19 matches (one Critical), and ten of eleven then-declared/comparison images had matches. The earlier same-config comparison retained 27 baseline-only asset/advisory pairs as historical investigation evidence; retirement is not a claim those advisories were fixed. Current Grype findings/errors still block security and Required CI. The Trivy tables below are historical, not claims that the new scanner agrees or that the builder remains clean under every detector. Grype's own image is inventoried/scanned too.
 
 ## Rust tooling follow-up
 
@@ -115,8 +115,8 @@ cargo xtask test-reference-couch
 docker build --target tests .
 docker build --target build -t obsidian-sync:builder .
 docker build -t obsidian-sync:local .
-SYNC_SECURITY_BUILDER_IMAGE=obsidian-sync:builder scripts/scan-security.sh
-cargo xtask verify-release --image obsidian-sync:local --scan-report .work/security/trivy.json
+scripts/scan-security.sh
+cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
 cargo xtask generate-sbom
 cargo xtask scan-supply-chain --platform linux/arm64  # currently FAILS; do not hide it
 scripts/validate-deployments.sh

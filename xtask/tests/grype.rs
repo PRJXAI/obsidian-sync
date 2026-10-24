@@ -1,30 +1,51 @@
 #![forbid(unsafe_code)]
-use base64::Engine;
+mod support;
 use chrono::{Duration, Utc};
-use serde_json::{Value, json};
+use serde_json::json;
 use std::fs;
+use support::{finding, fixture};
 use xtask::{Result, grype, util};
 
-fn fixture() -> (Value, Value) {
-    let config=json!({"rootfs":{"diff_ids":[format!("sha256:{}","b".repeat(64))]},"config":{"User":"65532:65532","Entrypoint":["/server"]},"architecture":"arm64","os":"linux"}).to_string();
-    let metadata = json!({"imageID":format!("sha256:{}",util::digest(config.as_bytes())),"config":base64::engine::general_purpose::STANDARD.encode(config)});
-    let catalog = json!({"schema":{"version":"16.1.11"},"descriptor":{"name":"syft","version":"1.55.0"},"artifacts":[{"id":"pkg","name":"fixture","version":"1","type":"apk"}],"source":{"type":"image","metadata":metadata}});
-    let report = json!({"matches":[],"source":{"type":"image","target":metadata},"descriptor":{"name":"grype","version":"0.121.0","timestamp":Utc::now().to_rfc3339(),"configuration":{"include-matcher-suppressions":true},"db":{"status":{"valid":true,"schemaVersion":"v6.1.10","built":Utc::now().to_rfc3339()}}}});
-    (catalog, report)
-}
-fn finding(severity: &str) -> Value {
-    json!({"artifact":{"id":"pkg","name":"fixture","version":"1"},"vulnerability":{"id":"CVE-fixture","severity":severity}})
-}
 #[test]
-fn scanner_transition_cannot_drop_unreconciled_baseline_findings() -> Result {
-    let mut policy = json!({"schema_version":1,"baseline_scanner":"trivy","candidate_cataloger":"syft:1.55.0","candidate_scanner":"grype:0.121.0","state":"under_investigation","unresolved_baseline_asset_advisory_pairs":27,"closure_evidence_sha256":[]});
-    assert!(grype::transition(&policy).is_err());
-    policy["state"] = json!("verified");
-    assert!(grype::transition(&policy).is_err());
-    policy["unresolved_baseline_asset_advisory_pairs"] = json!(0);
-    assert!(grype::transition(&policy).is_err());
-    policy["closure_evidence_sha256"] = json!(["a".repeat(64)]);
-    grype::transition(&policy)
+fn retired_scanner_commands_and_gate_are_not_exposed() -> Result {
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_xtask"))
+        .arg("--help")
+        .output()?;
+    assert!(help.status.success());
+    let help = String::from_utf8(help.stdout)?;
+    for command in [
+        "compare-trivy",
+        "compare-trivy-supply-chain",
+        "compare-scanner-baseline",
+        "check-scanner-transition",
+    ] {
+        assert!(!help.contains(command));
+        assert!(
+            !std::process::Command::new(env!("CARGO_BIN_EXE_xtask"))
+                .arg(command)
+                .output()?
+                .status
+                .success()
+        );
+    }
+    for command in [
+        "scan-sbom",
+        "scan-supply-chain",
+        "verify-release",
+        "findings-ledger",
+    ] {
+        assert!(help.contains(command));
+    }
+    let workflow = fs::read_to_string(xtask::root().join(".github/workflows/ci.yml"))?;
+    assert!(!workflow.contains("check-scanner-transition") && !workflow.contains("trivy"));
+    assert!(!workflow.contains("continue-on-error"));
+    assert!(workflow.contains("needs: [rust, build, security, integration, sbom]"));
+    assert!(
+        !xtask::root()
+            .join(".github/scanner-transition.json")
+            .exists()
+    );
+    Ok(())
 }
 #[test]
 fn valid_clean_report_and_image_subject() -> Result {
@@ -132,9 +153,7 @@ fn receipt_binds_exact_sbom_report_subject_count_and_time() -> Result {
     let temp = tempfile::tempdir()?;
     let root = temp.path();
     let (catalog, report) = fixture();
-    util::write_json(&root.join("runtime.syft.json"), &catalog)?;
-    util::write_json(&root.join("runtime.grype.json"), &report)?;
-    let value = json!({"kind":"syft-grype-content-evidence","schema_version":1,"CreatedAt":Utc::now().to_rfc3339(),"cataloger_image":xtask::sbom::SYFT,"scanner_image":grype::GRYPE,"Metadata":grype::image_subject(&catalog)?,"findings":0,"sbom":{"path":"runtime.syft.json","digest":util::hash(&root.join("runtime.syft.json"))?},"report":{"path":"runtime.grype.json","digest":util::hash(&root.join("runtime.grype.json"))?}});
+    let value = support::write_receipt(root, "runtime", &catalog, &report)?;
     let receipt = root.join("runtime.scan.json");
     util::write_json(&receipt, &value)?;
     grype::receipt(&receipt, Utc::now())?;

@@ -2,7 +2,11 @@
 use chrono::{Duration, Utc};
 use serde_json::{Value, json};
 use std::{fs, io::Cursor, os::unix::fs::symlink, path::Path};
-use xtask::{Result, clients, deployment, docs, evidence, images, policy, sbom, security, util};
+use xtask::{
+    Result, clients, deployment, docs, evidence, grype, images, policy, sbom, security,
+    supply_sbom, util,
+};
+mod support;
 
 fn fixture() -> Result<tempfile::TempDir> {
     let temp = tempfile::tempdir()?;
@@ -59,9 +63,6 @@ fn saved(path: &Path, config_name: &str, config: &[u8]) -> Result {
     }
     archive.finish()?;
     Ok(())
-}
-fn scan(image: &str) -> Value {
-    json!({"SchemaVersion":2,"CreatedAt":Utc::now().to_rfc3339(),"ArtifactName":image,"Metadata":{"ImageID":format!("sha256:{}","a".repeat(64))},"Results":[{"Vulnerabilities":[]}]})
 }
 
 #[test]
@@ -371,17 +372,19 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
     Ok(())
 }
 #[test]
-fn repository_inventory_covers_all_declared_and_comparison_images() -> Result {
+fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 11);
+    assert_eq!(images.len(), 12);
+    assert!(images.keys().all(|image| !image.contains("trivy")));
     assert!(images.contains_key(xtask::grype::GRYPE));
     for pin in [
-        security::TRIVY,
         security::GITLEAKS,
         security::HELPER,
         sbom::SYFT,
         clients::COUCHDB,
         deployment::KIND,
+        xtask::rebuild::GO,
+        xtask::rebuild::GIT,
     ] {
         assert!(images.contains_key(pin), "{pin}");
     }
@@ -471,7 +474,6 @@ fn source_stage_rejects_symlinked_input() -> Result {
 }
 #[test]
 fn scan_validation_rejects_vacuous_stale_wrong_image_and_unknown_schema() {
-    let image = pin();
     for field in [
         "empty",
         "stale",
@@ -480,36 +482,40 @@ fn scan_validation_rejects_vacuous_stale_wrong_image_and_unknown_schema() {
         "severity",
         "missing",
     ] {
-        let mut value = scan(&image);
+        let (mut catalog, mut report) = support::fixture();
         match field {
-            "empty" => value["Results"] = json!([]),
-            "stale" => value["CreatedAt"] = json!((Utc::now() - Duration::days(2)).to_rfc3339()),
-            "substitution" => value["ArtifactName"] = json!("other:tag"),
-            "identity" => value["Metadata"]["ImageID"] = json!("tag"),
-            "severity" => {
-                value["Results"][0]["Vulnerabilities"] =
-                    json!([{"Severity":"NEW_UNRECOGNIZED","VulnerabilityID":"fixture"}])
+            "empty" => catalog["artifacts"] = json!([]),
+            "stale" => {
+                report["descriptor"]["timestamp"] =
+                    json!((Utc::now() - Duration::days(2)).to_rfc3339())
             }
+            "substitution" => report["source"]["target"] = json!("other"),
+            "identity" => catalog["source"]["metadata"]["imageID"] = json!("tag"),
+            "severity" => report["matches"] = json!([support::finding("NEW_UNRECOGNIZED")]),
             "missing" => {
-                value.as_object_mut().unwrap().remove("Results");
+                report.as_object_mut().unwrap().remove("matches");
             }
             _ => unreachable!(),
-        };
+        }
         assert!(
-            evidence::findings(&value, Some(&image), Utc::now()).is_err(),
+            grype::image_subject(&catalog)
+                .and_then(|_| grype::validate_report(&catalog, &report, Utc::now()))
+                .is_err(),
             "{field}"
         );
     }
 }
 #[test]
 fn low_and_unknown_findings_are_retained_not_waived() -> Result {
-    let image = pin();
-    let mut value = scan(&image);
-    value["Results"][0]["Vulnerabilities"] = json!([{"Severity":"LOW","VulnerabilityID":"fixture-low"},{"Severity":"UNKNOWN","VulnerabilityID":"fixture-unknown"}]);
+    let (catalog, mut report) = support::fixture();
+    report["matches"] = json!([support::finding("Low"), support::finding("Unknown")]);
     assert_eq!(
-        evidence::findings(&value, Some(&image), Utc::now())?.len(),
+        grype::validate_report(&catalog, &report, Utc::now())?.len(),
         2
     );
+    for time in ["2026-10-23T00:00:00", "invalid"] {
+        assert!(evidence::fresh(time, Utc::now()).is_err());
+    }
     Ok(())
 }
 #[test]
@@ -659,15 +665,15 @@ fn public_summary_never_copies_canaries_or_raw_fields() -> Result {
     let root = temp.path();
     fs::create_dir(root.join(".work"))?;
     put(root, "Dockerfile", &format!("FROM {}\n", pin()))?;
-    let mut value = scan("fixture");
-    value["CANARY"] = json!("SYNTHETIC_PRIVATE_CANARY");
-    put(root, ".work/security/trivy.json", &value.to_string())?;
+    let (catalog, mut report) = support::fixture();
+    report["CANARY"] = json!("SYNTHETIC_PRIVATE_CANARY");
+    support::write_receipt(&root.join(".work/sbom"), "runtime", &catalog, &report)?;
     put(
         root,
         ".work/security/gitleaks.json",
         "[{\"Secret\":\"SYNTHETIC_PRIVATE_CANARY\",\"Match\":\"private\",\"Author\":\"private\"}]",
     )?;
-    security::public_summary(root, &"a".repeat(40))?;
+    supply_sbom::public_summary(root, &"a".repeat(40))?;
     let published = fs::read_to_string(root.join(".work/public-security/summary.json"))?;
     assert!(
         !published.contains("SYNTHETIC_PRIVATE_CANARY")
@@ -675,7 +681,7 @@ fn public_summary_never_copies_canaries_or_raw_fields() -> Result {
             && !published.contains("Match")
     );
     assert!(published.contains("error") && published.contains("fail"));
-    assert!(security::public_summary(root, &"a".repeat(40)).is_err());
+    assert!(supply_sbom::public_summary(root, &"a".repeat(40)).is_err());
     Ok(())
 }
 #[test]
@@ -741,18 +747,21 @@ fn local_ledger_keeps_target_specific_findings_and_never_approves_them() -> Resu
     let temp = fixture()?;
     let root = temp.path();
     put(root, "Dockerfile", &format!("FROM {}\n", pin()))?;
-    let output = root.join(".work/security/supply-chain/arm64");
-    fs::create_dir_all(&output)?;
-    let mut report = scan(&pin());
-    report["Metadata"]["DiffIDs"] = json!([format!("sha256:{}", "b".repeat(64))]);
-    let finding = json!({"VulnerabilityID":"fixture","Severity":"UNKNOWN","PkgName":"fixture","InstalledVersion":"1"});
-    report["Results"] = json!([{"Target":"/bin/one","Vulnerabilities":[finding]},{"Target":"/bin/two","Vulnerabilities":[finding]}]);
-    util::write_json(&output.join("image-00.json"), &report)?;
-    util::write_json(
-        &output.join("summary.json"),
-        &json!({"scanner":security::TRIVY,"platform":"linux/arm64","images":[{"image":pin(),"report":"image-00.json","exit_code":1}]}),
-    )?;
-    security::ledger(root, "linux/arm64", &"a".repeat(40))?;
+    let output = supply_sbom::output(root, "linux/arm64")?;
+    let (mut catalog, mut report) = support::fixture();
+    let mut other = catalog["artifacts"][0].clone();
+    other["id"] = json!("other");
+    catalog["artifacts"].as_array_mut().unwrap().push(other);
+    let mut one = support::finding("Unknown");
+    one["artifact"]["locations"] = json!([{"path":"/bin/one"}]);
+    let mut two = one.clone();
+    two["artifact"]["id"] = json!("other");
+    two["artifact"]["locations"] = json!([{"path":"/bin/two"}]);
+    report["matches"] = json!([one, two]);
+    support::write_receipt(&output, "image-00", &catalog, &report)?;
+    let summary = json!({"schema_version":1,"created_at":Utc::now().to_rfc3339(),"cataloger_image":sbom::SYFT,"scanner_image":grype::GRYPE,"platform":"linux/arm64","images":[{"image":pin(),"receipt":"image-00.scan.json","status":"findings","findings":2}]});
+    util::write_json(&output.join("summary.json"), &summary)?;
+    supply_sbom::ledger(root, "linux/arm64", &"a".repeat(40))?;
     let ledger = util::json(&output.join("findings-ledger.json"))?;
     let findings = ledger["images"][0]["findings"].as_array().unwrap();
     assert_eq!(findings.len(), 2);
@@ -762,9 +771,23 @@ fn local_ledger_keeps_target_specific_findings_and_never_approves_them() -> Resu
             .iter()
             .all(|v| v["status"] == "under_investigation" && v["owner"].is_null())
     );
-    report["CreatedAt"] = json!((Utc::now() - Duration::days(2)).to_rfc3339());
-    util::write_json(&output.join("image-00.json"), &report)?;
-    assert!(security::ledger(root, "linux/arm64", &"a".repeat(40)).is_err());
+    for field in ["status", "findings", "image", "receipt"] {
+        let mut bad = summary.clone();
+        bad["images"][0][field] = if field == "findings" {
+            json!(0)
+        } else {
+            json!("wrong")
+        };
+        util::write_json(&output.join("summary.json"), &bad)?;
+        assert!(
+            supply_sbom::ledger(root, "linux/arm64", &"a".repeat(40)).is_err(),
+            "{field}"
+        );
+    }
+    util::write_json(&output.join("summary.json"), &summary)?;
+    report["descriptor"]["timestamp"] = json!((Utc::now() - Duration::days(2)).to_rfc3339());
+    support::write_receipt(&output, "image-00", &catalog, &report)?;
+    assert!(supply_sbom::ledger(root, "linux/arm64", &"a".repeat(40)).is_err());
     Ok(())
 }
 #[test]

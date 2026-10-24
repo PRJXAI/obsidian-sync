@@ -45,14 +45,15 @@ cargo xtask generate-sbom
 cargo xtask scan-sbom --sbom-dir .work/sbom
 cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
 cargo xtask scan-supply-chain --platform linux/amd64
-cargo xtask check-scanner-transition
 scripts/smoke-compose.sh
 scripts/smoke-kubernetes.sh
 scripts/benchmark.sh
 cargo xtask test-livesync --benchmark
 ```
 
-`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Trivy is **comparison-only**, not the default CI scanner; the retained comparison image is conservatively included in the 11-image inventory. Do not remove its baseline findings because Grype reports different IDs/counts. The scanner-transition policy rejects unreconciled differences even if a candidate report becomes clean.
+`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Grype is the sole image vulnerability scanner. The owner retired Trivy, its comparison commands/image pin and the transition gate. The inventory has 12 active images, including local-rebuild Go/Git bases. Historical baseline reports remain evidence, not a reviewed advisory closure; current Grype findings/errors still fail the security job and Required CI.
+
+Owner-authorized local supplier rebuilds use `cargo xtask rebuild-tool --tool syft --platform linux/arm64` (also `grype`/`gitleaks`; native platform required). They do not replace CI pins or publish images. Candidate/compiler matches and upstream/contract test failures remain nonzero. Preserve private per-run materials and review limitations in the [scanner pipeline](scanner-pipeline.md); a local improvement is not independent acceptance.
 
 ## Isolation and failure behavior
 
@@ -68,4 +69,4 @@ Public security artifacts are count/status summaries only. Raw matches/logs and 
 
 All reported severities, Unknown/Negligible, suppressed matches, incomplete/stale/substituted reports and scanner errors remain failures. No severity threshold, `--only-fixed`, advisory ignore or automatic VEX waiver. Runtime content receipts bind hashes/config/layers through a trusted channel; they are not signatures, builder trust or release authorization.
 
-Current Grype matches and **27 baseline-only asset/advisory pairs** remain under investigation. General egress-sandbox support is deferred. Actual protection/reviewer configuration, private raw-evidence archival, audit schema/sink, framework/data class, provider IAM, crypto/retention and independent operational acceptance remain open. See [results](results.md), [assessment](regulated-security-assessment.md) and [remediation plan](security-remediation-plan.md). Never suppress findings or remove checks merely to complete this migration.
+Current Grype matches remain blocking. The historical 27 baseline-only asset/advisory pairs are not declared fixed; the retired scanner's comparison policy is no longer a CI dependency. General egress-sandbox support is deferred. Actual protection/reviewer configuration, private raw-evidence archival, audit schema/sink, framework/data class, provider IAM, crypto/retention and independent operational acceptance remain open. See [results](results.md), [assessment](regulated-security-assessment.md) and [remediation plan](security-remediation-plan.md). Never suppress findings or remove checks merely to complete this migration.

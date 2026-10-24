@@ -8,9 +8,9 @@ This assessment does **not** establish that any image is malicious, that exfiltr
 
 No jurisdiction, data classification or mandated control framework was specified. The findings below are control gaps and risk decisions, not a legal opinion, certification or a claim that every regulated workload has identical requirements.
 
-## Scanner transition follow-up
+## Scanner retirement follow-up
 
-The current Rust pipeline uses [Syft → native SBOM → offline Grype](scanner-pipeline.md); the seven-image table below records the prior Trivy baseline. Grype reported additional builder/tool matches and different advisory IDs. A same-config amd64 comparison retains 27 baseline-only asset/advisory pairs as under investigation; a separate CI transition gate rejects unreviewed coverage changes. Default CI no longer executes Trivy or downloads its Java DB. Trivy remains an explicit comparison tool/pinned comparison asset, not a silently discarded finding set. Raw match counts do not establish exploitability or regulatory readiness.
+The current Rust pipeline uses [Syft → native SBOM → offline Grype](scanner-pipeline.md) exclusively; the seven-image table below records the prior Trivy baseline/exposure, not active scanner selection. The owner explicitly retired Trivy, its image pin/comparison commands and transition gate. The earlier same-config amd64 comparison's 27 baseline-only pairs remain historical investigation evidence, not reviewed advisory closure. Current Grype builder/tool matches and scan errors still fail security and Required CI. Raw match counts and the retirement decision do not establish exploitability or regulatory readiness.
 
 ## What the seven baseline image findings mean
 

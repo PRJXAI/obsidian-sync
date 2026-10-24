@@ -20,13 +20,15 @@ pub fn test_build_context(root: &Path) -> Result {
         root.join(".dockerignore"),
         work.path().join(".dockerignore"),
     )?;
-    for path in [
+    let included = [
         "Cargo.toml",
         "config/filesystem.toml",
         "xtask/Cargo.toml",
         "xtask/src/lib.rs",
+        "xtask/tests/support/mod.rs",
         ".cargo/config.toml",
-    ] {
+    ];
+    for path in included {
         let target = work.path().join(path);
         fs::create_dir_all(target.parent().ok_or("Missing context parent")?)?;
         fs::write(target, "public synthetic fixture")?;
@@ -38,6 +40,8 @@ pub fn test_build_context(root: &Path) -> Result {
         "data/private-canary",
         "tests/compat/node_modules/private-canary",
         "xtask/private-canary.toml",
+        "xtask/tests/support/private-canary.toml",
+        "xtask/tests/support/.env",
     ];
     for path in excluded {
         let target = work.path().join(path);
@@ -50,13 +54,7 @@ pub fn test_build_context(root: &Path) -> Result {
         source.lines().next().ok_or("Missing frontend")?,
         crate::security::HELPER
     );
-    for path in [
-        "Cargo.toml",
-        "config/filesystem.toml",
-        "xtask/Cargo.toml",
-        "xtask/src/lib.rs",
-        ".cargo/config.toml",
-    ] {
+    for path in included {
         dockerfile.push_str(&format!("RUN [\"test\",\"-s\",\"/context/{path}\"]\n"));
     }
     for path in excluded {

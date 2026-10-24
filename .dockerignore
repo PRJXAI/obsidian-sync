@@ -38,6 +38,9 @@ xtask/src/**
 !xtask/tests
 xtask/tests/**
 !xtask/tests/*.rs
+!xtask/tests/support
+xtask/tests/support/**
+!xtask/tests/support/mod.rs
 !scripts
 scripts/**
 !scripts/*.sh
@@ -47,7 +50,6 @@ scripts/**
 .github/workflows/**
 !.github/workflows/ci.yml
 !.github/security-readiness.json
-!.github/scanner-transition.json
 !.cargo
 .cargo/**
 !.cargo/config.toml

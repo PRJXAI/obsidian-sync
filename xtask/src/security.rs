@@ -1,7 +1,5 @@
-use crate::{Result, ensure, evidence, images, util};
-use chrono::Utc;
+use crate::{Result, ensure, util};
 use regex::Regex;
-use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -9,8 +7,6 @@ use std::{
     process::Command,
 };
 
-pub const TRIVY: &str =
-    "aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c";
 pub const GITLEAKS: &str = "ghcr.io/gitleaks/gitleaks:latest@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f";
 pub const HELPER: &str =
     "alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63";
@@ -137,26 +133,6 @@ pub fn sandbox_args(name: &str) -> Vec<String> {
     .map(String::from)
     .collect()
 }
-pub fn trivy_sandbox_args(name: &str) -> Vec<String> {
-    let mut args = sandbox_args(name);
-    // Cold Java DB retrieval holds two ~943 MiB compressed copies in /tmp.
-    let memory = args
-        .iter()
-        .position(|v| v == "--memory")
-        .expect("memory bound");
-    args[memory + 1] = "5g".into();
-    let scratch = args
-        .iter()
-        .position(|v| v == "--tmpfs")
-        .expect("scratch bound");
-    args[scratch + 1] = "/tmp:rw,noexec,nosuid,nodev,size=3g,mode=1777".into();
-    args
-}
-fn trivy_sandbox(root: &Path, container: &util::Container) -> Command {
-    let mut command = util::cmd("docker", &[], root);
-    command.args(trivy_sandbox_args(&container.name));
-    command
-}
 fn sandbox(root: &Path, container: &util::Container) -> Command {
     let mut c = util::cmd("docker", &[], root);
     c.args(sandbox_args(&container.name));
@@ -176,155 +152,6 @@ fn mount(c: &mut Command, source: &Path, destination: &str, readonly: bool) -> R
         ),
     ]);
     Ok(())
-}
-fn scan_remote(
-    root: &Path,
-    output: &Path,
-    cache: &Path,
-    args: &[&str],
-    log: &Path,
-    timeout: u64,
-) -> Result<i32> {
-    let container = util::Container::new(root, "sync-chain-scan");
-    let mut c = trivy_sandbox(root, &container);
-    mount(&mut c, output, "/reports", false)?;
-    mount(&mut c, cache, "/cache", false)?;
-    c.args([TRIVY, "--cache-dir", "/cache"]).args(args);
-    let file = fs::File::create(log)?;
-    c.stdout(file.try_clone()?).stderr(file);
-    match util::wait(&mut c, timeout) {
-        Ok(status) => Ok(status.code().unwrap_or(125)),
-        Err(e)
-            if e.downcast_ref::<std::io::Error>()
-                .is_some_and(|e| e.kind() == std::io::ErrorKind::TimedOut) =>
-        {
-            Ok(124)
-        }
-        Err(e) => Err(e),
-    }
-}
-pub fn scan_supply_chain(root: &Path, platform: &str) -> Result {
-    ensure(
-        ["linux/amd64", "linux/arm64"].contains(&platform),
-        "Unsupported platform",
-    )?;
-    util::local_docker(root)?;
-    let output = root
-        .join(".work/security/supply-chain")
-        .join(platform.split('/').next_back().ok_or("Invalid platform")?);
-    fs::create_dir_all(&output)?;
-    fs::set_permissions(&output, std::os::unix::fs::PermissionsExt::from_mode(0o700))?;
-    let summary_file = output.join("summary.json");
-    if summary_file.exists() {
-        fs::remove_file(&summary_file)?;
-    }
-    let cache = root.join(".work/trivy-cache");
-    fs::create_dir_all(&cache)?;
-    ensure(
-        scan_remote(
-            root,
-            &output,
-            &cache,
-            &["image", "--download-db-only", "--quiet"],
-            &output.join("database.log"),
-            600,
-        )? == 0,
-        "Database update failed",
-    )?;
-    let mut summary = Vec::new();
-    for (index, (image, sources)) in inventory(root)?.into_iter().enumerate() {
-        let report = format!("image-{index:02}.json");
-        let path = output.join(&report);
-        if path.exists() {
-            fs::remove_file(&path)?;
-        }
-        let status = scan_remote(
-            root,
-            &output,
-            &cache,
-            &[
-                "image",
-                "--timeout",
-                "3m",
-                "--skip-db-update",
-                "--image-src",
-                "remote",
-                "--platform",
-                platform,
-                "--scanners",
-                "vuln",
-                "--list-all-pkgs",
-                "--exit-code",
-                "1",
-                "--format",
-                "json",
-                "--output",
-                &format!("/reports/{report}"),
-                &image,
-            ],
-            &output.join(format!("image-{index:02}.log")),
-            240,
-        )?;
-        let mut entry = json!({"image":image,"sources":sources,"exit_code":status,"scanner_exit_code":status,"report":report,"report_bytes":path.symlink_metadata().ok().filter(|v|v.is_file()).map(|v|v.len()),"report_valid":false});
-        let document = util::json(&path);
-        if let Ok(report) = &document {
-            println!(
-                "VALIDATION index={index} schema={} identity={} name={} fresh={} results={}",
-                report["SchemaVersion"] == 2,
-                report["Metadata"]["ImageID"]
-                    .as_str()
-                    .is_some_and(images::is_digest),
-                report["ArtifactName"] == image,
-                report["CreatedAt"]
-                    .as_str()
-                    .is_some_and(|v| evidence::fresh(v, Utc::now()).is_ok()),
-                report["Results"].as_array().is_some_and(|v| !v.is_empty())
-            );
-        }
-        match document.and_then(|r| evidence::findings(&r, Some(&image), Utc::now())) {
-            Ok(findings) => {
-                entry["report_valid"] = json!(true);
-                entry["counts"] = json!(
-                    evidence::SEVERITIES
-                        .into_iter()
-                        .map(|s| (s, findings.iter().filter(|v| v["Severity"] == s).count()))
-                        .collect::<BTreeMap<_, _>>()
-                );
-                entry["unique_advisories"] = json!(
-                    findings
-                        .iter()
-                        .filter_map(|v| v["VulnerabilityID"].as_str())
-                        .collect::<BTreeSet<_>>()
-                        .len()
-                );
-                if !findings.is_empty() && status == 0 {
-                    entry["exit_code"] = json!(1);
-                }
-            }
-            Err(_) => entry["exit_code"] = json!(if status == 0 { 1 } else { status }),
-        }
-        println!(
-            "{} {image}",
-            if entry["exit_code"] == 0 {
-                "PASS"
-            } else {
-                "FAIL"
-            }
-        );
-        println!(
-            "REPORT index={index} scanner_exit={status} valid={} bytes={}",
-            entry["report_valid"], entry["report_bytes"]
-        );
-        summary.push(entry);
-    }
-    util::write_json(
-        &summary_file,
-        &json!({"scanner":TRIVY,"platform":platform,"created_at":Utc::now().to_rfc3339(),"images":summary}),
-    )?;
-    ensure(
-        summary.iter().all(|v| v["exit_code"] == 0),
-        "Supply-chain findings/errors remain blocking",
-    )
 }
 pub fn history_snapshot(root: &Path, destination: &Path) -> Result {
     util::quiet(
@@ -409,43 +236,6 @@ fn secret_scan(root: &Path, source: &Path, output: &Path, history: bool) -> Resu
         300,
     )
 }
-fn archive_scan(root: &Path, archive: &Path, output: &Path, cache: &Path, builder: bool) -> Result {
-    let container = util::Container::new(root, "sync-image-scan");
-    let mut c = trivy_sandbox(root, &container);
-    mount(&mut c, archive, "/image.tar", true)?;
-    mount(&mut c, output, "/reports", false)?;
-    mount(&mut c, cache, "/cache", false)?;
-    c.args([
-        TRIVY,
-        "--cache-dir",
-        "/cache",
-        "image",
-        "--input",
-        "/image.tar",
-        "--scanners",
-        "vuln",
-        "--list-all-pkgs",
-        "--exit-code",
-        "1",
-        "--format",
-        "json",
-        "--output",
-        if builder {
-            "/reports/trivy-builder.json"
-        } else {
-            "/reports/trivy.json"
-        },
-    ]);
-    util::logged(
-        &mut c,
-        &output.join(if builder {
-            "trivy-builder.log"
-        } else {
-            "trivy-runtime.log"
-        }),
-        600,
-    )
-}
 pub fn native_identity(root: &Path, builder: &str) -> Result<Vec<u8>> {
     let execute = |program: &str, args: &[&str]| -> Result<Vec<u8>> {
         let container = util::Container::new(root, "sync-native-inventory");
@@ -474,8 +264,7 @@ pub fn native_identity(root: &Path, builder: &str) -> Result<Vec<u8>> {
 pub fn scan_security(root: &Path) -> Result {
     scan_sources(root)?;
     crate::sbom::generate(root, "obsidian-sync:local", "obsidian-sync:builder", None)?;
-    crate::grype::scan_generated(root, &root.join(".work/sbom"))?;
-    crate::grype::transition(&util::json(&root.join(".github/scanner-transition.json"))?)
+    crate::grype::scan_generated(root, &root.join(".work/sbom"))
 }
 pub fn scan_sources(root: &Path) -> Result {
     util::local_docker(root)?;
@@ -522,192 +311,6 @@ pub fn scan_sources(root: &Path) -> Result {
     }
     Ok(())
 }
-pub fn compare_trivy(root: &Path) -> Result {
-    scan_sources(root)?;
-    let output = root.join(".work/security");
-    let cache = root.join(".work/trivy-cache");
-    fs::create_dir_all(&cache)?;
-    let work = tempfile::Builder::new()
-        .prefix("trivy-compare-")
-        .tempdir_in(root.join(".work"))?;
-    let inspected = images::inspect(root, "obsidian-sync:local")?;
-    util::write_json(&output.join("image-inspect.json"), &json!([inspected]))?;
-    fs::write(
-        output.join("image-id.txt"),
-        format!("{}\n", inspected["Id"].as_str().ok_or("Missing ID")?),
-    )?;
-    let runtime = work.path().join("runtime.tar");
-    images::export(root, "obsidian-sync:local", &runtime)?;
-    archive_scan(root, &runtime, &output, &cache, false)?;
-    let report = util::json(&output.join("trivy.json"))?;
-    images::verify_content(
-        &report,
-        &inspected,
-        &images::saved_config(&runtime)?,
-        Utc::now(),
-    )?;
-    let builder = if let Ok(image) = std::env::var("SYNC_SECURITY_BUILDER_IMAGE") {
-        image
-    } else {
-        util::run(
-            &mut util::cmd(
-                "docker",
-                &[
-                    "build",
-                    "--target",
-                    "build",
-                    "-t",
-                    "obsidian-sync:audit-builder",
-                    ".",
-                ],
-                root,
-            ),
-            1200,
-        )?;
-        "obsidian-sync:audit-builder".into()
-    };
-    let builder_archive = work.path().join("builder.tar");
-    let builder_material = images::export(root, &builder, &builder_archive)?;
-    archive_scan(root, &builder_archive, &output, &cache, true)?;
-    fs::write(
-        output.join("native-toolchain.txt"),
-        native_identity(
-            root,
-            builder_material["image_id"]
-                .as_str()
-                .ok_or("Missing builder ID")?,
-        )?,
-    )?;
-    let container = util::Container::new(root, "sync-scanner-version");
-    let mut c = trivy_sandbox(root, &container);
-    c.args(["--network", "none", TRIVY, "--version"]);
-    fs::write(output.join("trivy-version.txt"), util::output(&mut c, 30)?)?;
-    fs::write(
-        output.join("cargo-metadata.json"),
-        util::output(
-            &mut util::cmd(
-                "cargo",
-                &["metadata", "--locked", "--format-version", "1"],
-                root,
-            ),
-            180,
-        )?,
-    )?;
-    println!(
-        "Runtime/builder scans passed; the full supply-chain and native patch review remain required"
-    );
-    Ok(())
-}
-
-pub fn ledger(root: &Path, platform: &str, revision: &str) -> Result {
-    ensure(
-        crate::policy::is_revision(revision),
-        "Invalid source revision",
-    )?;
-    ensure(
-        ["linux/amd64", "linux/arm64"].contains(&platform),
-        "Invalid platform",
-    )?;
-    let output = root
-        .join(".work/security/supply-chain")
-        .join(platform.split('/').next_back().ok_or("Missing platform")?);
-    let ledger_file = output.join("findings-ledger.json");
-    if ledger_file.symlink_metadata().is_ok() {
-        fs::remove_file(&ledger_file)?;
-    }
-    let summary = util::json(&output.join("summary.json"))?;
-    ensure(
-        summary["scanner"] == TRIVY && summary["platform"] == platform,
-        "Unexpected scan provenance",
-    )?;
-    let entries = summary["images"]
-        .as_array()
-        .ok_or("Missing image inventory")?;
-    let inventory = inventory(root)?;
-    ensure(entries.len() == inventory.len(), "Incomplete inventory")?;
-    let mut records = Vec::new();
-    let mut valid = true;
-    for (index, ((image, _), entry)) in inventory.iter().zip(entries).enumerate() {
-        let filename = format!("image-{index:02}.json");
-        ensure(
-            entry["image"] == *image && entry["report"] == filename,
-            "Reordered/substituted inventory",
-        )?;
-        let path = output.join(filename);
-        let report = util::json(&path).inspect_err(|_| {
-            eprintln!("Ledger input rejected: report index {index}, JSON/file validation")
-        })?;
-        let findings = evidence::findings(&report, Some(image), Utc::now()).inspect_err(|_| {
-            eprintln!(
-                "Ledger input rejected: report index {index}, scan schema/identity/time validation"
-            )
-        })?;
-        let expected = if findings.is_empty() { 0 } else { 1 };
-        if entry["exit_code"] != expected {
-            eprintln!("Ledger input incomplete: unexpected scanner status at report index {index}");
-            valid = false;
-        }
-        let findings = findings.iter().map(|v| { let key = json!([platform,image,report["Metadata"]["ImageID"],v["_scan_target"],v["PkgPath"],v["PkgName"],v["InstalledVersion"],v["VulnerabilityID"]]); json!({"id":util::digest(key.to_string().as_bytes()),"target":v["_scan_target"],"package_path":v["PkgPath"],"advisory":v["VulnerabilityID"],"package":v["PkgName"],"installed_version":v["InstalledVersion"],"fixed_version":v["FixedVersion"],"severity":v["Severity"],"status":"under_investigation","applicability_evidence":null,"owner":null}) }).collect::<Vec<_>>();
-        records.push(json!({"image":image,"config_digest":report["Metadata"]["ImageID"],"layers":report["Metadata"]["DiffIDs"],"report_sha256":util::hash(&path)?,"findings":findings}));
-    }
-    util::write_json(
-        &output.join("findings-ledger.json"),
-        &json!({"schema_version":1,"created_at":Utc::now().to_rfc3339(),"source_revision":revision,"platform":platform,"scanner":TRIVY,"complete":valid,"images":records,"native_review":{"rust_bundled_musl":"pending","vendored_crypto":"pending","build_scripts_proc_macros":"pending","tool_image_native_code":"pending"},"authorization":"none; triage inventory does not waive findings"}),
-    )?;
-    ensure(valid, "Incomplete/error scan evidence")
-}
-
-pub fn public_summary(root: &Path, revision: &str) -> Result {
-    ensure(crate::policy::is_revision(revision), "Invalid revision")?;
-    let output = root.join(".work/public-security");
-    ensure(!output.exists(), "Refusing stale public output directory")?;
-    fs::create_dir(&output)?;
-    let raw = root.join(".work/security");
-    let mut results = BTreeMap::<String, Value>::new();
-    // Deliberately no arbitrary messages, file paths, matches, authors, labels,
-    // environment values or raw provider/scanner logs in public artifacts.
-    for (label, name) in [("runtime", "trivy.json"), ("builder", "trivy-builder.json")] {
-        let value = match util::json(&raw.join(name))
-            .and_then(|r| evidence::findings(&r, None, Utc::now()))
-        {
-            Ok(values) => {
-                json!({"status":if values.is_empty() {"pass"} else {"fail"},"findings":values.len()})
-            }
-            Err(_) => json!({"status":"error"}),
-        };
-        results.insert(label.into(), value);
-    }
-    for name in ["gitleaks.json", "gitleaks-history.json"] {
-        let value = match util::json(&raw.join(name)).and_then(|v| {
-            v.as_array()
-                .map(Vec::len)
-                .ok_or_else(|| "Invalid secret report".into())
-        }) {
-            Ok(n) => json!({"status":if n==0 {"pass"} else {"fail"},"findings":n}),
-            Err(_) => json!({"status":"error"}),
-        };
-        results.insert(name.into(), value);
-    }
-    let supply = raw.join("supply-chain/amd64/summary.json");
-    let value = match util::json(&supply) {
-        Ok(v) => {
-            let count = inventory(root)?.len();
-            let images = v["images"].as_array();
-            let complete = images.is_some_and(|i| i.len() == count);
-            let failed = images
-                .map(|i| i.iter().filter(|v| v["exit_code"] != 0).count())
-                .unwrap_or(count);
-            json!({"status":if !complete {"error"} else if failed==0 {"pass"} else {"fail"},"images":count,"failed_images":failed})
-        }
-        Err(_) => json!({"status":"error"}),
-    };
-    results.insert("supply_chain".into(), value);
-    util::write_json(
-        &output.join("summary.json"),
-        &json!({"schema_version":1,"source_revision":revision,"results":results,"raw_reports_published":false,"raw_evidence_archive":"owner_approved_private_destination_pending"}),
-    )
-}
-
 pub fn recorded_command(c: &Command) -> Vec<String> {
     c.get_args()
         .map(|v| v.to_string_lossy().into_owned())

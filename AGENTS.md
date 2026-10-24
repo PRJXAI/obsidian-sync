@@ -39,6 +39,6 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 - src/db.rs: SQLite schema, bounded connection pool, process authority, backup.
 - src/storage/: common trait and filesystem/S3/GCS/Azure adapters (MinIO uses S3).
 - src/jobs.rs: persisted read-only integrity jobs, claim fencing, retries and fairness.
-- xtask/: Rust infrastructure/security/SBOM/documentation/release tooling and tests; never ship it in the runtime image. Syft generates native SBOMs; Grype scans them offline. Keep all severities/suppressed matches and unresolved scanner-transition differences blocking; see docs/scanner-pipeline.md.
+- xtask/: Rust infrastructure/security/SBOM/documentation/release tooling and tests; never ship it in the runtime image. Syft generates native SBOMs; Grype scans them offline. Keep all Grype severities/suppressed matches blocking; Trivy and its comparison/transition commands are retired, not a fallback; see docs/scanner-pipeline.md.
 - config/: canonical deployment configs; Kustomize copies are generated.
 - docs/results.md: measured evidence, not aspirational claims.

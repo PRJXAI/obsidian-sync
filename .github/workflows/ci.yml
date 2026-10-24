@@ -94,9 +94,6 @@ jobs:
       - name: Build artifact-specific findings ledger without waivers
         if: always()
         run: cargo xtask findings-ledger --platform linux/amd64 --source-revision "$GITHUB_SHA"
-      - name: Reject unreconciled baseline-only scanner findings
-        if: always()
-        run: cargo xtask check-scanner-transition
       - name: Prepare allowlisted public summaries, never raw matches or logs
         id: publish
         if: always()

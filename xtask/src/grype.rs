@@ -8,7 +8,12 @@ use std::{collections::BTreeSet, fs, path::Path, process::Command};
 pub const GRYPE: &str = "anchore/grype:v0.121.0@sha256:621d56d1d68106b787022c81546f7e0a36202a25d1239f0c20195fab8c16f7ea";
 pub const SEVERITIES: [&str; 6] = ["Critical", "High", "Medium", "Low", "Negligible", "Unknown"];
 
-fn command(root: &Path, container: &util::Container, cache: &Path, offline: bool) -> Command {
+pub(crate) fn command(
+    root: &Path,
+    container: &util::Container,
+    cache: &Path,
+    offline: bool,
+) -> Command {
     let mut c = util::cmd("docker", &[], root);
     c.args(security::sandbox_args(&container.name));
     if offline {
@@ -283,34 +288,6 @@ pub fn receipt(path: &Path, now: DateTime<Utc>) -> Result<Value> {
     // Keep the existing low-level config/layer verifier scanner-independent.
     Ok(
         json!({"CreatedAt":value["CreatedAt"],"Metadata":subject,"Results":[{"Vulnerabilities":findings}],"raw_matches":findings}),
-    )
-}
-pub fn transition(policy: &Value) -> Result {
-    ensure(
-        policy["schema_version"] == 1
-            && policy["baseline_scanner"] == "trivy"
-            && policy["candidate_cataloger"] == "syft:1.55.0"
-            && policy["candidate_scanner"] == "grype:0.121.0",
-        "Unknown scanner transition",
-    )?;
-    ensure(
-        policy["state"] == "verified" && policy["unresolved_baseline_asset_advisory_pairs"] == 0,
-        "Baseline-only scanner findings require reconciliation",
-    )?;
-    ensure(
-        policy["closure_evidence_sha256"]
-            .as_array()
-            .is_some_and(|v| {
-                !v.is_empty()
-                    && v.iter().all(|v| {
-                        v.as_str().is_some_and(|s| {
-                            s.len() == 64
-                                && s.bytes()
-                                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-                        })
-                    })
-            }),
-        "Missing independently reviewed transition evidence",
     )
 }
 pub fn scan_generated(root: &Path, directory: &Path) -> Result {

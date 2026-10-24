@@ -41,22 +41,19 @@ enum Task {
     },
     ScanSecurity,
     ScanSources,
-    CheckScannerTransition,
-    CompareTrivy,
-    CompareScannerBaseline {
-        #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
-        platform: String,
-    },
-    CompareTrivySupplyChain {
-        #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
-        platform: String,
-    },
     ScanSbom {
         #[arg(long, default_value = ".work/sbom")]
         sbom_dir: PathBuf,
     },
     ScanSupplyChain {
         #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
+        platform: String,
+    },
+    /// Local supplier experiment only; never changes pins or publishes images.
+    RebuildTool {
+        #[arg(long, value_parser=["syft", "grype", "gitleaks"])]
+        tool: String,
+        #[arg(long,value_parser=["linux/amd64","linux/arm64"])]
         platform: String,
     },
     TestLivesync {
@@ -146,16 +143,9 @@ fn execute(command: Task) -> Result {
         ),
         Task::ScanSecurity => security::scan_security(&root),
         Task::ScanSources => security::scan_sources(&root),
-        Task::CheckScannerTransition => xtask::grype::transition(&xtask::util::json(
-            &root.join(".github/scanner-transition.json"),
-        )?),
-        Task::CompareTrivy => security::compare_trivy(&root),
-        Task::CompareScannerBaseline { platform } => {
-            xtask::supply_sbom::compare_baseline(&root, &platform)
-        }
-        Task::CompareTrivySupplyChain { platform } => security::scan_supply_chain(&root, &platform),
         Task::ScanSbom { sbom_dir } => xtask::grype::scan_generated(&root, &sbom_dir),
         Task::ScanSupplyChain { platform } => xtask::supply_sbom::scan(&root, &platform),
+        Task::RebuildTool { tool, platform } => xtask::rebuild::run(&root, &tool, &platform),
         Task::TestLivesync {
             storage_config,
             image,

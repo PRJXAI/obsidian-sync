@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed Syft-native SBOM generation, offline Grype receipts/DB/matches including suppressions, isolated per-invocation output mounts, same-config baseline comparison, transition denial, updated default CI and all affected guides/results",
+  "reason": "Reviewed complete Grype-only retirement, shared evidence fixtures and Docker input/exclusion regression, preserved historical results and current failing vulnerability gates",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -7,7 +7,7 @@
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "71cbf0d41c654d90050d820d31c19ee3f303a727d9db7089fd17290eb4808fd8"
+      "sha256": "15a5ddf1477d9d1bc1226aa80a127810cde50a019693d62ca467ab4f64414e7c"
     },
     {
       "path": ".cargo/config.toml",
@@ -15,15 +15,11 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "e7e241337608a386aabb359fa6ae4a8ef788516d652bf5c8a2bb14ef9f4b34e6"
+      "sha256": "f6daef76cc2c265fa47d138c4f50344c37e6d2806d2548a2da98873eb06e5a7f"
     },
     {
       "path": ".env.example",
       "sha256": "339f314c41d67665cbd7806b09c6d69212d7abd90b78949278291c1a393ebfb8"
-    },
-    {
-      "path": ".github/scanner-transition.json",
-      "sha256": "3ea37b9a4cbcfbb533ffda8186ba4cbb06af9f92c4cc3db62648803d6a601ea9"
     },
     {
       "path": ".github/security-readiness.json",
@@ -31,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "ce10f5c1112f058f9efe17335f0203e0e75654b46699fce28ba0c76d4e0550c4"
+      "sha256": "ba1161f20f653d83c541ab582ddc43de07674dbf50a415f3bf34ec847cd3b406"
     },
     {
       "path": ".gitignore",
@@ -39,7 +35,7 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "67cd351bc0f8937e7d83333b050040ef81f10cfe6d1200efa225239592329481"
+      "sha256": "c851ac5473e6e39941f56dd8af6a68199fa1f45cb45daa40371bf951f7f413c7"
     },
     {
       "path": "Cargo.lock",
@@ -343,7 +339,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "649033928d602b48378848ef0c3906983afde0451750dc8cac2335a0e15a1aca"
+      "sha256": "8dc461ec039a9ad85e6cdde38b248e18f3c65551659c43febf60d69ebf640891"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -351,11 +347,11 @@
     },
     {
       "path": "xtask/src/evidence.rs",
-      "sha256": "515953123b697330ceebaa924ed6672e453497460cd1f5520087a51f1ea88a5b"
+      "sha256": "771e6493875ff2281f5ca2d5ab6920dbc178072f9cd9214e2281b4d0ebb22d2d"
     },
     {
       "path": "xtask/src/grype.rs",
-      "sha256": "fb6cb3f409b530d3d5430f0fa7d23cefdaa783cb90b7c8dfd1298f18b8585650"
+      "sha256": "fbbf5613a5d25b917ba252dba0cabd31580d84946b0f1a13ed4f095241fe3bb4"
     },
     {
       "path": "xtask/src/images.rs",
@@ -363,27 +359,31 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "6ee449b46bef6913eafdc881204a542c78fc49e012c357b65efb2ae05ec7117c"
+      "sha256": "1409c8283115fee28bc9d0e2d2de2abe73cc7dd94a156ffd33930289a1658410"
     },
     {
       "path": "xtask/src/main.rs",
-      "sha256": "04a700f68df388f7fa0aa4d541ef5eed88c8a31b8856fe0dfa56b7fe8b5c1430"
+      "sha256": "3d361370c471ec56090b0319cd2e16c08e275564ab2080cbab88ea083a69160c"
     },
     {
       "path": "xtask/src/policy.rs",
       "sha256": "b141f6529ddf744fa7c3282ffd317f612ef564fe3bbc0e11b951e4c32059969e"
     },
     {
+      "path": "xtask/src/rebuild.rs",
+      "sha256": "d0c8863bdd5e66a82282427d2330fb966539ddc886f7fadb1ca937e6be1f5e89"
+    },
+    {
       "path": "xtask/src/sbom.rs",
-      "sha256": "97567c6e8388ef334b6ab83228c86282594c11f1fca55079c6a723be516f0eac"
+      "sha256": "2f0255a7498dd80139925a5c8b5dfada9c78a9ad36ed1b8a5e2320747f18986d"
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "1e5a4af00200f85eff075987f4b185877aabbcc257ccf29821a4ce4a974cad6d"
+      "sha256": "980ce97a9b7e0f79962fcc9cd59e74d98f91d63a53bb4360b0027105a268aa65"
     },
     {
       "path": "xtask/src/supply_sbom.rs",
-      "sha256": "e7c77318f39d9aba35469b488dc78755341fcacaee954022678d3634f22522e5"
+      "sha256": "d0d8672263abd3b6b3c1eb7f454903b7dea24b685491a5cc15b885828fc5f6f3"
     },
     {
       "path": "xtask/src/util.rs",
@@ -395,11 +395,19 @@
     },
     {
       "path": "xtask/tests/grype.rs",
-      "sha256": "c1bc6a61bb01d914883e91ac47e9e66647d55aa6c67c109fc4e4fa0f5385e717"
+      "sha256": "6a121bdc7ba1b16843fa7f5c0401c74516aeecb82a2fa7c7867b7b1d1c3fd041"
+    },
+    {
+      "path": "xtask/tests/rebuild.rs",
+      "sha256": "24d6ffd5131a8bb74deaa429c2ea967767ae3c50f6f5fca4d85fb3b64b7ac5ae"
+    },
+    {
+      "path": "xtask/tests/support/mod.rs",
+      "sha256": "0273f13a3f0b061d0debd40d85f4affaf35ae0bb77fb03e65253885f28d4b705"
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "0e323dde8cf148c6ec17decb2855e171ee98770565193c01dc6f60c22397fcb8"
+      "sha256": "dbcbf11a1c0431f1a5f2c37f0d2ab3150c330541ac54f773c127d4d9ec17548e"
     }
   ]
 }
