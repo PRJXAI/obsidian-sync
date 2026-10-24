@@ -5,11 +5,13 @@ description: Maintain this repository's authored documentation, remove stale pag
 
 # Maintain repository documentation
 
-1. Read AGENTS.md, README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md. Check `git diff` and `python3 scripts/docs.py check` to locate source drift and broken links.
-2. Read changed implementation AND tests; do not write claims from interfaces alone. Target the pinned Self-hosted LiveSync contract. Distinguish builds, actual Commonlib/PouchDB fixtures, GUI/mobile validation, reference CouchDB and real-provider tests. Preserve remaining compatibility limitations; do not restore the obsolete missing-plugin blocker.
-3. Update the smallest authored pages affected. Create with `python3 scripts/docs.py create docs/topic.md --title 'Topic'`; replace its draft with verified content using an editor or `docs.py update docs/topic.md --from-file FILE`. Include reproduction commands, persistent state, failure recovery and remaining limitations.
-4. For stale pages, first move any still-valid information and remove inbound links. Delete only with `python3 scripts/docs.py delete docs/stale.md --reason 'Superseded by ...' --yes`. The tool refuses untracked pages, escaping/symlink targets and pages with inbound links. Never automatically delete prose based solely on age or an LLM judgment.
-5. Update docs/llm.md when module ownership, commands, invariants, or blocked capabilities change. Update docs/results.md only from actual measurements. Do not include secret values, note bodies, private identifiers, or real infrastructure details.
-6. Run `python3 scripts/sync-generated.py` to refresh canonical config copies and docs/source-map.md. Do not hand-edit generated copies.
-7. Run Python maintenance tests and deployment rendering. Review the affected authored docs explicitly, then acknowledge source fingerprints with `python3 scripts/docs.py review --reason 'Describe what was reviewed'`. This is a review acknowledgment, not automatic content generation.
-8. Run `python3 scripts/sync-generated.py --check` and `python3 scripts/docs.py check`. Include added/updated/deleted pages in the handoff. Never suppress a source-drift check without doing the review.
+All first-party tooling and tests must be Rust. Use `cargo xtask`; never execute Python or add inline Python. Shell files are thin launchers. Pinned upstream JavaScript clients are the compatibility-test exception only.
+
+1. Read AGENTS.md, README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md. Check `git diff` and `cargo xtask docs check` for source drift and broken links.
+2. Read changed implementation AND tests before writing claims. Preserve the pinned LiveSync contract; distinguish Commonlib/PouchDB fixtures, GUI/mobile, reference CouchDB and real-provider validation.
+3. Update the smallest affected authored pages. Create with `cargo xtask docs create docs/topic.md --title 'Topic'`; update with an editor or `cargo xtask docs update docs/topic.md --from-file FILE`. Document verified behavior, state, failure/recovery and limits.
+4. Before deleting stale prose, preserve useful content and remove inbound links. Only then use `cargo xtask docs delete docs/stale.md --reason 'Superseded by ...' --yes`. Escapes, symlinks, untracked/dirty deletion and inbound links must be rejected. Never delete based solely on age or an LLM judgment.
+5. Update docs/llm.md when ownership, commands, invariants or blocked capabilities change. Record only actual measurements in docs/results.md. Exclude secrets, note content, private identifiers and infrastructure details.
+6. Run `cargo xtask sync-generated` for canonical config copies and docs/source-map.md. Never hand-edit generated copies. Fingerprints/maps must exclude ignored operator files.
+7. Run `cargo test --locked -p xtask` and deployment rendering. Explicitly review affected authored docs before `cargo xtask docs review --reason 'Describe the implementation and docs actually reviewed'`. This acknowledges review; it does not generate prose or certify correctness.
+8. Run `cargo xtask sync-generated --check` and `cargo xtask docs check`. Handoff added/updated/deleted pages and blocked checks. Never bypass drift without review.

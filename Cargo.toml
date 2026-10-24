@@ -6,6 +6,11 @@ rust-version = "1.99"
 license = "MIT"
 publish = false
 
+[workspace]
+members = ["xtask"]
+default-members = ["."]
+resolver = "3"
+
 [features]
 default = ["s3", "gcs", "azure"]
 s3 = ["dep:reqwest", "dep:rusty-s3", "dep:tokio-util"]

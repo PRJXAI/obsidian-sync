@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "scope": {
+    "framework": null,
+    "data_classification": null,
+    "deployment_profile": null
+  },
+  "reviewer_teams": [],
+  "milestones": {
+    "M0": {"state": "blocked", "evidence_sha256": []},
+    "M1": {"state": "in_progress", "evidence_sha256": []},
+    "M2": {"state": "blocked", "evidence_sha256": []},
+    "M3": {"state": "in_progress", "evidence_sha256": []},
+    "M4": {"state": "deferred", "evidence_sha256": []},
+    "M5": {"state": "blocked", "evidence_sha256": []},
+    "M6": {"state": "blocked", "evidence_sha256": []},
+    "M7": {"state": "blocked", "evidence_sha256": []}
+  }
+}

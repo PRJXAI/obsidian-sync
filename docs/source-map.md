@@ -1,9 +1,11 @@
 # Generated source map
 
-Run `python3 scripts/sync-generated.py` after moving source files.
+Run `cargo xtask sync-generated` after moving source files.
 
 - `.agents/skills/maintain-docs/SKILL.md`
 - `.agents/skills/security-release/SKILL.md`
+- `.cargo/config.toml`
+- `.github/security-readiness.json`
 - `.github/workflows/ci.yml`
 - `config/azure.toml`
 - `config/filesystem.toml`
@@ -34,19 +36,11 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `scripts/benchmark.sh`
 - `scripts/check-features.sh`
 - `scripts/check.sh`
-- `scripts/docs.py`
-- `scripts/generate-sbom.py`
 - `scripts/scan-security.sh`
-- `scripts/scan-supply-chain.py`
 - `scripts/smoke-compose.sh`
 - `scripts/smoke-kubernetes.sh`
-- `scripts/sync-generated.py`
-- `scripts/test-livesync.py`
-- `scripts/test-reference-couch.py`
 - `scripts/test-s3.sh`
 - `scripts/validate-deployments.sh`
-- `scripts/verify-image.py`
-- `scripts/verify-release.py`
 - `src/auth.rs`
 - `src/config.rs`
 - `src/couch/http.rs`
@@ -77,8 +71,17 @@ Run `python3 scripts/sync-generated.py` after moving source files.
 - `tests/interruption.rs`
 - `tests/recovery.rs`
 - `tests/storage_contract.rs`
-- `tests/test_maintenance.py`
-- `tests/test_release.py`
-- `tests/test_sbom.py`
-- `tests/test_scanner_permissions.py`
-- `tests/test_supply_chain.py`
+- `xtask/Cargo.toml`
+- `xtask/src/clients.rs`
+- `xtask/src/deployment.rs`
+- `xtask/src/docs.rs`
+- `xtask/src/evidence.rs`
+- `xtask/src/images.rs`
+- `xtask/src/lib.rs`
+- `xtask/src/main.rs`
+- `xtask/src/policy.rs`
+- `xtask/src/sbom.rs`
+- `xtask/src/security.rs`
+- `xtask/src/util.rs`
+- `xtask/tests/cancellation.rs`
+- `xtask/tests/tooling.rs`

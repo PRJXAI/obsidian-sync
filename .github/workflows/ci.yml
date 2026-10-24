@@ -36,13 +36,15 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with: {persist-credentials: false}
+      - name: Test build-context privacy with synthetic excluded-file canaries
+        run: cargo xtask test-build-context
       - name: Test the Linux musl build stage
         run: docker build --target tests .
       - name: Build the shared builder and runtime
         run: |
           docker build --target build -t obsidian-sync:builder .
           docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" -t obsidian-sync:local .
-          python3 scripts/verify-image.py
+          cargo xtask verify-image
       - name: Export the exact images for every downstream gate
         run: |
           mkdir -p .work/ci-images
@@ -75,22 +77,29 @@ jobs:
       - run: cargo install cargo-audit --version 0.22.1 --locked
       - run: cargo install cargo-deny --version 0.20.2 --locked
       - run: cargo audit && cargo deny check
-      - run: python3 -m unittest discover -s tests -p 'test_*.py'
-      - run: python3 scripts/sync-generated.py --check && python3 scripts/docs.py check
+      - run: cargo test --locked -p xtask
+      - run: cargo xtask sync-generated --check && cargo xtask docs check
       - name: Scan Rust, source/history secrets, exact runtime and builder
         env:
           SYNC_SECURITY_BUILDER_IMAGE: obsidian-sync:builder
         run: scripts/scan-security.sh
       - name: Verify the runtime-to-release content binding
-        run: python3 scripts/verify-release.py --image obsidian-sync:local --scan-report .work/security/trivy.json
+        run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/security/trivy.json
       - name: Scan every declared public build/test/scanner image
         if: always()
-        run: python3 scripts/scan-supply-chain.py --platform linux/amd64
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        run: cargo xtask scan-supply-chain --platform linux/amd64
+      - name: Build artifact-specific findings ledger without waivers
         if: always()
+        run: cargo xtask findings-ledger --platform linux/amd64 --source-revision "$GITHUB_SHA"
+      - name: Prepare allowlisted public summaries, never raw matches or logs
+        id: publish
+        if: always()
+        run: cargo xtask publish-security-summary --source-revision "$GITHUB_SHA"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always() && steps.publish.outcome == 'success'
         with:
           name: security-reports
-          path: .work/security/
+          path: .work/public-security/
           retention-days: 14
           if-no-files-found: error
 
@@ -118,12 +127,12 @@ jobs:
           cache: npm
           cache-dependency-path: tests/compat/package-lock.json
       - run: scripts/validate-deployments.sh
-      - run: python3 scripts/test-livesync.py
+      - run: cargo xtask test-livesync
       - run: scripts/test-s3.sh
-      - run: python3 scripts/test-reference-couch.py
+      - run: cargo xtask test-reference-couch
       - run: npm audit --prefix tests/compat --audit-level=low
       - run: scripts/smoke-compose.sh
-      - run: python3 scripts/test-livesync.py --image obsidian-sync:local
+      - run: cargo xtask test-livesync --image obsidian-sync:local
       - run: scripts/smoke-kubernetes.sh
 
   sbom:
@@ -142,11 +151,33 @@ jobs:
           docker load -i .work/ci-images/runtime.tar
           docker load -i .work/ci-images/builder.tar
       - name: Generate inventories and bound materials offline
-        run: python3 scripts/generate-sbom.py
+        run: cargo xtask generate-sbom --runtime-archive "$PWD/.work/ci-images/runtime.tar" --builder-archive "$PWD/.work/ci-images/builder.tar"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
           name: sbom-materials
-          path: .work/sbom/
+          path: |
+            .work/sbom/source.cdx.json
+            .work/sbom/source.spdx.json
+            .work/sbom/runtime.cdx.json
+            .work/sbom/runtime.spdx.json
+            .work/sbom/builder.cdx.json
+            .work/sbom/builder.spdx.json
+            .work/sbom/native-toolchain.txt
+            .work/sbom/materials.json
           retention-days: 30
           if-no-files-found: error
+
+  required-ci:
+    name: Required CI
+    if: always()
+    needs: [rust, build, security, integration, sbom]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with: {persist-credentials: false}
+      - name: Fail on any failed, skipped, canceled or missing dependency
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: cargo xtask ci-gate

@@ -14,7 +14,7 @@
 - [Storage adapters](docs/storage.md): filesystem, S3/MinIO, GCS and Azure contracts.
 - [Measured results](docs/results.md) and [security audit](docs/security-audit.md): actual evidence, unresolved findings and acceptance limits.
 - [Regulated-environment and exfiltration assessment](docs/regulated-security-assessment.md): reachable versus unproven findings, output/egress risks, source/release enforcement and controls required before sensitive-data acceptance.
-- [Security remediation plan](docs/security-remediation-plan.md): proposed milestones, finding coverage, dependencies, acceptance tests and required owner approvals; not evidence of implemented controls.
+- [Security remediation plan](docs/security-remediation-plan.md): implementation milestones, finding coverage, dependencies, acceptance tests and required owner approvals; the general egress sandbox is deferred and acceptance remains blocked.
 - [Maintenance and CI](docs/maintenance.md), [source map](docs/source-map.md): docs lifecycle and implementation locations.
 
 ## Safety contract
@@ -30,7 +30,7 @@
 
 ## Build and test
 
-Use the committed rust-toolchain.toml and Cargo.lock; keep the toolchain, Docker builder and CI synchronized. Python 3.11+, Node and Docker versions/requirements are documented in the operations runbook and CI.
+Use the committed rust-toolchain.toml and Cargo.lock; keep the toolchain, Docker builder and CI synchronized. All first-party code, automation and infrastructure tests use Rust (`xtask/`); no Python. Node/npm only bridge to pinned upstream JavaScript compatibility clients. Docker and other external-tool requirements are in the operations runbook and CI.
 
 ```sh
 cargo build --locked
@@ -40,7 +40,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 scripts/check.sh
 scripts/check-features.sh
-python3 -m unittest discover -s tests -p 'test_*.py'
+cargo test --locked -p xtask
 ```
 
 Filesystem is always available; optional features are s3, gcs and azure. All eight feature combinations must remain buildable. SQLite/fs synchronization and CPU work use bounded blocking pools; attachments use streaming I/O.
@@ -48,9 +48,9 @@ Filesystem is always available; optional features are s3, gcs and azure. All eig
 Run compatibility/provider checks only with disposable data:
 
 ```sh
-python3 scripts/test-livesync.py
+cargo xtask test-livesync
 scripts/test-s3.sh
-python3 scripts/test-reference-couch.py
+cargo xtask test-reference-couch
 scripts/validate-deployments.sh
 ```
 
@@ -64,16 +64,16 @@ For release evidence use a clean source tree and the same image pair for securit
 docker build --target tests .
 docker build --target build -t obsidian-sync:builder .
 docker build --build-arg SOURCE_REVISION="$(git rev-parse HEAD)" -t obsidian-sync:local .
-python3 scripts/verify-image.py
+cargo xtask verify-image
 SYNC_SECURITY_BUILDER_IMAGE=obsidian-sync:builder scripts/scan-security.sh
-python3 scripts/scan-supply-chain.py --platform linux/amd64
-python3 scripts/generate-sbom.py
-python3 scripts/test-livesync.py --image obsidian-sync:local
+cargo xtask scan-supply-chain --platform linux/amd64
+cargo xtask generate-sbom
+cargo xtask test-livesync --image obsidian-sync:local
 ```
 
 Use linux/arm64 for a separately scoped arm64 supply-chain scan. Any finding, UNKNOWN result, timeout or missing report fails the gate. Refresh advisory data; do not add ignore lists to make it green.
 
-CI builds once, exports checksum-verified image archives and reuses them across security/integration/SBOM jobs. It publishes no image and deploys no real cluster. Artifacts include security reports, source/runtime/builder CycloneDX and SPDX, native toolchain identity and materials.json binding source/lockfile/image/SBOM hashes. Source inventory must include npm test dependencies. These are unsigned inventories requiring trusted CI/operator delivery, not proof that all native code is safe.
+CI builds once, exports checksum-verified image archives and reuses them across security/integration/SBOM jobs. It publishes no image and deploys no real cluster. The stable Required CI aggregate rejects any failed, skipped, canceled or missing dependency. Public security artifacts contain count/status summaries, never raw matches, authors or provider logs; raw reports/triage ledgers remain local and need approved private archival. Artifacts also include source/runtime/builder CycloneDX and SPDX, native toolchain identity and materials.json binding source/lockfile/image/SBOM hashes. Source inventory must include npm test dependencies. These are unsigned inventories requiring trusted CI/operator delivery, not proof that all native code is safe.
 
 ## Configuration privacy
 
@@ -112,7 +112,7 @@ curl -fsS -o /dev/null http://127.0.0.1:8080/health/ready
 
 Use mounts matching your actual ignored configuration; this example is not a cloud credential-mount recipe. Health endpoints return 204 when ready and disclose no vault data. The host port stays loopback-only. Remote Basic/Bearer credentials require private HTTPS termination, not remote plaintext.
 
-For imported releases, use scripts/verify-release.py with a trusted clean runtime scan no older than 24 hours, then use its immutable image ID with deploy/compose.release.yml and --no-build --pull never. Validate configuration and layer digests; do not confuse the OCI index with the saved configuration identity. See the runbook for exact commands and rollback rules.
+For imported releases, use cargo xtask verify-release with a trusted clean runtime scan no older than 24 hours, then use its immutable image ID with deploy/compose.release.yml and --no-build --pull never. Validate configuration and layer digests; do not confuse the OCI index with the saved configuration identity. See the runbook for exact commands and rollback rules.
 
 ## Configure the client and retire bootstrap permission
 
@@ -143,10 +143,10 @@ S3/MinIO must support conditional create and pass the startup probe; use an excl
 Read changed implementation and negative/race/cancellation tests before updating claims. Keep authored runbooks, docs/llm.md and this guide aligned; never turn an unexecuted or blocked check into PASS. Generated copies and source maps must exclude ignored operator files.
 
 ```sh
-python3 scripts/sync-generated.py
-python3 scripts/docs.py review --reason 'Describe the implementation and documentation actually reviewed'
-python3 scripts/sync-generated.py --check
-python3 scripts/docs.py check
+cargo xtask sync-generated
+cargo xtask docs review --reason 'Describe the implementation and documentation actually reviewed'
+cargo xtask sync-generated --check
+cargo xtask docs check
 ```
 
 The review command acknowledges a real review; it must not be used as an automatic drift bypass. It checks this guide's links as well as Markdown documentation. See the repository skills for documentation lifecycle and security-release details.

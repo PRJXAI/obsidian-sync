@@ -1,45 +1,53 @@
 {
-  "reason": "Reviewed history-scanner input minimization, synthetic ignored-file/detached-HEAD regressions and regulated/exfiltration assessment against CI, storage, network templates, repository enforcement and vendor-source applicability evidence",
+  "reason": "Reviewed final Rust tooling including native-only cleanup isolation, cancellation, combined-stream lock fencing, build-context privacy, CI/evidence guards and all updated authored guides",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
-      "sha256": "e6902dd13f7bb19e364a9af88c060005c5683252287e172444771421fb6f7856"
+      "sha256": "10108eca1e4d67d05761f043fab8084061677437aeea71c5c7b4fb6945eb978e"
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "202bafd7c54e17bfa90fbb961cc8617d1c58a7bd5258c38631a3b8aaef357170"
+      "sha256": "3de450f44a688cf94a99c3aeff3f6bbc89ccd31450d92466fbb190c5b955e593"
+    },
+    {
+      "path": ".cargo/config.toml",
+      "sha256": "07e75f80544a833951c1532649fadd0ee21712b40e55b6e74b880b3c11259e36"
     },
     {
       "path": ".dockerignore",
-      "sha256": "ac898804b5b508fbf35cb0ec9a8f6497acb57f98b2b19feae6fb34cf29e5c1b3"
+      "sha256": "a06449efa57535dcac549a0c60b59633ddf732999f1306e542d8f629af154ef8"
     },
     {
       "path": ".env.example",
       "sha256": "339f314c41d67665cbd7806b09c6d69212d7abd90b78949278291c1a393ebfb8"
     },
     {
+      "path": ".github/security-readiness.json",
+      "sha256": "6c7ebca1b0448b3b737764d62478912a3f8e8176ff3301e9286cb0d9788ed643"
+    },
+    {
       "path": ".github/workflows/ci.yml",
-      "sha256": "434b76aecd74c8dcb6ce55ec5979c0d26570805f7564e62a172ddc2c8d8beb26"
+      "sha256": "4ca5612ea9beee3969f7304b75835cdede81bade86bcf6cfd113f4a516491c7f"
     },
     {
       "path": ".gitignore",
-      "sha256": "da533d22818e3c24b63c0e62b21bd55f428e921e10c9ad9ec51a1be3b6a71045"
+      "sha256": "db9cd8ce9ba80e9d8e58e636c7ea63adee29efec7ac3641af963052bfabdff48"
     },
     {
       "path": "AGENTS.md",
-      "sha256": "823469e70cb33c18a117d39414395847f7e1daf31332056faf5c71483705e647"
+      "sha256": "9d1e776b04cf7697329ee8cf0f80c6f7578b7a26dae63cecb5bbf8e25a7e55af"
     },
     {
       "path": "Cargo.lock",
-      "sha256": "a8f41a759d341af8512080cec32a996aebdaedce3302b89c44339b432852e454"
+      "sha256": "ce779fbf89bd2bd139d0f83bcfaa039fcb4d59b2f2706a3e36bd29e85c06c65e"
     },
     {
       "path": "Cargo.toml",
-      "sha256": "b082d85124c0d52e3c32c05f7900d33cf74d361d5db2ac5e797779f78a08342b"
+      "sha256": "fa8ea57f202d265ba7a60f39149ab08768797a369e363c3b9e5a4ef9dc5bcf29"
     },
     {
       "path": "Dockerfile",
-      "sha256": "df742d121fb1456607ce2372843662ff976ee6f71436bb37bf1d85f2bee6c018"
+      "sha256": "e15828f23e7ebb8ba53d256548e14f82270469c97f37c6db9f583d65f89274db"
     },
     {
       "path": "LICENSE",
@@ -171,67 +179,35 @@
     },
     {
       "path": "scripts/benchmark.sh",
-      "sha256": "f15fc08468703b5658ddc7be08f552ba63133ddb712a9d16794f1ec1cfd6406c"
+      "sha256": "21bb1cbbb088980e9bbf9c24a68e5e96c16825006a3fd27ef242536a5d12ba9e"
     },
     {
       "path": "scripts/check-features.sh",
-      "sha256": "9b47e96097e93595a6fd540a304ed47a0f13e38c4da21e1b45f36b95d35bf452"
+      "sha256": "f38229393408fc5011214c1fb1608aac37c6bd5f301ae1a301ee3eb20eae52dd"
     },
     {
       "path": "scripts/check.sh",
-      "sha256": "6cb28fca774d627a708d048722cedf6fc08e4dcc7c41dbaa175222f98a95a673"
-    },
-    {
-      "path": "scripts/docs.py",
-      "sha256": "eb761d5b3bc24f365ac7229e9b5146a150c3d6de45465bc7b45a164f408313d3"
-    },
-    {
-      "path": "scripts/generate-sbom.py",
-      "sha256": "2d1ec4c7bc98347cf2d966b4c4eee5d6940faebfbd83faff1b09470b5cab5cc2"
+      "sha256": "48542267462e32efa10ace878b250163e50e5af661b66fc7df2f2acee45afd9b"
     },
     {
       "path": "scripts/scan-security.sh",
-      "sha256": "6ada8d3a7893506a3d23ce93fc5cda99bb987fd58d82f60cbbe9075ebd78cfb3"
-    },
-    {
-      "path": "scripts/scan-supply-chain.py",
-      "sha256": "3df00e0c120f9512cc9b7cd2cc1db03d7d76d431c1f00098649f5a21a2f317d8"
+      "sha256": "1f927e01557dac36535a9e3bf65172ea5cade60659609298e380a6013af773c4"
     },
     {
       "path": "scripts/smoke-compose.sh",
-      "sha256": "0ad7f9a8b1bfa4c1c95159aa900954ba73e88166c182b74dbf502a7e02e1930e"
+      "sha256": "411429420f537542b8cd5e7630532b70b0dfac5394f81df6988afed611573c9a"
     },
     {
       "path": "scripts/smoke-kubernetes.sh",
-      "sha256": "ac308489112d4545c6373f46d35b9d6dacbae4e91f150064538d9aed484674bd"
-    },
-    {
-      "path": "scripts/sync-generated.py",
-      "sha256": "1204261d869bd112dc3fcab6545da770c16534ad038e09ae2c6a40fbe887f8e8"
-    },
-    {
-      "path": "scripts/test-livesync.py",
-      "sha256": "d63f5c35296d2886f57ef5b5a67f4a310139e630782da2a2f144d56b3ae657c7"
-    },
-    {
-      "path": "scripts/test-reference-couch.py",
-      "sha256": "4445fed050c696069c17a03c85dc62035b28ab288ece8b189cd5bf0f589e455b"
+      "sha256": "84439ab9efa17918c2d0468aa42f8858ed030ffd8cf8a263515ecb4a183fb63e"
     },
     {
       "path": "scripts/test-s3.sh",
-      "sha256": "91cdd300f5dfd4ec4f15298aa4360460e5cad8f219f1344a5c2e38e15bb2601f"
+      "sha256": "0c476a045bcdb35f6a3c56278b11c36022c1c4ac9d168f3d996cc2194f531e76"
     },
     {
       "path": "scripts/validate-deployments.sh",
-      "sha256": "58e9ad9f4e65817ef8761de685d96589a2631919bbc8aff3be4484a3e731dbcb"
-    },
-    {
-      "path": "scripts/verify-image.py",
-      "sha256": "7cbdc96a9f1dda4aa94ece1a165911fb53bc9715a5f026947ab1e689d6592efb"
-    },
-    {
-      "path": "scripts/verify-release.py",
-      "sha256": "644b5acca623ce2a97018becf39edbe8753c865ded15825a54c6c4f713ee398c"
+      "sha256": "e65bcafdc11df203edd027a717bdac6ba5fad41e42f3fbb24bd2b2cbe69249bc"
     },
     {
       "path": "src/auth.rs",
@@ -354,24 +330,60 @@
       "sha256": "1dbb8153bc554a9cfbbbcdf2fc01e3e19262a7dd0df09e0ef3175a0d464d498e"
     },
     {
-      "path": "tests/test_maintenance.py",
-      "sha256": "72386184791730e143c0a8bf4a22d24045f8dae6c28abfd23a78e0630491bd0f"
+      "path": "xtask/Cargo.toml",
+      "sha256": "7b733c0c60fa68acbe42c83f782be43a42705246e15b1051b6f6d4d664a87d05"
     },
     {
-      "path": "tests/test_release.py",
-      "sha256": "dc73ec247fac1ea2a5dd1734cf3f772d7759bd28fe940ecabe8da05ab03eae22"
+      "path": "xtask/src/clients.rs",
+      "sha256": "8cce45ceb3b29c8d4db7257c01550a1e0e634488616bd71d3bd148096db3779a"
     },
     {
-      "path": "tests/test_sbom.py",
-      "sha256": "c3405a5cd7cee27ad3ce397a0e01ad6e8306404f8a139d7ac96e36d4b9d315d9"
+      "path": "xtask/src/deployment.rs",
+      "sha256": "cb0c237af302cc2ed523567490ddbdfbeb0bb19e58fcf2f1d5093ef7b4e875cd"
     },
     {
-      "path": "tests/test_scanner_permissions.py",
-      "sha256": "8911a8e068a673cc69d81860ad948a327b4f3a953a7a1d53ec816d048d08c2ee"
+      "path": "xtask/src/docs.rs",
+      "sha256": "371b0ded301ef089996851caf1173c3d7a5fa4f611655ca237dd27231676db15"
     },
     {
-      "path": "tests/test_supply_chain.py",
-      "sha256": "b784d08e39c2771b2c6a8b5ad36161d74754d9ee12e11325b6491b25d32c4741"
+      "path": "xtask/src/evidence.rs",
+      "sha256": "515953123b697330ceebaa924ed6672e453497460cd1f5520087a51f1ea88a5b"
+    },
+    {
+      "path": "xtask/src/images.rs",
+      "sha256": "cc9942b90141d964a09671182988c6803f230226aadd8921ce76387d34d1e844"
+    },
+    {
+      "path": "xtask/src/lib.rs",
+      "sha256": "ff8ec38f2d6974d2548fc22248f1e4367ec97e2723d609546beab8c0ee1c05aa"
+    },
+    {
+      "path": "xtask/src/main.rs",
+      "sha256": "6f61ea35b9efe3bd00378a3c08643b448816d2e9cdff40e130eafc41f2a971b0"
+    },
+    {
+      "path": "xtask/src/policy.rs",
+      "sha256": "b141f6529ddf744fa7c3282ffd317f612ef564fe3bbc0e11b951e4c32059969e"
+    },
+    {
+      "path": "xtask/src/sbom.rs",
+      "sha256": "529e782f8a1645ff0ef5fa74e4e761abeafebc6f50928d9b8380f541411594d6"
+    },
+    {
+      "path": "xtask/src/security.rs",
+      "sha256": "231f0559678a976d427773453bae7bab8141cfcc784a22c2391ef07bfd20649b"
+    },
+    {
+      "path": "xtask/src/util.rs",
+      "sha256": "503eba433a50d44b2e3899b4f5e4d4137bc3f658b99cd8c9205433a75280db09"
+    },
+    {
+      "path": "xtask/tests/cancellation.rs",
+      "sha256": "bbe9fc046143f4313c683b868247e24317ccc50169dfcfd6721d686adfb26536"
+    },
+    {
+      "path": "xtask/tests/tooling.rs",
+      "sha256": "1f6b40413e5a09548304dfbb80a36536fe4a69a67a73cda53b2e0c8f51acdc10"
     }
   ]
 }

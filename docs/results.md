@@ -1,6 +1,42 @@
-# LiveSync implementation evidence — 2026-10-23
+# LiveSync implementation evidence
 
-## Current audit/remediation status
+## Rust tooling migration — 2026-10-24
+
+First-party tooling/infrastructure tests moved to the Rust `xtask/` workspace crate; Python implementations were removed and shell scripts became thin launchers. npm/Node remain only the pinned upstream JavaScript client bridge. No server schema, protocol, authorization, storage publication or retention logic changed. The egress sandbox is explicitly deferred.
+
+Final local disposable verification, after cancellation, permission and harness fixes:
+
+| Check | Actual result |
+|---|---|
+| `scripts/check.sh` | PASS: debug/release, fmt, workspace Clippy, **42 active server tests + 37 tooling tests**, three provider tests ignored, fresh audit/deny, generated/docs checks |
+| `scripts/check-features.sh` | PASS: all eight feature subsets, debug/release, workspace Clippy/tests |
+| `cargo test --locked -p xtask` | PASS: **35 regressions + two cancellation/subprocess tests**; no Python harness |
+| Native/filesystem and RustFS/S3 Commonlib/PouchDB fixtures | PASS, including real S3 conditional-create/streaming contract and clean client/server restart |
+| Reference CouchDB 3.5.3 | PASS: same genuine client fixture |
+| Linux/musl Docker test target | PASS with test-stage cache explicitly disabled; includes all 37 Rust tooling tests |
+| Runtime image verification and real-client image fixture | PASS: only static `/server`, UID/GID 65532, actual encrypted/bootstrap/restart workload |
+| Build-context canaries | PASS: public inputs retained; synthetic environment/TOML/Cargo-credential/data/node_modules inputs excluded |
+| Fresh Cargo audit / deny / npm audit | PASS: **294 locked crate dependencies**, 1,352 RustSec advisories; licenses/bans/sources pass, visible duplicate-version warnings; npm zero findings |
+| Source/history Gitleaks and runtime/populated-builder Trivy | PASS: zero secret/runtime/builder findings; caller UID, bounded read-only scanner roots and isolated bare mirror |
+| Complete arm64 supply-chain scan | **FAIL (exit 1)**: all ten images produced reports, seven upstream image groups have findings; no missing-report/setup failure was converted into a pass |
+| Local artifact/platform findings ledger | PASS as triage inventory only: ten images, all findings under investigation, native review pending; no waiver or release approval |
+| SPDX/CycloneDX/materials | PASS: six inventories, native identity, **292 registry Rust packages + all 129 npm lock entries**, original runtime/builder archive-byte binding |
+| Deployment rendering, disposable Compose and kind | PASS: private probes, expected second-writer denial, graceful stop, PVC-backed restart; explicit temporary kubeconfig, not CNI enforcement |
+| CI aggregate / read-only policy guard | PASS: successful synthetic dependencies accepted; skipped security and unconfigured policy each rejected with exit 1 |
+| actionlint 1.7.12, docs/source-map and diff checks | PASS locally; not a successful remote Actions receipt |
+| Core and genuine-client benchmark entrypoints | PASS as tooling smoke only; raw measurements remain ignored, no capacity/speedup claim |
+
+The port initially checked only stderr for writer-lock denial; disposable Compose/kind exposed that the classified tracing error can be on stdout. The Rust check now requires a nonzero exit **and** the expected classification on either stream, matching the original combined-stream check. A regression rejects success and unrelated failures. Both real smokes passed after the fix.
+
+This is a **dirty migration snapshot** based on `84ae0e0`, explicitly recorded as dirty in materials, not a signed/clean-commit release receipt. Scanned runtime OCI identity: `sha256:dab8b904cc3de7fdf995450eeb22e6b9394ad7e365db4911225fd9eb1a6e418d`; saved configuration: `sha256:2a021d8f0d95615ff1f844eac90d2efbc0e1aae0df3942ed566d1db2b2603b6b`. Trivy DB updated **2026-10-24 07:11:13 UTC**; RustSec commit `21d909e4c8bd4e14c7aea58bf980c881a0053ab1`. Raw receipts stay in ignored `.work/rust-tooling/`, `.work/security/` and `.work/sbom/`.
+
+Full supply-chain scanning remains failed, with native applicability unresolved. Regenerate clean-commit evidence for release use. No image publication, real cloud account, vault or production cluster was used.
+
+A Docker build-context canary reproduced how allowing a parent directory can re-include private children. Explicit nested child-deny/public-file exceptions now exclude synthetic environment, local TOML, Cargo-credential, data and node_modules canaries while preserving required public inputs. No real operator file was opened for this test.
+
+`Required CI` now aggregates every producer fail-closed. Public security artifacts contain allowlisted count/status summaries only; raw reports/ledgers stay local pending an approved durable private archive. Source/release protection, reviewer teams, signed authorization, audit policy, crypto/retention and provider/operational acceptance remain blocked. None is implied by the language migration.
+
+## Historical audit/remediation baseline — 2026-10-23
 
 **Expanded supply-chain gate: FAILED / release acceptance blocked.** The subsequent [security audit](security-audit.md) fixed unauthenticated rate-budget depletion, refreshed 14 Rust dependencies and pinned build/test/tool images, and added shared CI image artifacts, runtime-to-release content verification and complete source/runtime/builder SBOM/materials generation. Runtime and populated-builder scans are clean; current official test/scanner/frontend images still have unresolved package findings. No severity/advisory exceptions were added. The implementation evidence below predates this expanded gate and is not an all-supply-chain clean claim.
 
@@ -15,10 +51,10 @@ Remediation verification (2026-10-23, disposable local arm64):
 | Linux/musl Docker test target; static/nonroot image verification | PASS |
 | Compose/Kustomize rendering; Compose smoke; disposable kind | PASS: **kind 0.33.0 / Kubernetes 1.37.0**, dedicated kubeconfig (inherited disposable sentinel remained byte-for-byte unchanged), PVC restart and lock exclusion; not CNI enforcement |
 | Fresh runtime and populated-builder Trivy, RustSec/deny, source/history Gitleaks, npm audit | PASS within their scopes; no runtime/builder package findings or Rust/npm advisories |
-| `python3 scripts/scan-supply-chain.py --platform linux/arm64` | **FAIL (exit 1)**: complete 10-image inventory, findings remain in 7 upstream image pins; exact counts/scope in [audit](security-audit.md) |
+| Legacy arm64 supply-chain scanner (now `cargo xtask scan-supply-chain`) | **FAIL (exit 1)**: complete 10-image inventory, findings remain in 7 upstream image pins; exact counts/scope in [audit](security-audit.md) |
 | Workflow actionlint 1.7.12 | PASS; local validation does not assert a successful remote GitHub Actions run |
-| `python3 scripts/generate-sbom.py` | PASS: six SPDX/CycloneDX files, native-toolchain identity and `materials.json`; source graph includes all **287 registry Rust dependencies and 129 locked npm dependency entries**, including test dependencies |
-| `python3 scripts/verify-release.py` | PASS against the exact fresh scanned runtime; negative config/layer/stale/UNKNOWN tests pass |
+| Legacy SBOM generator (now `cargo xtask generate-sbom`) | PASS: six SPDX/CycloneDX files, native-toolchain identity and `materials.json`; source graph includes all **287 registry Rust dependencies and 129 locked npm dependency entries**, including test dependencies |
+| Legacy runtime-content verifier (now `cargo xtask verify-release`) | PASS against the exact fresh scanned runtime; negative config/layer/stale/UNKNOWN tests pass |
 
 Exact locally rebuilt runtime OCI index: `sha256:7893527e4e4956f1c68376842855e84f66f63a7bb95fa1d774599d46acc53c64`; exported configuration: `sha256:c9cd12708a9dc6ce2d12ac14bf5acae8c8a211d41b5e160441ea74b6c07a85b6`. These image measurements came from a pre-publication remediation source snapshot, not a release certification. Regenerate release evidence against the committed source. Scanner DB: Trivy 0.76.1, updated 2026-10-23 07:12:39 UTC; RustSec 1,350 advisories at `f7b2f6bc663452200bbe639ebb75e0c762b3422b`. Raw evidence: ignored `.work/security-audit/`, `.work/security/`, `.work/sbom/`.
 
@@ -86,11 +122,11 @@ These are process/cancellation/interruption tests, not physical power-loss, kern
 - Exact rebuilt/scanned local OCI image: `sha256:d1fd7a0573c659622d8e85e7c82c0d374248b96efc670f07ce128259024bc587`; saved-image configuration identity: `sha256:1e6f07ce9988c8bd25d83cb545a2226fff223f1f3d184e271ca3cda1e14e209a`. Layer identities match. These are different OCI identity levels, not conflicting binary versions.
 - Digest-pinned Chainguard static distroless remains the base. Earlier Debian Distroless CA/tzdata advisories were fixed by choosing an updated clean base, not severity filtering. Only the static Rust executable is added.
 
-Reports: ignored `.work/security/` (CI uploads them). Trivy does not reconstruct Rust dependencies from this ELF; Cargo audit/deny cover the locked Rust graph, and the runtime was explicitly rebuilt from that lockfile before image/client/deployment validation. Builder/test/reference/kind images are outside the final runtime scan. These checks establish no known unresolved findings within their scope, not vulnerability freedom.
+Historical reports: ignored `.work/security/` (older CI runs uploaded raw reports; the current Rust workflow publishes public count/status summaries only, with durable private raw-evidence archival still pending). Trivy does not reconstruct Rust dependencies from this ELF; Cargo audit/deny cover the locked Rust graph, and the runtime was explicitly rebuilt from that lockfile before image/client/deployment validation. Builder/test/reference/kind images are outside the final runtime scan. These checks establish no known unresolved findings within their scope, not vulnerability freedom.
 
 ## Benchmark reproduction
 
-Run `scripts/benchmark.sh` for the internal persistence-core workload or `python3 scripts/test-livesync.py --benchmark` for the real-client HTTP workload, using disposable data only. Keep machine profiles and raw measurements in ignored local reports. Record workload, samples, operating conditions, latency percentiles and peak RSS for your own capacity planning; do not present core metadata throughput as LiveSync wire throughput or three attachment samples as robust tail statistics.
+Run `scripts/benchmark.sh` for the internal persistence-core workload or `cargo xtask test-livesync --benchmark` for the real-client HTTP workload, using disposable data only. Keep machine profiles and raw measurements in ignored local reports. Record workload, samples, operating conditions, latency percentiles and peak RSS for your own capacity planning; do not present core metadata throughput as LiveSync wire throughput or three attachment samples as robust tail statistics.
 
 ## Remaining acceptance limits
 

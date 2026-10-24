@@ -8,6 +8,8 @@
 # remain versioned so a clean clone can build, test and deploy.
 *.toml
 !/Cargo.toml
+!/xtask/Cargo.toml
+!/.cargo/config.toml
 !/rust-toolchain.toml
 !/deny.toml
 !/config/filesystem.toml

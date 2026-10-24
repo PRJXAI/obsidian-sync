@@ -10,6 +10,12 @@ This is a code/configuration review plus executable checks, not a line-by-line a
 
 The follow-up [regulated-environment assessment](regulated-security-assessment.md) separates package matches from reachable paths and evaluates exfiltration, repository enforcement, egress, auditability, crypto and release-policy gaps. It also documents the history-scanner input minimization fix. Do not infer regulatory readiness or malicious behavior from this image-count table alone.
 
+## Rust tooling follow-up
+
+First-party infrastructure, security, documentation, SBOM and content-verification tooling and its regression tests now live in the Rust `xtask/` workspace crate. Shell files only launch Rust. The original audit measurements below are historical; current migration checks are recorded in [results](results.md). npm remains exclusively the pinned upstream client bridge, not infrastructure logic or a runtime dependency.
+
+A stable `Required CI` aggregate now rejects any failed, skipped, canceled or missing producer. A read-only policy preflight rejects unset scope/reviewers, open/deferred milestones and unverifiable protection/approval settings. It neither configures repository enforcement nor signs/authorizes releases. Scanner containers additionally have bounded resources/tmpfs and read-only roots. The findings ledger retains unresolved asset/platform associations without waivers. CI SBOM generation binds the original shared archive bytes, not an independently reserialized save. General egress-sandbox support is explicitly deferred. All remaining A/R acceptance blockers remain open.
+
 ## Trust and supply-chain map
 
 1. Untrusted LiveSync/PouchDB clients → private TLS proxy → bounded HTTP transport → persistent credential/grant verifier → vault-scoped revision DAG/checkpoints.
@@ -37,7 +43,7 @@ Remediation:
 - Rust 1.99.1 retained and synchronized with the updated Alpine 3.24 builder digest; the populated builder scan is now clean. Helper Alpine upgraded to 3.23.7 and clean.
 - Reference CouchDB upgraded from 3.5.0 to 3.5.3; kind node from 1.36.1 to 1.37.0 and CI kind tool to 0.33.0; BuildKit frontend upgraded/pinned to 1.28.0. Syft is pinned to 1.55.0-nonroot.
 - `scripts/scan-security.sh` now scans the actual populated builder as well as the runtime and preserves the Rust toolchain libc identity.
-- `scripts/scan-supply-chain.py` inventories declared public build/test/scanner images, requires external Dockerfile/frontend digest pins, emits per-image JSON/logs and fails on any severity, UNKNOWN, missing output or scan failure. Scanner containers have no Docker socket and timed-out clients explicitly remove their own containers. CI runs this gate and uploads its reports even when it fails.
+- `cargo xtask scan-supply-chain` inventories declared public build/test/scanner images, including Rust tool constants, requires external Dockerfile/frontend digest pins, emits per-image JSON/logs and fails on any severity, UNKNOWN, missing output or scan failure. Scanner containers have no Docker socket and timed-out clients explicitly remove their own containers. CI runs this gate even after earlier failure and publishes allowlisted count/status summaries. Raw reports stay local pending an approved private archive; raw matches/logs are not public artifacts.
 
 **Still open:** current official test/scanner/frontend images contain findings, including the newest stable pins selected here. Updating them reduced exposure but did not eliminate it. The gate must remain failing until patched upstream or deliberately rebuilt maintained artifacts and evidence-based native/platform triage are available. No severity filter, advisory allowlist or `ignore-unfixed` workaround was added.
 
@@ -69,7 +75,7 @@ SBOM output now includes the complete locked Rust graph, **including all npm tes
 
 Local tags and container revision labels alone do not prove that a deployed image is the scanned image. CI now exports one pair of built images, verifies archive checksums on import, and reuses those exact images in the security, integration and SBOM jobs. The source revision is recorded in an OCI label (not treated as an authenticity signature).
 
-`scripts/verify-release.py` checks a **trusted**, complete, clean runtime scan no older than 24 hours against the imported image's saved configuration SHA-256 and layer identities, validates non-root/entrypoint settings, and prints the daemon's immutable image ID. It resolves a tag once and exports by that ID, preventing tag substitution during verification. Tests cover config/layer replacement, findings including UNKNOWN, missing scan results, stale/future reports and OCI-index/config identity differences. The operations runbook uses this output for the release image reference.
+`cargo xtask verify-release` checks a **trusted**, complete, clean runtime scan no older than 24 hours against the imported image's saved configuration SHA-256 and layer identities, validates non-root/entrypoint settings, and prints the daemon's immutable image ID. It resolves a tag once and exports by that ID, preventing tag substitution during verification. Tests cover config/layer replacement, findings including UNKNOWN, missing scan results, stale/future reports and OCI-index/config identity differences. The operations runbook uses this output for the release image reference.
 
 Remaining trust: an attacker who can replace both the image and the trusted report, control the builder or control the Docker daemon is outside this content-verification guarantee. No cryptographic signing/identity-provider verification, SLSA level or reproducible-build certification is claimed.
 
@@ -81,9 +87,9 @@ Native GCS/Azure account tests, provider staging lifecycle, production CNI/TLS/A
 
 ## CI and SBOM outputs
 
-The workflow has independent Rust feature-matrix, shared Linux build/test, security, integration and SBOM jobs. `build-images` archives are retained one day, `security-reports` 14 days and `sbom-materials` 30 days. It can also be dispatched manually. Security failure does not prevent the independent SBOM job from collecting evidence from a successful build.
+The workflow has independent Rust feature-matrix, shared Linux build/test, security, integration and SBOM jobs. `build-images` archives are retained one day, public count/status `security-reports` summaries 14 days and allowlisted `sbom-materials` 30 days. Raw scanner logs/matches remain local pending approved durable private archival. It can also be dispatched manually. Security failure does not prevent the independent SBOM job from collecting evidence from a successful build.
 
-`python3 scripts/generate-sbom.py` produces:
+`cargo xtask generate-sbom` produces:
 
 - `source.cdx.json`, `source.spdx.json`: curated public dependency manifests only; complete Rust and npm test lock graphs.
 - `runtime.cdx.json`, `runtime.spdx.json`, `builder.cdx.json`, `builder.spdx.json`: exported images scanned offline by a digest-pinned, socket-free Syft container.
@@ -99,19 +105,19 @@ Executed commands and current results are recorded in [results](results.md). Raw
 ```sh
 scripts/check.sh
 scripts/check-features.sh
-python3 scripts/test-livesync.py
+cargo xtask test-livesync
 scripts/test-s3.sh
-python3 scripts/test-reference-couch.py
+cargo xtask test-reference-couch
 docker build --target tests .
 docker build --target build -t obsidian-sync:builder .
 docker build -t obsidian-sync:local .
 SYNC_SECURITY_BUILDER_IMAGE=obsidian-sync:builder scripts/scan-security.sh
-python3 scripts/verify-release.py --image obsidian-sync:local --scan-report .work/security/trivy.json
-python3 scripts/generate-sbom.py
-python3 scripts/scan-supply-chain.py --platform linux/arm64  # currently FAILS; do not hide it
+cargo xtask verify-release --image obsidian-sync:local --scan-report .work/security/trivy.json
+cargo xtask generate-sbom
+cargo xtask scan-supply-chain --platform linux/arm64  # currently FAILS; do not hide it
 scripts/validate-deployments.sh
 scripts/smoke-compose.sh
-python3 scripts/test-livesync.py --image obsidian-sync:local
+cargo xtask test-livesync --image obsidian-sync:local
 scripts/smoke-kubernetes.sh
 ```
 

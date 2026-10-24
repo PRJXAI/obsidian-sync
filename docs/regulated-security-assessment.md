@@ -47,7 +47,7 @@ Read-only repository API inspection found `main` unprotected and zero repository
 
 Before regulated use, require protected main/release refs, reviewed changes to workflows/build inputs, independent approval or a documented equivalent, required security checks and restricted bypass privileges. Keep untrusted PR execution on isolated ephemeral runners with no production credentials, tailnet, cluster context or privileged organizational network access. No repository protection settings were changed by this assessment.
 
-### R-03 — Outbound traffic is not destination-bound — HIGH, confirmed template capability; production enforcement unverified
+### R-03 — Outbound traffic is not destination-bound — HIGH, egress sandbox deferred; production enforcement unverified
 
 The base Kubernetes policy declares no egress, but all cloud overlays permit TCP/443 to `0.0.0.0/0` except loopback/link-local ranges and allow DNS to kube-system. These are explicitly samples requiring narrowing, not provider-specific production allowlists. The Compose service has loopback-only inbound publication but no application-destination outbound firewall.
 
@@ -57,7 +57,7 @@ Require approved provider endpoints/private endpoints or a controlled egress gat
 
 ### R-04 — CI artifact integrity is not release authorization — HIGH, open
 
-Checksummed shared image archives, immutable identifiers and `verify-release.py` reduce tag/config/layer substitution. They do not prove that the builder or scanner is uncompromised. The helper checks a trusted clean **runtime** report; it does not independently require the whole supply-chain job to pass or enforce an approved release identity/authorization policy. A poisoned builder can produce poisoned code and internally consistent hashes.
+Checksummed shared image archives, immutable identifiers and `cargo xtask verify-release` reduce tag/config/layer substitution. They do not prove that the builder or scanner is uncompromised. The helper checks a trusted clean **runtime** report; it does not independently require the whole supply-chain job to pass or enforce an approved release identity/authorization policy. A poisoned builder can produce poisoned code and internally consistent hashes.
 
 Require a protected release process with successful applicable security gates, approved provenance/attestations bound to source and artifact digest, controlled builders, independently verified supplier inputs, and deployment admission/approval. SBOMs are inventory, not a malware verdict or a signature. Signing a compromised builder's output alone does not solve this problem. No production release is authorized while the current gate is unresolved.
 
@@ -89,7 +89,7 @@ Use least-privilege provider policies, separate staging authority where necessar
 
 Indefinite revision/blob/replay retention supports integrity and recovery but is not a complete legal retention, erasure or legal-hold policy. Requirements differ across sectors, purposes and jurisdictions; no automatic GDPR/HIPAA/financial compliance claim is justified. Determine the applicable retention, archive, recovery and deletion rules before production acceptance. Do not add manual deletion or garbage collection that breaks the protocol's revision/checkpoint guarantees.
 
-The actionable [security remediation plan](security-remediation-plan.md) maps every A/R finding to prioritized milestones, accountable roles, dependencies and closure tests. It is proposed work, not evidence that the gaps have already been closed.
+The actionable [security remediation plan](security-remediation-plan.md) maps every A/R finding to prioritized milestones, accountable roles, dependencies and closure tests. Repository-side implementation has started in Rust; the plan is not evidence that the gaps have already been closed. A fail-closed CI aggregate, read-only approval-policy preflight, bounded scanner roots, local findings ledger and public count/status summaries are foundations only. Required repository protections/reviewer identities, signed release authorization, private durable raw-evidence archival, audit/crypto/retention and operational validation remain open. The owner explicitly deferred general egress-sandbox support; broad cloud samples are unchanged and no destination-bound production control is claimed.
 
 ## Acceptance plan
 

@@ -4,7 +4,7 @@ Target: **Self-hosted LiveSync 1.0.39 / Commonlib 0.1.44 / PouchDB 9**, pinned i
 
 ## Build and checks
 
-Rustup installs pinned stable 1.99.1; a C compiler is needed for bundled SQLite. Python 3.11+, Node 24.20.0+ and Docker/Compose are needed for client tests; Kustomize, kubectl and kind for disposable deployments.
+Rustup installs pinned stable 1.99.1; a C compiler is needed for bundled SQLite. Repository tooling and infrastructure tests use the Rust `xtask` workspace crate. Node 24.20.0+/npm are only for real upstream JavaScript client fixtures; Docker/Compose are needed for container tests; Kustomize, kubectl and kind for disposable deployments.
 
 ```sh
 cargo build --locked
@@ -16,11 +16,11 @@ cargo install cargo-audit --version 0.22.1 --locked
 cargo install cargo-deny --version 0.20.2 --locked
 scripts/check.sh
 scripts/check-features.sh
-python3 scripts/test-livesync.py
+cargo xtask test-livesync
 docker build -t obsidian-sync:local .
-python3 scripts/test-livesync.py --image obsidian-sync:local
+cargo xtask test-livesync --image obsidian-sync:local
 scripts/test-s3.sh
-python3 scripts/test-reference-couch.py
+cargo xtask test-reference-couch
 scripts/validate-deployments.sh
 ```
 
@@ -55,16 +55,18 @@ Use [the release override](../deploy/compose.release.yml) with an already scanne
 docker compose -p PRIVATE_PROJECT -f docker-compose.yml -f deploy/compose.release.yml config --quiet
 ```
 
-Verify imported configuration digest AND filesystem layers against a **trusted** clean runtime scan before starting. Obtain the report through your authenticated CI/operator channel; arbitrary JSON is not an authenticity proof. Reports older than 24 hours, findings including UNKNOWN, missing results and content substitution fail closed:
+Verify imported configuration digest AND filesystem layers against a **trusted** clean runtime scan before starting. Obtain the raw report through an approved authenticated private operator/evidence channel; current public CI security artifacts contain summaries only, not a deployable raw runtime report. A protected durable raw-evidence archive is still pending. Arbitrary JSON is not an authenticity proof. Reports older than 24 hours, findings including UNKNOWN, missing results and content substitution fail closed:
 
 ```sh
 # Start with the imported tag/reference from the private .env; use this verified ID for up.
-SYNC_RELEASE_IMAGE="$(python3 scripts/verify-release.py --image PRIVATE_IMPORTED_TAG --scan-report /trusted/security-reports/trivy.json)"
+SYNC_RELEASE_IMAGE="$(cargo xtask verify-release --image PRIVATE_IMPORTED_TAG --scan-report /trusted/security-reports/trivy.json)"
 export SYNC_RELEASE_IMAGE
 docker compose -p PRIVATE_PROJECT -f docker-compose.yml -f deploy/compose.release.yml up -d --no-build --pull never
 ```
 
-A failed verification emits no image reference, so the release override's required-image check rejects it. The scan report binds content, not builder authenticity; require a trusted CI source/materials receipt separately. A local OCI index ID can differ from the saved/imported configuration ID; compare the correct identity levels rather than assuming all Docker IDs are interchangeable. The override requires release identity, forbids implicit pulls, retains the base's loopback binding/security/resource policy and bounds local logs. Administrative key issuance must use `docker run --log-driver none` with the same private mounts and capture its one-shot stdout privately; do not send it through the service's log driver. Never run admin and server writers concurrently.
+This helper only verifies runtime content; it does not authorize deployment, verify signatures or override the failing full supply-chain gate. Regulated-production acceptance remains blocked. `cargo xtask check-release-policy --source-revision COMMIT_SHA` is a separate read-only fail-closed preflight: unset scope/teams, deferred milestones, missing closure evidence or unverifiable source/release protections fail. It does not create protections or approve a release.
+
+A failed content verification emits no image reference, so the release override's required-image check rejects it. The scan report binds content, not builder authenticity; require a trusted CI source/materials receipt separately. A local OCI index ID can differ from the saved/imported configuration ID; compare the correct identity levels rather than assuming all Docker IDs are interchangeable. The override requires release identity, forbids implicit pulls, retains the base's loopback binding/security/resource policy and bounds local logs. Administrative key issuance must use `docker run --log-driver none` with the same private mounts and capture its one-shot stdout privately; do not send it through the service's log driver. Never run admin and server writers concurrently.
 
 Preserve existing Serve mappings; choose an unused dedicated HTTPS port rather than resetting/replacing another service. Validate actual TLS, scoped access, restart persistence and a matched stopped-writer baseline. The initial baseline is NOT a recurring/off-host backup policy; configure encrypted ongoing backups before important use. Rollback stops only the new project/listener and retains data, never uses global Serve reset or backend deletion.
 

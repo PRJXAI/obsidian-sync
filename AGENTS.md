@@ -2,6 +2,13 @@
 
 Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before changing code.
 
+## Language policy
+
+- Rust is required for all first-party code, tests and automation, including infrastructure/deployment tests, security scans, SBOM/provenance/release tooling, documentation maintenance and benchmarks. Do not introduce or execute Python, including inline snippets or Python test harnesses.
+- Put repository tooling in the `xtask` Rust workspace crate; run it with `cargo xtask ...`. Test tooling with Rust unit/integration tests and include it in formatting, Clippy, lockfile, audit and license gates.
+- Shell is limited to thin launchers and direct external-tool invocations; put orchestration and validation logic in Rust. Pinned upstream JavaScript clients remain external compatibility fixtures, not permission to implement first-party tooling in another language.
+- Preserve existing safety checks and negative/race/cancellation/restart coverage when migrating tooling. Never remove a failing check merely to complete the language migration.
+
 ## Non-negotiable constraints
 
 - Target is Self-hosted LiveSync (vrtmrz/obsidian-livesync), pinned source and contract in docs/livesync-protocol.md. Preserve PouchDB/CouchDB revision trees, conflicts, tombstones and checkpoints; do not map them to the old single-head CAS model. Implement verified upstream-client tests before claiming compatibility. MCP remains deferred.
@@ -20,7 +27,7 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 3. Use bounded blocking pools for SQLite/fs sync work, streaming I/O for attachments. Do not spawn unbounded tasks.
 4. Run scripts/check.sh, scripts/check-features.sh, scripts/test-s3.sh, scripts/validate-deployments.sh; then image scan and disposable deployment smoke tests. Record exact results and blocked checks in docs/results.md.
 5. Run cargo audit and cargo deny check with fresh advisory data. Never ignore advisories merely to make CI green. Dependency license approvals in deny.toml are policy, not advisory exceptions.
-6. Follow .agents/skills/maintain-docs/SKILL.md. Update authored docs with behavior changes; regenerate copies/source map with scripts/sync-generated.py. Review source drift via scripts/docs.py check; acknowledge only after reading affected docs.
+6. Follow .agents/skills/maintain-docs/SKILL.md. Update authored docs with behavior changes; regenerate copies/source map with `cargo xtask sync-generated`. Review source drift via `cargo xtask docs check`; acknowledge only after reading affected docs.
 7. Commit Cargo.lock. Keep toolchain, Docker builder and CI toolchain in sync; pin external images/actions by digest/commit.
 
 ## Ownership map
@@ -32,5 +39,6 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 - src/db.rs: SQLite schema, bounded connection pool, process authority, backup.
 - src/storage/: common trait and filesystem/S3/GCS/Azure adapters (MinIO uses S3).
 - src/jobs.rs: persisted read-only integrity jobs, claim fencing, retries and fairness.
+- xtask/: Rust infrastructure/security/SBOM/documentation/release tooling and its tests; never ship it in the runtime image.
 - config/: canonical deployment configs; Kustomize copies are generated.
 - docs/results.md: measured evidence, not aspirational claims.

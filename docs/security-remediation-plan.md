@@ -1,6 +1,8 @@
 # Security remediation plan
 
-**Status: proposed, not executed. Regulated-production acceptance remains blocked.**
+**Status: implementation in progress. Regulated-production acceptance remains blocked.**
+
+The owner has requested implementation and deferred the general egress-sandbox work. M4 network sandbox support is therefore explicitly deferred, not verified or waived. Repository-side CI aggregation, evidence/approval gates, scanner containment and findings tracking can proceed. Target framework/data classification, reviewer teams, provider, required audit schema/sink, crypto and retention decisions still require owner input. No production credentials, accounts, deployment settings or image publication are authorized implicitly.
 
 This plan covers findings A-01–A-05 in the [security audit](security-audit.md) and R-01–R-09 in the [regulated/exfiltration assessment](regulated-security-assessment.md). It separates already implemented protections, technical remediation, source/binary applicability investigation, deployment validation and policy decisions. Passing the existing tests is a baseline, not closure of the remaining findings.
 
@@ -9,6 +11,19 @@ No repository protection, production configuration, cloud account, vault, retent
 ## Implementation boundaries
 
 Preserve the pinned LiveSync/PouchDB contract, revision trees/conflicts/tombstones/checkpoints, scoped replay and persistent single-writer authority. Keep BlobStorage's bounded streaming, vault-generated keys, exact hash/size verification and durable create-only publication across every adapter. Write changed guarantees before concurrent mutation work; add negative authorization, race, cancellation and restart tests. No first-party unsafe Rust, no extra runtime executable, no secrets/config baked into image layers, no unbounded blocking/tasks, no multi-writer/NFS/HPA shortcut, no MCP expansion and no final-data GC without a separately approved protocol-aware retention design. Keep all eight feature combinations and real upstream-client fixtures.
+
+## Repository implementation so far
+
+All first-party tooling/tests are Rust in `xtask/`; Python implementations are removed and shell scripts only launch Rust. Node/npm remain solely for the pinned upstream client compatibility bridge.
+
+- **M0 foundation:** stable `Required CI` aggregate rejects unsuccessful/missing/skipped/canceled producers. `.github/security-readiness.json` explicitly records unset scope/reviewers and open/deferred milestones. Read-only `cargo xtask check-release-policy` checks closure declarations, ownership and source/environment controls; it does not enable protections or constitute independent evidence approval.
+- **M1 foundation:** scanner read-only roots, bounded resources/tmpfs, caller identity, offline inputs and timeout/container cleanup; public count/status summaries exclude raw matches/logs. Raw reports/ledgers remain local. An owner-approved protected durable archive and remaining runner/retrieval controls are still required.
+- **M2 foundation:** artifact/platform-specific local findings ledger, stable finding IDs, original-report hashes and pending native-review categories. Findings stay under investigation; no vendor issue is marked fixed or waived.
+- **M3 partial:** SBOM materials can bind the original shared image archives and validate their configuration/layers. Existing content verification remains unsigned/runtime-only, not release authorization. Protected signing/admission is not implemented.
+- **M4 network sandbox:** explicitly deferred by owner; production destination-bound egress remains unverified. No cloud policy or real infrastructure changed.
+- **M5/M6/M7:** approved event schema/sink/failure behavior, workload/framework/provider/crypto/retention requirements, reviewer teams and independent operational acceptance are still pending. Do not implement guessed policy or claim these milestones closed.
+
+Exact executed checks and blocked gates are in [results](results.md).
 
 ## Closure rules
 
@@ -93,7 +108,9 @@ Native runtime closure must separately inventory Rust's self-contained musl, SQL
 
 ## M4 — Egress, devices and provider authority
 
-### Network and TLS
+### Network and TLS — sandbox implementation deferred
+
+The owner deferred general egress-sandbox support. The following is retained backlog, not implemented or waived acceptance. Existing cloud samples remain broad; scanner read-only filesystem/resource hardening is not a production egress sandbox.
 
 Replace broad cloud egress examples in an approved production profile with default-deny and approved private endpoints or a controlled egress gateway. Restrict DNS and outbound destination/account/bucket authority, including IPv6 and shared cloud-provider ranges. An allowed provider domain/IP range alone may permit other tenants; pair network restrictions with provider endpoint policies and IAM. Preserve private HTTPS and actual Origin/auth checks; never weaken TLS verification or introduce transparent decryption of customer notes without an approved design.
 
@@ -152,7 +169,7 @@ An independent reviewer verifies that test data were synthetic, no secrets appea
 | A-05 CI and operational acceptance | Partial; requirements unverified | M0/M1/M4–M7 |
 | R-01 scanner input/output channels | Ignored-input mount fixed; output trust remains | M1, M2 tools, M7 |
 | R-02 required checks/source controls | Open | M0, M3 enforcement |
-| R-03 destination-bound egress | Open production profile | M4 network/IAM and M7 operational validation |
+| R-03 destination-bound egress | Egress sandbox deferred; production profile unverified | M4 network/IAM and M7 operational validation |
 | R-04 artifact/provenance authorization | Open | M2/M3/M7 |
 | R-05 build/test host compromise | Conditional exposure; unverified infrastructure | M1/M2/M3 |
 | R-06 legitimate/stolen-key vault export | Product capability and policy consideration | M4 access/devices/export detection, M5, M6 |
