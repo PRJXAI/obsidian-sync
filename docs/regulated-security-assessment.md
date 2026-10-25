@@ -12,6 +12,8 @@ No jurisdiction, data classification or mandated control framework was specified
 
 The current Rust pipeline uses [Syft → native SBOM → offline Grype](scanner-pipeline.md) exclusively; the seven-image table below records the prior Trivy baseline/exposure, not active scanner selection. The owner explicitly retired Trivy, its image pin/comparison commands and transition gate. The earlier same-config amd64 comparison's 27 baseline-only pairs remain historical investigation evidence, not reviewed advisory closure. Current Grype builder/tool matches and scan errors still fail security and Required CI. Raw match counts and the retirement decision do not establish exploitability or regulatory readiness.
 
+The owner subsequently retired external reference CouchDB too. Existing in-process HTTP fixtures use synthetic requests and temporary storage against the real Rust router; actual pinned client integration tests remain required. No second mock implementation is added, and these checks are not an independent CouchDB oracle or closure of historical image findings/regulated-production acceptance.
+
 ## What the seven baseline image findings mean
 
 These images are build, test or security-tool dependencies, **not ancestors of the final Distroless runtime**, which adds only the Rust executable. Their vulnerabilities can still matter through CI compromise, artifact poisoning, scanner input/output handling or future reuse outside disposable tests. Runtime/Cargo scans also do not reconstruct every statically linked native component.

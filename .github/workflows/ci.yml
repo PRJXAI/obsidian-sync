@@ -107,7 +107,7 @@ jobs:
           if-no-files-found: error
 
   integration:
-    name: Real clients / S3 / reference CouchDB / disposable deployments
+    name: Real clients / S3 / disposable deployments
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -132,7 +132,6 @@ jobs:
       - run: scripts/validate-deployments.sh
       - run: cargo xtask test-livesync
       - run: scripts/test-s3.sh
-      - run: cargo xtask test-reference-couch
       - run: npm audit --prefix tests/compat --audit-level=low
       - run: scripts/smoke-compose.sh
       - run: cargo xtask test-livesync --image obsidian-sync:local

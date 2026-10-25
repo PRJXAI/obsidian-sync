@@ -14,6 +14,10 @@ The follow-up [regulated-environment assessment](regulated-security-assessment.m
 
 Default CI now uses [Syft → native SBOM → offline Grype](scanner-pipeline.md), with original image-archive/config/layer binding, native/CDX lock completeness, isolated per-invocation output and hash-bound content receipts. Trivy and its comparison/transition gate are now retired by explicit owner request. Earlier Grype source/runtime results were zero, but the populated builder had 19 matches (one Critical), and ten of eleven then-declared/comparison images had matches. The earlier same-config comparison retained 27 baseline-only asset/advisory pairs as historical investigation evidence; retirement is not a claim those advisories were fixed. Current Grype findings/errors still block security and Required CI. The Trivy tables below are historical, not claims that the new scanner agrees or that the builder remains clean under every detector. Grype's own image is inventoried/scanned too.
 
+## Reference fixture follow-up
+
+The owner retired the external Apache CouchDB reference image/service. Existing in-process HTTP fixtures (`cargo test --locked --test couch`) use synthetic requests and temporary storage against the Rust router, without introducing another mock server. Full Commonlib/PouchDB tests against the real Rust server remain required. This removes that image from active supply-chain inputs, not a claim that its historical library findings were patched. Independent differential oracle coverage is no longer refreshed. See [protocol scope](livesync-protocol.md) and [results](results.md).
+
 ## Rust tooling follow-up
 
 First-party infrastructure, security, documentation, SBOM and content-verification tooling and its regression tests now live in the Rust `xtask/` workspace crate. Shell files only launch Rust. The original audit measurements below are historical; current migration checks are recorded in [results](results.md). npm remains exclusively the pinned upstream client bridge, not infrastructure logic or a runtime dependency.
@@ -111,7 +115,7 @@ scripts/check.sh
 scripts/check-features.sh
 cargo xtask test-livesync
 scripts/test-s3.sh
-cargo xtask test-reference-couch
+cargo test --locked --test couch
 docker build --target tests .
 docker build --target build -t obsidian-sync:builder .
 docker build -t obsidian-sync:local .

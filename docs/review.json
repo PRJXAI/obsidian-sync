@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed complete Grype-only retirement, shared evidence fixtures and Docker input/exclusion regression, preserved historical results and current failing vulnerability gates",
+  "reason": "Simplicity step one: reuse existing in-process HTTP tests, remove external CouchDB without adding a second mock/bridge/dependency/CI step, retain real-client and security coverage",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -7,7 +7,7 @@
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "15a5ddf1477d9d1bc1226aa80a127810cde50a019693d62ca467ab4f64414e7c"
+      "sha256": "c34ccbc12f6c730267e6a1e6d2a37fecd2f5e86e139e639db125bdd5c0512d48"
     },
     {
       "path": ".cargo/config.toml",
@@ -27,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "ba1161f20f653d83c541ab582ddc43de07674dbf50a415f3bf34ec847cd3b406"
+      "sha256": "e0aa4e0af84563f76d320d1f6c3b28b7c9c2f32c41e0f21fe3c93428b6cde2e9"
     },
     {
       "path": ".gitignore",
@@ -35,11 +35,11 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "c851ac5473e6e39941f56dd8af6a68199fa1f45cb45daa40371bf951f7f413c7"
+      "sha256": "67cfe780276366cf39c06f857b72666f9430353518b14655fdf19ee43446e9d6"
     },
     {
       "path": "Cargo.lock",
-      "sha256": "ce779fbf89bd2bd139d0f83bcfaa039fcb4d59b2f2706a3e36bd29e85c06c65e"
+      "sha256": "3cf427f95a878e4ef4d6a0970e2da6dc795acf5a6d4091251c5f919194819175"
     },
     {
       "path": "Cargo.toml",
@@ -335,7 +335,7 @@
     },
     {
       "path": "xtask/src/clients.rs",
-      "sha256": "8cce45ceb3b29c8d4db7257c01550a1e0e634488616bd71d3bd148096db3779a"
+      "sha256": "f5e8b90453958881cc1ba91f36a51e3698e63f70588a4328934549b4f8011a70"
     },
     {
       "path": "xtask/src/deployment.rs",
@@ -363,7 +363,7 @@
     },
     {
       "path": "xtask/src/main.rs",
-      "sha256": "3d361370c471ec56090b0319cd2e16c08e275564ab2080cbab88ea083a69160c"
+      "sha256": "0e6602fb9168049bd4eac03d85a5dba3b7488290fede360326c00cd254d45c8e"
     },
     {
       "path": "xtask/src/policy.rs",
@@ -407,7 +407,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "dbcbf11a1c0431f1a5f2c37f0d2ab3150c330541ac54f773c127d4d9ec17548e"
+      "sha256": "a636219047530644151accb1b315b46da20de7fab675d4da72550306dc1393d0"
     }
   ]
 }

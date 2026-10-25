@@ -64,7 +64,6 @@ enum Task {
         #[arg(long)]
         benchmark: bool,
     },
-    TestReferenceCouch,
     TestS3,
     SmokeCompose,
     SmokeKubernetes,
@@ -156,7 +155,6 @@ fn execute(command: Task) -> Result {
             image.as_deref(),
             benchmark,
         ),
-        Task::TestReferenceCouch => clients::reference(&root),
         Task::TestS3 => deployment::s3(&root),
         Task::SmokeCompose => deployment::compose(&root),
         Task::SmokeKubernetes => deployment::kubernetes(&root),

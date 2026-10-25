@@ -37,7 +37,7 @@ scripts/check.sh
 scripts/check-features.sh
 cargo xtask test-livesync           # real Commonlib 0.1.44 / PouchDB 9; disposable data
 scripts/test-s3.sh                  # same client tests against real S3-compatible RustFS
-cargo xtask test-reference-couch    # optional differential Apache CouchDB 3.5.3 fixture
+cargo test --locked --test couch    # existing in-process HTTP fixtures
 # After building obsidian-sync:local, test the actual distroless/nonroot runtime:
 cargo xtask test-livesync --image obsidian-sync:local
 scripts/validate-deployments.sh
@@ -46,6 +46,8 @@ scripts/validate-deployments.sh
 All first-party tooling and infrastructure tests are Rust in `xtask/`; run `cargo xtask --help` and `cargo test --locked -p xtask`. Shell scripts are thin launchers. npm/Node are used only to exercise the pinned upstream JavaScript clients, never in the server runtime.
 
 CI builds shared image artifacts once, uses [Syft → SBOM → offline Grype](docs/scanner-pipeline.md), and runs security/integration gates with a fail-closed `Required CI` aggregate. It uploads public count/status summaries plus native Syft JSON, SPDX and CycloneDX inventories with bound materials. Trivy and its comparison/transition gate are retired; Grype findings and scan errors remain blocking. The expanded supply-chain gate currently reports unresolved test/tool-image findings; it is not a clean-release claim.
+
+The external Apache CouchDB reference image is retired. Existing in-process HTTP fixtures use synthetic requests and temporary SQLite/filesystem storage; no second mock server is needed. Genuine Commonlib/PouchDB tests still run against the real Rust server. These are not independent Apache CouchDB verification.
 
 See [actual results and limitations](docs/results.md). Native GCS/Azure account tests, GUI Obsidian/mobile validation and production CNI/Tailscale access are not implied by the protocol tests. Native CouchDB attachments, general Mango/design-view execution, server administration, physical database purge and history GC are not implemented. Scoped bootstrap reset/recreate is supported without physical history deletion. LiveSync's own chunked binary attachments are supported within configured limits.
 

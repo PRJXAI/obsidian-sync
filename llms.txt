@@ -50,11 +50,11 @@ Run compatibility/provider checks only with disposable data:
 ```sh
 cargo xtask test-livesync
 scripts/test-s3.sh
-cargo xtask test-reference-couch
+cargo test --locked --test couch
 scripts/validate-deployments.sh
 ```
 
-These exercise actual pinned Commonlib/PouchDB libraries; they are not desktop/mobile GUI or real cloud-provider certification. GCS/Azure tests require separately authorized disposable accounts. Do not reuse shell credentials for a real bucket.
+The Rust-server/provider tests exercise actual pinned Commonlib/PouchDB libraries. The existing `tests/couch.rs` fixtures exercise the real Rust router using synthetic in-process requests and temporary SQLite/filesystem storage. The owner retired external CouchDB; no second mock implementation is needed, and these fixtures are not an independent database oracle. None of these checks is desktop/mobile GUI or real cloud-provider certification. GCS/Azure tests require separately authorized disposable accounts. Do not reuse shell credentials for a real bucket.
 
 ## Build, scan and inventory container artifacts
 

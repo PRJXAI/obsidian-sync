@@ -374,14 +374,17 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
 #[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 12);
-    assert!(images.keys().all(|image| !image.contains("trivy")));
+    assert_eq!(images.len(), 11);
+    assert!(
+        images
+            .keys()
+            .all(|image| !image.contains("trivy") && !image.starts_with("couchdb:"))
+    );
     assert!(images.contains_key(xtask::grype::GRYPE));
     for pin in [
         security::GITLEAKS,
         security::HELPER,
         sbom::SYFT,
-        clients::COUCHDB,
         deployment::KIND,
         xtask::rebuild::GO,
         xtask::rebuild::GIT,

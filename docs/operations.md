@@ -1,6 +1,6 @@
 # Build, run and operate the LiveSync server
 
-Target: **Self-hosted LiveSync 1.0.39 / Commonlib 0.1.44 / PouchDB 9**, pinned in [protocol contract](livesync-protocol.md). This is a Rust CouchDB-compatible replication subset, not Apache CouchDB. Actual Commonlib/PouchDB and reference-CouchDB fixtures are provided; GUI/mobile Obsidian validation is separate. MCP is deferred. Never test against an existing vault or real infrastructure without separate authorization.
+Target: **Self-hosted LiveSync 1.0.39 / Commonlib 0.1.44 / PouchDB 9**, pinned in [protocol contract](livesync-protocol.md). This is a Rust CouchDB-compatible replication subset, not Apache CouchDB. Actual Commonlib/PouchDB tests run against the Rust server. Existing in-process HTTP fixtures use synthetic requests with temporary SQLite/filesystem storage; the external Apache CouchDB reference fixture is retired by owner request. No second mock server is added, and these fixtures are not an independent compatibility oracle; GUI/mobile Obsidian validation is separate. MCP is deferred. Never test against an existing vault or real infrastructure without separate authorization.
 
 ## Build and checks
 
@@ -20,7 +20,7 @@ cargo xtask test-livesync
 docker build -t obsidian-sync:local .
 cargo xtask test-livesync --image obsidian-sync:local
 scripts/test-s3.sh
-cargo xtask test-reference-couch
+cargo test --locked --test couch
 scripts/validate-deployments.sh
 ```
 

@@ -8,6 +8,7 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 - Put repository tooling in the `xtask` Rust workspace crate; run it with `cargo xtask ...`. Test tooling with Rust unit/integration tests and include it in formatting, Clippy, lockfile, audit and license gates.
 - Shell is limited to thin launchers and direct external-tool invocations; put orchestration and validation logic in Rust. Pinned upstream JavaScript clients remain external compatibility fixtures, not permission to implement first-party tooling in another language.
 - Preserve existing safety checks and negative/race/cancellation/restart coverage when migrating tooling. Never remove a failing check merely to complete the language migration.
+- Prefer existing code and direct flows over new frameworks or speculative generalizations. Simplify one isolated step at a time; keep security guarantees and genuine client coverage.
 
 ## Non-negotiable constraints
 

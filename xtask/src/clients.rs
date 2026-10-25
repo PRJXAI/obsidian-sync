@@ -1,5 +1,4 @@
 use crate::{Result, ensure, security, util};
-use base64::Engine;
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
@@ -16,8 +15,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub const COUCHDB: &str =
-    "couchdb:3.5.3@sha256:4e8e0a366208a87d5059b0f4fcbefff13c32401a655d4629c19be6288ea77675";
 pub fn http() -> Result<reqwest::blocking::Client> {
     Ok(reqwest::blocking::Client::builder()
         .no_proxy()
@@ -529,111 +526,4 @@ pub fn memory_bytes(value: &str) -> Option<u64> {
         _ => return None,
     };
     Some((m[1].parse::<f64>().ok()? * factor) as u64)
-}
-pub fn reference(root: &Path) -> Result {
-    util::local_docker(root)?;
-    util::run(
-        &mut util::cmd(
-            "npm",
-            &[
-                "ci",
-                "--prefix",
-                "tests/compat",
-                "--ignore-scripts",
-                "--no-fund",
-            ],
-            root,
-        ),
-        180,
-    )?;
-    let container = util::Container::new(root, "obsidian-sync-reference");
-    let username = "fixture-user";
-    let password = util::random_hex();
-    let mut c = util::cmd(
-        "docker",
-        &[
-            "run",
-            "--rm",
-            "-d",
-            "--name",
-            &container.name,
-            "--env",
-            "COUCHDB_USER",
-            "--env",
-            "COUCHDB_PASSWORD",
-            "--publish",
-            "127.0.0.1::5984",
-            "--tmpfs",
-            "/opt/couchdb/data:uid=5984,gid=5984,mode=0700",
-            COUCHDB,
-        ],
-        root,
-    );
-    c.env("COUCHDB_USER", username)
-        .env("COUCHDB_PASSWORD", &password);
-    util::quiet(&mut c, 120)?;
-    let binding = util::text(
-        &mut util::cmd("docker", &["port", &container.name, "5984"], root),
-        30,
-    )?;
-    let port = binding
-        .rsplit(':')
-        .next()
-        .ok_or("Missing port")?
-        .parse::<u16>()?;
-    let url = format!("http://127.0.0.1:{port}");
-    let client = http()?;
-    let auth = format!(
-        "Basic {}",
-        base64::engine::general_purpose::STANDARD.encode(format!("{username}:{password}"))
-    );
-    let mut ready = false;
-    for _ in 0..120 {
-        util::check_cancelled()?;
-        if client
-            .get(&url)
-            .header("Authorization", &auth)
-            .send()
-            .is_ok_and(|r| r.status().is_success())
-        {
-            ready = true;
-            break;
-        }
-        thread::sleep(Duration::from_millis(500));
-    }
-    ensure(ready, "Reference CouchDB did not start")?;
-    for (path, body) in [
-        ("/_node/_local/_config/cluster/n", Some(json!("1"))),
-        ("/vault?n=1", None),
-        ("/encrypted?n=1", None),
-        ("/bootstrap?n=1", None),
-    ] {
-        let mut request = client
-            .put(format!("{url}{path}"))
-            .header("Authorization", &auth)
-            .timeout(Duration::from_secs(30));
-        if let Some(body) = body {
-            request = request.json(&body);
-        }
-        ensure(
-            request.send()?.status().is_success(),
-            "Reference CouchDB provisioning failed",
-        )?;
-    }
-    let work = tempfile::tempdir()?;
-    let env = BTreeMap::from([
-        ("LS_TEST_URL".into(), url),
-        ("LS_TEST_USER".into(), username.into()),
-        ("LS_TEST_TOKEN".into(), password.clone()),
-        ("LS_TEST_ENCRYPTED_USER".into(), username.into()),
-        ("LS_TEST_ENCRYPTED_TOKEN".into(), password.clone()),
-        ("LS_TEST_BOOTSTRAP_USER".into(), username.into()),
-        ("LS_TEST_BOOTSTRAP_TOKEN".into(), password),
-        ("LS_TEST_E2EE_PASSPHRASE".into(), util::random_hex()),
-        (
-            "LS_TEST_STATE".into(),
-            work.path().join("state.json").to_string_lossy().into(),
-        ),
-    ]);
-    node(root, "tests/compat/livesync.mjs", &env, None, 180)
 }

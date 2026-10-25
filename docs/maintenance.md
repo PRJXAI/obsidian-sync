@@ -32,7 +32,7 @@ scripts/check.sh
 scripts/check-features.sh
 cargo xtask test-livesync
 scripts/test-s3.sh
-cargo xtask test-reference-couch
+cargo test --locked --test couch
 scripts/validate-deployments.sh
 cargo xtask test-build-context
 docker build --target tests .
@@ -51,9 +51,11 @@ scripts/benchmark.sh
 cargo xtask test-livesync --benchmark
 ```
 
-`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Grype is the sole image vulnerability scanner. The owner retired Trivy, its comparison commands/image pin and the transition gate. The inventory has 12 active images, including local-rebuild Go/Git bases. Historical baseline reports remain evidence, not a reviewed advisory closure; current Grype findings/errors still fail the security job and Required CI.
+`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Grype is the sole image vulnerability scanner. The owner retired Trivy, its comparison commands/image pin and the transition gate. The inventory has 11 active images, including local-rebuild Go/Git bases; the external CouchDB image has also been retired by owner request. Historical baseline reports remain evidence, not a reviewed advisory closure; current Grype findings/errors still fail the security job and Required CI.
 
 Owner-authorized local supplier rebuilds use `cargo xtask rebuild-tool --tool syft --platform linux/arm64` (also `grype`/`gitleaks`; native platform required). They do not replace CI pins or publish images. Candidate/compiler matches and upstream/contract test failures remain nonzero. Preserve private per-run materials and review limitations in the [scanner pipeline](scanner-pipeline.md); a local improvement is not independent acceptance.
+
+`tests/couch.rs` already exercises the real Rust router with synthetic in-process requests and temporary SQLite/filesystem storage. The eight-cell Rust matrix runs it through the normal workspace test command; no extra mock server, wrapper command or duplicate CI step is needed. Full Commonlib/PouchDB tests against native Rust, S3-backed Rust and the runtime image remain required. Historical reference-CouchDB measurements are not current independent oracle coverage.
 
 ## Isolation and failure behavior
 
