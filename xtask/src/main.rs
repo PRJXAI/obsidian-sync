@@ -49,13 +49,6 @@ enum Task {
         #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
         platform: String,
     },
-    /// Local supplier experiment only; never changes pins or publishes images.
-    RebuildTool {
-        #[arg(long, value_parser=["syft", "grype", "gitleaks"])]
-        tool: String,
-        #[arg(long,value_parser=["linux/amd64","linux/arm64"])]
-        platform: String,
-    },
     TestLivesync {
         #[arg(long, conflicts_with = "image")]
         storage_config: Option<PathBuf>,
@@ -144,7 +137,6 @@ fn execute(command: Task) -> Result {
         Task::ScanSources => security::scan_sources(&root),
         Task::ScanSbom { sbom_dir } => xtask::grype::scan_generated(&root, &sbom_dir),
         Task::ScanSupplyChain { platform } => xtask::supply_sbom::scan(&root, &platform),
-        Task::RebuildTool { tool, platform } => xtask::rebuild::run(&root, &tool, &platform),
         Task::TestLivesync {
             storage_config,
             image,

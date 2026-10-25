@@ -7,7 +7,6 @@ pub mod evidence;
 pub mod grype;
 pub mod images;
 pub mod policy;
-pub mod rebuild;
 pub mod sbom;
 pub mod security;
 pub mod supply_sbom;

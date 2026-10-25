@@ -1,5 +1,5 @@
 {
-  "reason": "Simplicity step one: reuse existing in-process HTTP tests, remove external CouchDB without adding a second mock/bridge/dependency/CI step, retain real-client and security coverage",
+  "reason": "Final review of supplier-rebuild retirement, pinned scanner simplification, preserved historical evidence and exact validation including admission-test failures and blocking vulnerability counts",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -359,23 +359,19 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "1409c8283115fee28bc9d0e2d2de2abe73cc7dd94a156ffd33930289a1658410"
+      "sha256": "6ee449b46bef6913eafdc881204a542c78fc49e012c357b65efb2ae05ec7117c"
     },
     {
       "path": "xtask/src/main.rs",
-      "sha256": "0e6602fb9168049bd4eac03d85a5dba3b7488290fede360326c00cd254d45c8e"
+      "sha256": "0fadc4c5268206b98483665613ce1a97512f10113d40206ce225a2ccca4d5f3b"
     },
     {
       "path": "xtask/src/policy.rs",
       "sha256": "b141f6529ddf744fa7c3282ffd317f612ef564fe3bbc0e11b951e4c32059969e"
     },
     {
-      "path": "xtask/src/rebuild.rs",
-      "sha256": "d0c8863bdd5e66a82282427d2330fb966539ddc886f7fadb1ca937e6be1f5e89"
-    },
-    {
       "path": "xtask/src/sbom.rs",
-      "sha256": "2f0255a7498dd80139925a5c8b5dfada9c78a9ad36ed1b8a5e2320747f18986d"
+      "sha256": "97567c6e8388ef334b6ab83228c86282594c11f1fca55079c6a723be516f0eac"
     },
     {
       "path": "xtask/src/security.rs",
@@ -398,16 +394,12 @@
       "sha256": "6a121bdc7ba1b16843fa7f5c0401c74516aeecb82a2fa7c7867b7b1d1c3fd041"
     },
     {
-      "path": "xtask/tests/rebuild.rs",
-      "sha256": "24d6ffd5131a8bb74deaa429c2ea967767ae3c50f6f5fca4d85fb3b64b7ac5ae"
-    },
-    {
       "path": "xtask/tests/support/mod.rs",
       "sha256": "0273f13a3f0b061d0debd40d85f4affaf35ae0bb77fb03e65253885f28d4b705"
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "a636219047530644151accb1b315b46da20de7fab675d4da72550306dc1393d0"
+      "sha256": "f5f1725c964982bc0048525866a186a32d26746e3eff93f818e94a744fb8e61a"
     }
   ]
 }

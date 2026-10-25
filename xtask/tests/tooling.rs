@@ -374,20 +374,19 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
 #[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 11);
-    assert!(
-        images
-            .keys()
-            .all(|image| !image.contains("trivy") && !image.starts_with("couchdb:"))
-    );
+    assert_eq!(images.len(), 9);
+    assert!(images.keys().all(|image| {
+        !image.contains("trivy")
+            && !image.starts_with("couchdb:")
+            && !image.starts_with("golang:")
+            && !image.starts_with("cgr.dev/chainguard/git:")
+    }));
     assert!(images.contains_key(xtask::grype::GRYPE));
     for pin in [
         security::GITLEAKS,
         security::HELPER,
         sbom::SYFT,
         deployment::KIND,
-        xtask::rebuild::GO,
-        xtask::rebuild::GIT,
     ] {
         assert!(images.contains_key(pin), "{pin}");
     }
@@ -407,6 +406,7 @@ fn scanners_use_caller_identity_bounded_readonly_root_and_no_socket() {
             && args.contains(&"HOME=/tmp".into())
             && args.contains(&"no-new-privileges".into())
     );
+    assert!(after("--tmpfs").contains("/tmp:rw,noexec,nosuid,nodev"));
     assert!(after("--tmpfs").contains("size=1536m"));
     assert!(
         !args

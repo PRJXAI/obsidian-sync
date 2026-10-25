@@ -1,5 +1,15 @@
 # LiveSync implementation evidence
 
+## Simplicity step 2: retire unused supplier-rebuild tooling — 2026-10-25
+
+An implementation sub-agent and a separate read-only review confirmed that the local-only supplier experiment was not invoked by normal CI or the server. Removed its compiler/test/candidate framework, `rebuild-tool` command, module declaration and four subsystem-only tests. Folded the now-unneeded candidate-image scanner override into the existing pinned-Syft scan function. The scanner noexec assertion remains in the shared sandbox test. No replacement abstraction, command, dependency or CI phase is added; runtime/consistency/security guarantees and genuine client tests are unchanged.
+
+The active image inventory is **nine**, down from eleven by retiring only the unused Go/Git compiler bases. The shared static runtime base and pinned Syft/Grype/Gitleaks tools remain. Historical experiment evidence/findings below and ignored raw materials are preserved, not relabeled remediated. This does not eliminate Go-based tools or resolve existing release blockers. Net Rust reduction: **915 lines**, including retired subsystem tests.
+
+Validation: **44 tooling tests** passed. Initial default-parallel `scripts/check.sh` and the first filesystem-only feature cell failed the unchanged `bounded_bursts_queue_without_false_upload_quota_or_admission_errors` test with HTTP 429. The focused test passed; full checks and all eight feature cells passed with **`RUST_TEST_THREADS=2`**. No assertions, runtime limits or CI scheduling were changed; the scheduling-sensitive failure remains recorded, not causally fixed by this retirement.
+
+Genuine native/S3/runtime-image clients, deployment rendering, Linux/musl Docker tests, builder/runtime builds, image/content/build-context verification, Compose and disposable Kubernetes passed. Fresh source/history Gitleaks, Cargo audit/deny, nine-inventory generation and the inventory-bound ledger passed. Grype returned **source 0 / runtime 0 / builder 19**; all **nine amd64 images** scanned, **eight** with matches, **zero scan errors**. Both vulnerability gates correctly exited 1. Prior inventory-indexed evidence was preserved before regeneration. These are dirty local receipts, not remote/release acceptance; no real infrastructure or image publication was used. Evidence remains ignored under `.work/simplification-step2/` and the normal scan directories.
+
 ## Owner-directed external CouchDB removal — 2026-10-25
 
 The owner retired the external Apache CouchDB image/service, its provisioning code/credentials and `test-reference-couch` command. For the first simplicity pass, reuse `tests/couch.rs`: existing synthetic in-process HTTP requests against the real Rust router with temporary SQLite/filesystem storage. The normal eight-cell Rust test matrix already runs these checks; no extra CI step is necessary. The proposed standalone mock, extra Node fixture, wrapper command and test dependencies were discarded before shipping. The existing inventory regression excludes CouchDB; genuine native/S3/runtime client checks stay required.

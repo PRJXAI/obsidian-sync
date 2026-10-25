@@ -34,9 +34,9 @@ The owner retired external reference CouchDB. Existing in-process HTTP fixtures 
 
 At the owner's explicit request, retire Trivy's executable/pin, legacy report readers/ledgers, comparison commands and transition-policy gate. Syft → native SBOM → offline Grype is the sole image-scanning path. Preserve hash/config/layer binding, all severities/suppressed matches, stale/missing-report rejection, input/output isolation, source/history scans and the fail-closed aggregate. Historical comparison evidence remains unresolved history, not a clean report or independent vulnerability closure. This changes scanner selection, not server consistency or release approval.
 
-## Local supplier rebuild boundary (2026-10-24)
+## Supplier rebuild experiment retired (2026-10-25)
 
-The owner authorized local supplier-image experiments, not publication/adoption or independent advisory closure. Exact public upstream source/dependencies are untrusted compiler/test inputs. Dependency retrieval is separate from network-disabled compilation/tests; read-only compiler roots, caller identity, resource/time bounds, dropped capabilities and no Docker socket remain required. Compilation gets read-only source/modules; tests get a separate disposable writable copy. Only compiler/test scratch may execute generated binaries; scanner tmpfs stays noexec. Candidate and populated-compiler materials/scans remain private and blocking. Production tool pins, server consistency/storage/authorization and deferred egress scope are unchanged. See [scanner pipeline](scanner-pipeline.md).
+The local-only experiment/framework and its Go/Git compiler bases are removed; no rebuilt candidate was adopted. Historical private candidate/compiler materials and unresolved findings remain evidence, not advisory closure. The compiler-only executable-scratch exception is gone; normal scanners still require noexec scratch and unchanged read-only/offline/resource/cleanup controls. Production tool pins, server consistency/storage/authorization and deferred egress scope are unchanged. Go-based supplier tools remain. See [scanner pipeline](scanner-pipeline.md).
 
 ## Tooling migration guarantees (2026-10-24)
 

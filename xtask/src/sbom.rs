@@ -98,17 +98,6 @@ pub fn scan(
     output: &Path,
     name: &str,
 ) -> Result {
-    scan_with_image(root, target, source, mountpoint, output, name, SYFT)
-}
-pub(crate) fn scan_with_image(
-    root: &Path,
-    target: &str,
-    source: &Path,
-    mountpoint: &str,
-    output: &Path,
-    name: &str,
-    image: &str,
-) -> Result {
     let temporary = tempfile::Builder::new()
         .prefix("syft-output-")
         .tempdir_in(root.join(".work"))?;
@@ -130,7 +119,7 @@ pub(crate) fn scan_with_image(
         &format!("{}:/reports", temporary.path().display()),
         "--volume",
         &format!("{}:{mountpoint}:ro", source.display()),
-        image,
+        SYFT,
         target,
         "-o",
         &format!("cyclonedx-json=/reports/{name}.cdx.json"),
