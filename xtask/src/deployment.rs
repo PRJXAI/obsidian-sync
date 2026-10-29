@@ -8,6 +8,10 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(test)]
+#[path = "../tests/fixtures/rustfs/native.rs"]
+mod rustfs_candidate;
+
 pub const KIND: &str =
     "kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5";
 pub fn test_build_context(root: &Path) -> Result {
@@ -26,6 +30,8 @@ pub fn test_build_context(root: &Path) -> Result {
         "xtask/Cargo.toml",
         "xtask/src/lib.rs",
         "xtask/tests/support/mod.rs",
+        "xtask/tests/fixtures/rustfs/native.rs",
+        "xtask/tests/fixtures/rustfs/Dockerfile",
         ".cargo/config.toml",
     ];
     for path in included {
@@ -42,6 +48,9 @@ pub fn test_build_context(root: &Path) -> Result {
         "xtask/private-canary.toml",
         "xtask/tests/support/private-canary.toml",
         "xtask/tests/support/.env",
+        "xtask/tests/fixtures/rustfs/private-canary.toml",
+        "xtask/tests/fixtures/rustfs/.env",
+        "xtask/tests/fixtures/other/private-canary.rs",
     ];
     for path in excluded {
         let target = work.path().join(path);
@@ -175,17 +184,19 @@ pub fn validate(root: &Path) -> Result {
 struct Compose {
     root: PathBuf,
     project: String,
-    file: &'static str,
+    file: PathBuf,
     env: Vec<(String, String)>,
 }
 impl Compose {
     fn command(&self, args: &[&str]) -> Command {
         let mut c = util::cmd(
             "docker",
-            &["compose", "-p", &self.project, "-f", self.file],
+            &["compose", "-p", &self.project, "-f"],
             &self.root,
         );
-        c.args(args).envs(self.env.iter().map(|(k, v)| (k, v)));
+        c.arg(&self.file)
+            .args(args)
+            .envs(self.env.iter().map(|(k, v)| (k, v)));
         c
     }
 }
@@ -195,6 +206,11 @@ impl Drop for Compose {
     }
 }
 pub fn s3(root: &Path) -> Result {
+    s3_fixture(root, "docker-compose.test-s3.yml".into())
+}
+// The fixed, ignored RustFS evaluation reuses every storage/client control.
+// This is not a caller-selectable image or CLI override.
+fn s3_fixture(root: &Path, file: PathBuf) -> Result {
     util::local_docker(root)?;
     fs::create_dir_all(root.join(".work"))?;
     let work = tempfile::Builder::new()
@@ -212,7 +228,7 @@ pub fn s3(root: &Path) -> Result {
     let compose = Compose {
         root: root.into(),
         project: format!("obsidian-sync-test-{}", &util::random_hex()[..12]),
-        file: "docker-compose.test-s3.yml",
+        file,
         env: vec![
             ("TEST_S3_ACCESS_KEY".into(), access),
             ("TEST_S3_SECRET_KEY".into(), secret),
@@ -348,7 +364,7 @@ pub fn compose(root: &Path) -> Result {
     let compose = Compose {
         root: root.into(),
         project: format!("obsidian-sync-smoke-{}", &util::random_hex()[..12]),
-        file: "docker-compose.yml",
+        file: "docker-compose.yml".into(),
         env: vec![
             ("SYNC_DATA_DIR".into(), data.to_string_lossy().into()),
             ("SYNC_CONFIG_FILE".into(), "./config/filesystem.toml".into()),

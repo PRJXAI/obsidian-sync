@@ -42,7 +42,7 @@ Raw scanner reports must remain available. No blanket allowlists, severity reduc
 |---|---|---|---|
 | M0. Scope and enforce source controls | P0; R-02, A-05 | Owner, AppSec, compliance | Approved workload/control profile; protected source/release rules verified with denied-operation tests |
 | M1. Contain CI inputs, outputs and runners | P0; R-01, R-05 | CI/platform, AppSec | Synthetic input-leakage and runner-isolation tests pass; no regulated data or production authority in public CI |
-| M2. Resolve the seven images and native dependencies | P0; A-02, A-03, R-05 | Supply-chain/AppSec, component maintainers | Complete, fresh, artifact-bound findings have approved closure; no unresolved applicable vulnerabilities |
+| M2. Resolve declared images and native dependencies | P0; A-02, A-03, R-05 | Supply-chain/AppSec, component maintainers | Complete, fresh, artifact-bound findings have approved closure; no unresolved applicable vulnerabilities |
 | M3. Authorize and attest releases | P0; A-04, R-04 | Release/platform, AppSec | Fail-closed promotion/admission verifies source, all required gates, provenance, signatures, digest and approval |
 | M4. Restrict network, identity and storage authority | P0 before real data; R-03, R-06, R-08 | Platform/network, storage, identity | Positive/negative tests prove approved paths, provider permissions and device/access controls for the selected deployment |
 | M5. Add security auditing and export detection | P0 before real data; R-06, R-07 | Server engineering, AppSec, security operations | Durable privacy-safe events, bounded failure behavior, tested collection and actionable alerts |
@@ -76,6 +76,8 @@ Remaining work:
 **Acceptance:** no unintended mounts or production authority; controlled negative tests show canaries absent from scanner inputs/published outputs and ordinary outbound traffic denied for offline tools. No real sensitive data or external exfiltration endpoint is used. Actual secret-bearing Git inputs retain an appropriately protected reporting path.
 
 ## M2 — Supplier images, binaries and native code
+
+The current inventory has nine active images, not seven executables: tool containers, frontend, populated builder, helper, node and S3 service remain distinct assets. The 2026-10-29 current-inventory scan fails on eight images with no scan errors. The released RustFS 1.0.4 evaluation still has 15 findings per architecture; a separate minimal-runtime arm64 prototype passes storage/client tests but fails missing-payload inventory. Neither is adopted. Devsecops CLI publication cannot fix these independent service/builder/node assets, and its exact Gitleaks accepted risk does not override this consumer's all-findings policy. Exact executed evidence and limitations are in [results](results.md).
 
 Create an artifact-specific findings ledger: image and config/layer digest, architecture, source revision, executable/library path, advisory, fixed version/commit, feature/call-path conditions, current use, evidence, reviewer and status. Deduplicate package associations without discarding affected assets.
 

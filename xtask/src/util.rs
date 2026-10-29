@@ -365,6 +365,9 @@ pub fn random_hex() -> String {
     hex::encode(rand::random::<[u8; 32]>())
 }
 pub fn local_docker(root: &Path) -> Result {
+    local_docker_endpoint(root).map(|_| ())
+}
+pub(crate) fn local_docker_endpoint(root: &Path) -> Result<String> {
     let explicit_host = if std::env::var("DOCKER_CONTEXT").is_ok_and(|v| !v.is_empty()) {
         None
     } else {
@@ -390,7 +393,8 @@ pub fn local_docker(root: &Path) -> Result {
     ensure(
         endpoint.starts_with("unix:///"),
         "Disposable fixtures require a local Unix-socket Docker daemon",
-    )
+    )?;
+    Ok(endpoint)
 }
 pub struct Container {
     pub name: String,

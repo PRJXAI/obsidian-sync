@@ -86,6 +86,9 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/supply_sbom.rs`
 - `xtask/src/util.rs`
 - `xtask/tests/cancellation.rs`
+- `xtask/tests/fixtures/rustfs/Dockerfile`
+- `xtask/tests/fixtures/rustfs/native.rs`
 - `xtask/tests/grype.rs`
+- `xtask/tests/rustfs_candidate.rs`
 - `xtask/tests/support/mod.rs`
 - `xtask/tests/tooling.rs`

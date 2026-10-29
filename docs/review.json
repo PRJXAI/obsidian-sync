@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed pending unused reqwest JSON-feature cleanup and its two lockfile edges, simplification backlog, corrected draft marker and fresh validation/security limitations",
+  "reason": "Reviewed fixed RustFS evaluations, preserved S3 defaults and scanner policy, payload-inventory failure, exact public fixture build-context entries and new private-canary exclusions",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "f6daef76cc2c265fa47d138c4f50344c37e6d2806d2548a2da98873eb06e5a7f"
+      "sha256": "d8fb6a4577b2aa11daaec51fb0d315028826ecddab04e830c72af131f205d829"
     },
     {
       "path": ".env.example",
@@ -339,7 +339,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "8dc461ec039a9ad85e6cdde38b248e18f3c65551659c43febf60d69ebf640891"
+      "sha256": "bc2058d17ab477ede0e5460fb73df189b9adbb0a914d191a376c77a9bc1e81ec"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -383,15 +383,27 @@
     },
     {
       "path": "xtask/src/util.rs",
-      "sha256": "4f5a45b20edb2b70546468306268c4ad9b7e72a3aa95cd56f9f5ada0e4343750"
+      "sha256": "e1a6db1d94421997c4042cfdfd9d1ae6dd1cf14a5391dea8830e5bea703a27cb"
     },
     {
       "path": "xtask/tests/cancellation.rs",
       "sha256": "bbe9fc046143f4313c683b868247e24317ccc50169dfcfd6721d686adfb26536"
     },
     {
+      "path": "xtask/tests/fixtures/rustfs/Dockerfile",
+      "sha256": "d1c4297d34f1b7b2a3a79eebb14d13908b88abb7164b9aa9f47b6f50607c0a54"
+    },
+    {
+      "path": "xtask/tests/fixtures/rustfs/native.rs",
+      "sha256": "2eac50b71f41b1d950fbad7eb53bc9537abb3dd3b87855bf58c5a0be82fa5c78"
+    },
+    {
       "path": "xtask/tests/grype.rs",
       "sha256": "6a121bdc7ba1b16843fa7f5c0401c74516aeecb82a2fa7c7867b7b1d1c3fd041"
+    },
+    {
+      "path": "xtask/tests/rustfs_candidate.rs",
+      "sha256": "8b9638e8794f97b4b69905e1ac7f87de7ddb46bb90421b36a3d985b38f8005a1"
     },
     {
       "path": "xtask/tests/support/mod.rs",

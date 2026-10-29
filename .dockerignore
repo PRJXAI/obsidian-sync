@@ -41,6 +41,12 @@ xtask/tests/**
 !xtask/tests/support
 xtask/tests/support/**
 !xtask/tests/support/mod.rs
+!xtask/tests/fixtures
+xtask/tests/fixtures/**
+!xtask/tests/fixtures/rustfs
+xtask/tests/fixtures/rustfs/**
+!xtask/tests/fixtures/rustfs/native.rs
+!xtask/tests/fixtures/rustfs/Dockerfile
 !scripts
 scripts/**
 !scripts/*.sh
