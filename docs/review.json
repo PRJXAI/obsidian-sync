@@ -1,5 +1,5 @@
 {
-  "reason": "Final review of supplier-rebuild retirement, pinned scanner simplification, preserved historical evidence and exact validation including admission-test failures and blocking vulnerability counts",
+  "reason": "Reviewed pending unused reqwest JSON-feature cleanup and its two lockfile edges, simplification backlog, corrected draft marker and fresh validation/security limitations",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -39,7 +39,7 @@
     },
     {
       "path": "Cargo.lock",
-      "sha256": "3cf427f95a878e4ef4d6a0970e2da6dc795acf5a6d4091251c5f919194819175"
+      "sha256": "0c692adda37af9891d8894f247d2b7a7e66cd3cac59e024f725f0add138e5abf"
     },
     {
       "path": "Cargo.toml",
@@ -331,7 +331,7 @@
     },
     {
       "path": "xtask/Cargo.toml",
-      "sha256": "7b733c0c60fa68acbe42c83f782be43a42705246e15b1051b6f6d4d664a87d05"
+      "sha256": "f31cd445d1cf2ecdd0ae01ccf5da76c01993190e7b6de58e4b6f2e915eb11dd6"
     },
     {
       "path": "xtask/src/clients.rs",

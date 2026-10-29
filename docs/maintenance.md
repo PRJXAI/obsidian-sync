@@ -2,6 +2,8 @@
 
 Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). All first-party implementation, tests and automation are Rust in `xtask/`. Shell scripts are four-line launchers. No Python. Node/npm are confined to the pinned upstream Commonlib/PouchDB compatibility bridge and never ship in the runtime.
 
+The incremental cleanup backlog and execution rules are in the [simplification checklist](simplification.md).
+
 ## Documentation lifecycle
 
 ```sh

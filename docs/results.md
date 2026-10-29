@@ -1,5 +1,17 @@
 # LiveSync implementation evidence
 
+## Consumer cleanup validation — 2026-10-29
+
+Reviewed the pending reqwest feature/lockfile cleanup and simplification checklist before integration. Removed its stale draft marker, which made the first `cargo xtask docs check` and `scripts/check.sh` fail after their Rust tests/audit/deny steps; no security check was removed. The corrected documentation check, generated-file check, independent xtask check/strict Clippy and **44 xtask tests** pass. `scripts/check.sh`, all eight `scripts/check-features.sh` cells, `scripts/validate-deployments.sh`, native Commonlib/PouchDB fixtures, `scripts/test-s3.sh`, fresh `cargo audit`, `cargo deny check`, Compose smoke and disposable Kubernetes smoke (only through `scripts/smoke-kubernetes.sh`) pass. Existing duplicate-dependency warnings remain warnings, not ignored advisories. Private command captures are `.work/apply-*-20261029.log`.
+
+A fresh registry inventory scan of the **current nine images**, targeting **linux/amd64** from the native arm64 host, completes with **8 failing images / 0 scan errors**: Alpine helper 3, Grype 23, Syft 18, static runtime base 0, Dockerfile frontend 23, upstream Gitleaks 225, kind node 864, Rust builder base 16 and RustFS 66 matches. These are registry SBOM/scan observations, **not native amd64 execution** or a scan of a newly populated builder. Reports and bound local findings ledger remain private under `.work/security/sbom-chain/amd64/`; the earlier directory is preserved separately. The consumer still rejects every finding, including any producer-accepted risk. Cleanup is not vulnerability remediation, publication or container adoption.
+
+## Simplification checklist and high-thinking sub-agents — 2026-10-25
+
+Created the tracked [simplification checklist](simplification.md). Four `pi -p` sub-agents used **gpt-6.1-sol / high thinking**: dead-code/dependency review, a client-fixture proposal, HTTP/utility review and the selected unused-feature implementation. The client proposal was not integrated: four fewer implementation lines did not justify its extra 40-line regression scaffold. Distinct command-wrapper safety semantics remain intact; HTTP cleanup proposals are queued, not implemented.
+
+The sole integrated implementation change removes xtask's unused reqwest `json` feature. Minimal offline lock re-resolution removed only reqwest's `serde`/`serde_json` dependency edges; no package or version was removed, and direct JSON parsing remains. Independent xtask check, **44 tests** and Clippy passed without relying on workspace feature unification. No supported client mode, runtime/HTTP/storage behavior, CI gate or vulnerability disposition changes.
+
 ## Simplicity step 2: retire unused supplier-rebuild tooling — 2026-10-25
 
 An implementation sub-agent and a separate read-only review confirmed that the local-only supplier experiment was not invoked by normal CI or the server. Removed its compiler/test/candidate framework, `rebuild-tool` command, module declaration and four subsystem-only tests. Folded the now-unneeded candidate-image scanner override into the existing pinned-Syft scan function. The scanner noexec assertion remains in the shared sandbox test. No replacement abstraction, command, dependency or CI phase is added; runtime/consistency/security guarantees and genuine client tests are unchanged.
