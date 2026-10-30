@@ -55,7 +55,9 @@ scripts/benchmark.sh
 cargo xtask test-livesync --benchmark
 ```
 
-`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Grype is the sole image vulnerability scanner. The owner retired Trivy, its comparison commands/image pin and the transition gate. The inventory has nine active images; unused experimental Go/Git compiler bases and the external CouchDB image are retired. Historical baseline reports remain evidence, not a reviewed advisory closure; current Grype findings/errors still fail the security job and Required CI.
+CI pins cargo-audit 0.22.2, cargo-deny 0.20.2, Kustomize 5.8.3, kind 0.33.0, Go 1.27.3 for Go installs and Node 26.13.0 (latest stable LTS) for the unchanged genuine-client fixtures. Build stages may retain compilers/OS utilities; the final server still adds only `/server` to distroless static/nonroot. Version refreshes do not waive image findings, native evidence or publication requirements.
+
+`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Grype is the sole image vulnerability scanner. The owner retired Trivy, its comparison commands/image pin and the transition gate. The inventory has eight active images; build/test utility invocations reuse the already required pinned Rust compiler base, not a standalone Alpine helper; unused experimental Go/Git compiler bases and the external CouchDB image are retired. Historical baseline reports remain evidence, not a reviewed advisory closure; current Grype findings/errors still fail the security job and Required CI.
 
 The local-only `rebuild-tool` experiment/framework is retired; normal CI uses unchanged pinned supplier tools. Preserve historical private candidate/compiler evidence and unresolved findings; retirement is not remediation or independent acceptance. See [scanner pipeline](scanner-pipeline.md).
 

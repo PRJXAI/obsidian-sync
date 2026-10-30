@@ -8,8 +8,8 @@ use std::{
 };
 
 pub const GITLEAKS: &str = "ghcr.io/gitleaks/gitleaks:latest@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f";
-pub const HELPER: &str =
-    "alpine:3.23.7@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63";
+// Build/test-only utilities reuse the required compiler base; no separate OS helper.
+pub const BUILD_IMAGE: &str = "rust:1.99.1-alpine3.24@sha256:7e9e2d068a107a2adafd19930011178d14a78326053cd4c3a9f7ad3fd049557d";
 pub fn image_regex() -> Result<Regex> {
     Ok(Regex::new(
         r"(?:[a-z0-9.-]+/)*[a-z0-9_-]+:[A-Za-z0-9_.-]+@sha256:[a-f0-9]{64}",
@@ -297,7 +297,13 @@ pub fn scan_sources(root: &Path) -> Result {
     let mut c = sandbox(root, &check);
     c.args(["--network", "none"]);
     mount(&mut c, &source, "/source", true)?;
-    c.args([HELPER, "test", "-s", "/source/Cargo.lock"]);
+    c.args([
+        "--entrypoint",
+        "test",
+        BUILD_IMAGE,
+        "-s",
+        "/source/Cargo.lock",
+    ]);
     util::run(&mut c, 60)?;
     if util::quiet(
         &mut util::cmd("git", &["rev-parse", "--verify", "HEAD"], root),

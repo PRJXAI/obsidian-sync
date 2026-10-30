@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed private dependency baseline and CI artifact boundaries, bounded output/negative tests and local scheduler-state exclusion without reading or modifying its contents; source experiments retain every blocker",
+  "reason": "Reviewed latest release/base updates, explicit eight-image scope and build-only utility reuse preserving source/context/cleanup controls; retained original evidence and all blocking scan/legal/native requirements",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -27,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "16e5af168e8b4eeeaa11b65f6acd5d681377c723d8342ddf7bdab0fa5a1cf606"
+      "sha256": "6dc43abc4aade02d62589c22b7b2239b724dc3f8192de5596b72001a98bc2f96"
     },
     {
       "path": ".gitignore",
@@ -47,7 +47,7 @@
     },
     {
       "path": "Dockerfile",
-      "sha256": "e15828f23e7ebb8ba53d256548e14f82270469c97f37c6db9f583d65f89274db"
+      "sha256": "f582d915a3e2326764e1887cbfc58f423f3aa0bb85e9305f2a54d0f983d2ddec"
     },
     {
       "path": "LICENSE",
@@ -163,7 +163,7 @@
     },
     {
       "path": "docker-compose.test-s3.yml",
-      "sha256": "e8a88ebf17875860f59dded6e6fdf979c36b87bc244ddaf6a852eba51b0deecc"
+      "sha256": "d857227ff1109432d5bfc726db73aef4bb86e4e9d20e33d83e42fb55f65887e7"
     },
     {
       "path": "docker-compose.yml",
@@ -335,7 +335,7 @@
     },
     {
       "path": "xtask/src/clients.rs",
-      "sha256": "f5e8b90453958881cc1ba91f36a51e3698e63f70588a4328934549b4f8011a70"
+      "sha256": "998e2d707ed50ec78cf57ea981ccdde08192216a1c7a5fb76cc6deb6c45bc9fe"
     },
     {
       "path": "xtask/src/dependency_baseline.rs",
@@ -343,7 +343,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "bc2058d17ab477ede0e5460fb73df189b9adbb0a914d191a376c77a9bc1e81ec"
+      "sha256": "ee5f39b11d598b085ec94876e86dfae7378bb00c87b3826edbf547d248205bff"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -379,7 +379,7 @@
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "980ce97a9b7e0f79962fcc9cd59e74d98f91d63a53bb4360b0027105a268aa65"
+      "sha256": "7427e89a7a3572c06587b8890db8a8764b22d6cb632de87554ceac018da6b79e"
     },
     {
       "path": "xtask/src/supply_sbom.rs",
@@ -419,7 +419,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "b3fe232eb335e5d7a4cc340fdca276a9228ac4eb390208a2ea8fe1a2d29cb05f"
+      "sha256": "594d01f182dc444adcabc73763f8dac917b6e15ca8f1310efaa75fced6345a27"
     }
   ]
 }

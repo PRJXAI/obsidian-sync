@@ -382,17 +382,23 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
 #[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 9);
+    assert_eq!(images.len(), 8);
     assert!(images.keys().all(|image| {
         !image.contains("trivy")
             && !image.starts_with("couchdb:")
+            && !image.starts_with("alpine:")
             && !image.starts_with("golang:")
             && !image.starts_with("cgr.dev/chainguard/git:")
     }));
     assert!(images.contains_key(xtask::grype::GRYPE));
+    assert!(
+        fs::read_to_string(xtask::root().join("Dockerfile"))?
+            .lines()
+            .any(|line| line == format!("FROM {} AS build", security::BUILD_IMAGE))
+    );
     for pin in [
         security::GITLEAKS,
-        security::HELPER,
+        security::BUILD_IMAGE,
         sbom::SYFT,
         deployment::KIND,
     ] {

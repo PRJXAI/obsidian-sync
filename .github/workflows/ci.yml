@@ -76,7 +76,7 @@ jobs:
           docker load -i .work/ci-images/builder.tar
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: sbom-materials, path: .work/sbom}
-      - run: cargo install cargo-audit --version 0.22.1 --locked
+      - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo install cargo-deny --version 0.20.2 --locked
       - run: cargo audit && cargo deny check
       - run: cargo test --locked -p xtask
@@ -114,6 +114,8 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    env:
+      GOTOOLCHAIN: go1.27.3
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with: {persist-credentials: false}
@@ -124,12 +126,12 @@ jobs:
           (cd .work/ci-images && sha256sum -c SHA256SUMS)
           docker load -i .work/ci-images/runtime.tar
       - run: |
-          go install sigs.k8s.io/kustomize/kustomize/v5@v5.8.1
+          go install sigs.k8s.io/kustomize/kustomize/v5@v5.8.3
           go install sigs.k8s.io/kind@v0.33.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '24.20.0'
+          node-version: '26.13.0'
           cache: npm
           cache-dependency-path: tests/compat/package-lock.json
       - run: scripts/validate-deployments.sh

@@ -303,7 +303,7 @@ impl Drop for Server {
                         &format!("{}/data:/data", self.work.display()),
                         "--entrypoint",
                         "rm",
-                        security::HELPER,
+                        security::BUILD_IMAGE,
                         "-rf",
                         "/data/metadata",
                         "/data/blobs",

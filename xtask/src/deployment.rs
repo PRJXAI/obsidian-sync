@@ -61,7 +61,7 @@ pub fn test_build_context(root: &Path) -> Result {
     let mut dockerfile = format!(
         "{}\nFROM {}\nCOPY . /context\n",
         source.lines().next().ok_or("Missing frontend")?,
-        crate::security::HELPER
+        crate::security::BUILD_IMAGE
     );
     for path in included {
         dockerfile.push_str(&format!("RUN [\"test\",\"-s\",\"/context/{path}\"]\n"));
@@ -329,7 +329,7 @@ impl Drop for DataCleanup {
                     &format!("{}:/data", self.data.display()),
                     "--entrypoint",
                     "rm",
-                    crate::security::HELPER,
+                    crate::security::BUILD_IMAGE,
                     "-rf",
                     "/data/metadata",
                     "/data/blobs",

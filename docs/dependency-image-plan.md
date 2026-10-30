@@ -31,7 +31,7 @@ Recorded evidence is from 2026-10-29; refresh it before selecting replacements. 
 | Kubernetes node | 1.37.0; `xtask/src/deployment.rs` | 864 | I5 |
 | Static runtime base | pinned Chainguard static; `Dockerfile` | 0 | I6 |
 
-Literal current digests remain in those files and bound evidence, not duplicated into a second pin catalog. New compiler/build/base images introduced by remediation must also be inventoried and scanned; nine is today's inventory size, not a permanent cap.
+This table is the original nine-image baseline, not current pin state. The 2026-10-30 owner-authorized refresh removes the standalone Alpine image by reusing the required Rust build base, updates base digests and selects released RustFS 1.0.4; the current inventory has eight images. Literal current digests remain in source and bound evidence, not duplicated into a second pin catalog. New images must also be inventoried/scanned; inventory cardinality is not a permanent cap.
 
 Two rejected alternatives remain evidence:
 
@@ -139,10 +139,10 @@ Every package produces a small reviewed change, immutable candidate identities, 
 **Proposed owner:** consumer tooling maintainer.
 
 - Inventory all three uses: daemon-visible nonempty-source check, build-context include/exclude assertions and synthetic-data cleanup under container UID permissions.
-- Evaluate a fixed maintained helper release against the current BusyBox associations. If none qualifies, propose the smallest supportable static utility or bounded Rust helper—not a general image/command framework. Any new helper binary/image needs explicit inventory and normal gating.
+- Implemented under the 2026-10-30 owner instruction: retire the standalone Alpine image and reuse the already required digest-pinned Rust build base for these build/test-only utility duties. No new helper binary/image, shell program or runtime payload is introduced. Its BusyBox/native findings still belong to I1, not an exception.
 - Preserve nonzero failures for absent/empty source, excluded-file checks, symlink/path boundaries, UID permissions, cancellation and teardown. Never replace the daemon-visible mount proof with a host-only existence check.
 
-**Acceptance:** zero-finding supported helper closure plus all source/build-context/privacy/cleanup regressions. Do not delete the helper's safety checks or run scanners as root merely to avoid it.
+**Acceptance:** no standalone helper dependency, all source/build-context/privacy/cleanup regressions, and the reused builder's normal I1 scan/qualification gates. The distroless runtime remains unchanged in shape. Never delete safety checks or run scanners as root merely to avoid them.
 
 ### I4 — RustFS payload inventory before repackaging
 
