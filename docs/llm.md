@@ -5,7 +5,7 @@ Start with [llms.txt](../llms.txt), [operations](operations.md) and the [protoco
 ## Components
 
 - `src/transport.rs`: bounded operational/HTTP transport and admission; health endpoints disclose availability only.
-- `src/couch/`: persistent revision DAG, aliases/generations, losing branches/tombstones, local checkpoints, changes and bulk replication. Preserve the pinned upstream Commonlib/PouchDB contract.
+- `src/couch/`: persistent revision DAG, aliases/generations, losing branches/tombstones, local checkpoints, changes and bulk replication. `http.rs` retains routing, authentication/rates and admission; private `http/{codec,error,database,document,bulk,changes}.rs` isolate wire parsing/responses and endpoint flows. Public `http::router`/`http::ApiError` remain stable. Preserve the pinned upstream Commonlib/PouchDB contract.
 - `src/auth.rs`: random device principals/keys, digests, revocable vault grants and scoped reset capability. Basic username must equal principal UUID; Bearer shares the verifier. Client E2EE material never becomes a server authentication key.
 - `src/db.rs`: SQLite FULL/WAL, bounded connection/blocking work and process-lifetime writer authority. Retain the process lock through canceled blocking tasks.
 - `src/storage/`: common bounded streaming BlobStorage, generated vault/object keys, size/hash verification and durable create-only publication. Filesystem always available; optional S3/GCS/Azure features remain independently buildable.

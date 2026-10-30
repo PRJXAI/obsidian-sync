@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed blob/replay extraction, current Engine.db authority, shared upload permits/deadlines and unchanged schema/hash/publication semantics against characterization, core, Couch, migration, interruption and recovery tests; updated architecture and consistency docs",
+  "reason": "Reviewed HTTP codec/error/database/document/bulk/feed extraction against original dispatcher, pre-refactor wire/response-cancellation characterization and all Couch/genuine-client scenarios; middleware, limits, SQL and public paths unchanged; updated LLM ownership",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -219,7 +219,31 @@
     },
     {
       "path": "src/couch/http.rs",
-      "sha256": "7ccbd5ef5afd2aba2bb86f6fe3101146733bc782f9057e81ee8ffb930665dcc2"
+      "sha256": "ff1ea2e115aeb797678c3ce9f80a3d37e8dab4273740082ae0b6ea27f4e64657"
+    },
+    {
+      "path": "src/couch/http/bulk.rs",
+      "sha256": "add25d43ea4fe7097d17ce078e4b8f6894ed6b2aa85c09576561aee4617583b6"
+    },
+    {
+      "path": "src/couch/http/changes.rs",
+      "sha256": "35f863ecda05ac8408a13da31929f64e3223f54477fbac369002fad37333c476"
+    },
+    {
+      "path": "src/couch/http/codec.rs",
+      "sha256": "e7fa878857096c2219aaaa4046ede3e2aebbca330715ca66232fdc11907dfe20"
+    },
+    {
+      "path": "src/couch/http/database.rs",
+      "sha256": "5deaa18e47b51a7dcd4fc062d80b5978ed43d0340c8d4cbf3f4c0ade55fe1d13"
+    },
+    {
+      "path": "src/couch/http/document.rs",
+      "sha256": "7e3a1bd1e94a5b0cf33d25aa6c179cdc28d7c5cf9ce71f8a03ed7110ddac7848"
+    },
+    {
+      "path": "src/couch/http/error.rs",
+      "sha256": "5f1ecf6ef00c4485007d544342472f55ff65928af55d0c6d5ed1d3b28d50bb12"
     },
     {
       "path": "src/couch/json.rs",
@@ -315,7 +339,7 @@
     },
     {
       "path": "tests/couch.rs",
-      "sha256": "12808b47a9e2d6570182ac4a76dafaec303f074fc2010bf1f530e63ead810d6c"
+      "sha256": "25bd40442447c1b06d8fd05ced985d03ec50421c90ac92769bafff3e1b921a92"
     },
     {
       "path": "tests/couch_migration.rs",

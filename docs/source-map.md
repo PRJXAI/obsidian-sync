@@ -43,6 +43,12 @@ Run `cargo xtask sync-generated` after moving source files.
 - `src/auth.rs`
 - `src/blob.rs`
 - `src/config.rs`
+- `src/couch/http/bulk.rs`
+- `src/couch/http/changes.rs`
+- `src/couch/http/codec.rs`
+- `src/couch/http/database.rs`
+- `src/couch/http/document.rs`
+- `src/couch/http/error.rs`
 - `src/couch/http.rs`
 - `src/couch/json.rs`
 - `src/couch/lifecycle.rs`
