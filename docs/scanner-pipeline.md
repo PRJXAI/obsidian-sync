@@ -22,6 +22,10 @@ DB retrieval must succeed; DB schema/validity/time are checked, with a 72-hour m
 
 Every Grype match blocks, including **Unknown and Negligible**. Matcher-suppression accounting is explicitly enabled; any reported ignored/suppressed match is counted too, not silently dropped by a default ignore rule. No `--only-fixed`, severity threshold, VEX exception or advisory allowlist is used. Missing/empty/unsupported SBOMs, malformed reports, foreign package IDs, stale evidence, tool/schema changes and substituted source/config/layers/hashes fail closed.
 
+## Applicability investigation, not a second image gate
+
+The [2026-10-30 review](security-exploitability.md) records prerequisite analysis and a fixed-input ignored Rust diagnostic for original Go binaries using govulncheck 1.9.0. This is additive binary metadata/symbol investigation, not a scanner fallback, call graph, automatic VEX or finding suppression. Seven of nine subjects lack usable symbols and the overall diagnostic fails; partial presence results cannot clear them. Public advisory retrieval is separate from offline analysis and preserves bounded failed attempts. Grype remains the sole image vulnerability gate, with every finding/error blocking.
+
 ## Private dependency baseline
 
 `cargo xtask dependency-baseline --platform linux/amd64` validates existing fresh registry and source/runtime/populated-builder receipts, native SBOMs/reports and the ten bound generated-material files. CI invokes it even when vulnerability scans report findings. It creates only `.work/security/dependency-baseline.json` (0600); existing/symlinked destinations fail. Compact aggregate accounting and streamed pre-write pretty output are capped at 64 MiB, with at most 64 assets; overflow leaves no published partial baseline. These are report bounds, not host-disk quotas.

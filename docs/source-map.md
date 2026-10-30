@@ -92,6 +92,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/tests/fixtures/k3d_control.rs`
 - `xtask/tests/fixtures/rustfs/Dockerfile`
 - `xtask/tests/fixtures/rustfs/native.rs`
+- `xtask/tests/go_symbols.rs`
 - `xtask/tests/grype.rs`
 - `xtask/tests/k3d.rs`
 - `xtask/tests/rustfs_candidate.rs`

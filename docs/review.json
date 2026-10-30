@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed unconditional owned data/partial-resource compensation after k3d delete failure and preserved error propagation; verified synthetic failed-delete/cancel/pre-existing/residual regressions and final migration docs",
+  "reason": "Reviewed fixed Go metadata/symbol diagnostic and regular-tool/cleanup guards, negative cases, partial two-subject results, seven missing inventories, retained cap/invocation failures and advisory/host prerequisites; authored docs preserve no-waiver/no-release limits",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -412,6 +412,10 @@
     {
       "path": "xtask/tests/fixtures/rustfs/native.rs",
       "sha256": "2eac50b71f41b1d950fbad7eb53bc9537abb3dd3b87855bf58c5a0be82fa5c78"
+    },
+    {
+      "path": "xtask/tests/go_symbols.rs",
+      "sha256": "ca8981414fee347bee63d50c0293b3c54963157a222966278dd04e4b65c41afe"
     },
     {
       "path": "xtask/tests/grype.rs",
