@@ -15,6 +15,9 @@ src/**
 !src/couch
 src/couch/**
 !src/couch/*.rs
+!src/couch/http
+src/couch/http/**
+!src/couch/http/*.rs
 !src/storage
 src/storage/**
 !src/storage/*.rs

@@ -12,7 +12,7 @@ Start with [llms.txt](../llms.txt), [operations](operations.md) and the [protoco
 - `src/blob.rs` / `src/replay.rs`: private shared blob reservation/publication/read path and payload-bound request replay. Couch and jobs use these without depending on the legacy CAS model; upload clones share admission and callers supply the current database authority.
 - `src/sync.rs`: historical internal CAS core, **not** LiveSync revision semantics. Its public blob methods delegate to the shared implementation using `Engine.db`; public API, replay hashes and schema remain unchanged. Do not use it as a single-head replacement for offline conflicts.
 - `src/jobs.rs`: persistent fenced read-only integrity jobs, bounded retries/backoff/fairness and restart recovery.
-- `xtask/`: all first-party infrastructure/security/SBOM/docs/release automation. `risk.rs` and `accepted-risks.json` classify the owner's exact current-stack snapshot after report validation; they do not suppress raw findings or waive missing evidence.
+- `xtask/`: all first-party infrastructure/security/SBOM/docs/release automation. Private `fixture.rs` owns only disposable UID-scoped container-data cleanup; successful client/S3/Compose runs check teardown before returning, with Drop fallback on failure/cancellation. `risk.rs` and `accepted-risks.json` classify the owner's exact current-stack snapshot after report validation; they do not suppress raw findings or waive missing evidence.
 
 ## Non-negotiable behavior
 

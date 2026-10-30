@@ -86,6 +86,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/deployment.rs`
 - `xtask/src/docs.rs`
 - `xtask/src/evidence.rs`
+- `xtask/src/fixture.rs`
 - `xtask/src/grype.rs`
 - `xtask/src/images.rs`
 - `xtask/src/lib.rs`

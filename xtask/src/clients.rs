@@ -1,4 +1,4 @@
-use crate::{Result, ensure, security, util};
+use crate::{Result, ensure, fixture::DataCleanup, util};
 use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
@@ -126,6 +126,8 @@ struct Server {
     process: Option<Child>,
     running: bool,
     port: u16,
+    // Dropped after Server::drop stops/removes the owned container.
+    data_cleanup: Option<DataCleanup>,
 }
 impl Server {
     fn command(&self, daemon: bool) -> Command {
@@ -285,36 +287,6 @@ impl Drop for Server {
                 ),
                 30,
             );
-            let _ = util::cleanup(
-                &mut util::cmd(
-                    "docker",
-                    &[
-                        "run",
-                        "--rm",
-                        "--network",
-                        "none",
-                        "--read-only",
-                        "--log-driver",
-                        "none",
-                        "--user",
-                        "65532:65532",
-                        "--cap-drop",
-                        "ALL",
-                        "--security-opt",
-                        "no-new-privileges",
-                        "--volume",
-                        &format!("{}/data:/data", self.work.display()),
-                        "--entrypoint",
-                        "rm",
-                        security::BUILD_IMAGE,
-                        "-rf",
-                        "/data/metadata",
-                        "/data/blobs",
-                    ],
-                    &self.root,
-                ),
-                60,
-            );
         }
     }
 }
@@ -402,6 +374,7 @@ pub fn livesync(
         process: None,
         running: false,
         port,
+        data_cleanup: image.map(|_| DataCleanup::new(root, &work.join("data"))),
     };
     let vault = server.admin(&["create-database", "--name", "vault"])?;
     let encrypted = server.admin(&["create-database", "--name", "encrypted"])?;
@@ -507,6 +480,11 @@ pub fn livesync(
         node(root, "tests/compat/livesync.mjs", &env, Some("restart"), 90)?;
     }
     server.stop()?;
+    if let Some(cleanup) = server.data_cleanup.as_mut() {
+        cleanup.finish()?;
+    }
+    drop(server);
+    temporary.close()?;
     println!(
         "PASS: actual Commonlib/PouchDB disposable client fixture{}",
         if benchmark {
@@ -529,4 +507,54 @@ pub fn memory_bytes(value: &str) -> Option<u64> {
         _ => return None,
     };
     Some((m[1].parse::<f64>().ok()? * factor) as u64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn native_server(root: &Path) -> Server {
+        Server {
+            root: root.into(),
+            work: root.into(),
+            config: root.join("missing.toml"),
+            image: None,
+            benchmark: false,
+            container: util::Container::inert(root, "test"),
+            process: None,
+            running: false,
+            port: 0,
+            data_cleanup: None,
+        }
+    }
+
+    #[test]
+    fn startup_failure_keeps_native_fixture_inert() -> Result {
+        let temp = tempfile::tempdir()?;
+        let mut server = native_server(temp.path());
+        assert!(server.start().is_err());
+        assert!(server.process.is_none());
+        server.stop()
+    }
+
+    #[test]
+    fn unsuccessful_native_child_is_reaped_and_never_reported_clean() -> Result {
+        let temp = tempfile::tempdir()?;
+        let mut server = native_server(temp.path());
+        server.process = Some(Command::new("false").spawn()?);
+        // Wait without taking ownership, so stop must inspect and reject the failed exit.
+        server
+            .process
+            .as_mut()
+            .ok_or("Missing test child")?
+            .wait()?;
+        assert!(server.stop().is_err());
+        assert!(server.process.is_none());
+        server.stop()
+    }
+
+    #[test]
+    fn cleanup_nonzero_exit_is_an_error() {
+        assert!(util::cleanup(&mut Command::new("false"), 5).is_err());
+    }
 }

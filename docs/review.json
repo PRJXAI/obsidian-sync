@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed HTTP codec/error/database/document/bulk/feed extraction against original dispatcher, pre-refactor wire/response-cancellation characterization and all Couch/genuine-client scenarios; middleware, limits, SQL and public paths unchanged; updated LLM ownership",
+  "reason": "Reviewed fixed-scope fixture cleanup, successful teardown checks and failure/cancellation Drop order against new lifecycle tests, real native/S3/runtime/Compose fixtures and build-context canaries; reviewed explicit HTTP Docker allowlist and maintenance/threat/protocol docs",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "83e94cb7f34457150c13f52ffc0f10c9c42ed4b75b0c33c6a7424b2aa0d01785"
+      "sha256": "2449c02763374838d5ffde77a41711c1f4c19d3023e5828d074410d1d095d477"
     },
     {
       "path": ".env.example",
@@ -371,7 +371,7 @@
     },
     {
       "path": "xtask/src/clients.rs",
-      "sha256": "afa96418ba537dc3e2bdd9e8f6e0670aed4a7662e2bd70a6d5551fdfe3c101e2"
+      "sha256": "4d7bcbcf594339bbdc9a2b3cf136a9facfd8a7c475b933d9f55dea25a6765a3a"
     },
     {
       "path": "xtask/src/dependency_baseline.rs",
@@ -379,7 +379,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "6d770d87d8c26a9f95f667baa13a4f3b6277739dab786a0566e48aa3d43dbadd"
+      "sha256": "e06bf27f75db70265d511225f918d2be58ba615fc580440388efb6f98281ec8a"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -388,6 +388,10 @@
     {
       "path": "xtask/src/evidence.rs",
       "sha256": "771e6493875ff2281f5ca2d5ab6920dbc178072f9cd9214e2281b4d0ebb22d2d"
+    },
+    {
+      "path": "xtask/src/fixture.rs",
+      "sha256": "0baf63c46305000dc614fd917df40fad78280a81a6c88576dcd7849fa7a895f0"
     },
     {
       "path": "xtask/src/grype.rs",
@@ -399,7 +403,7 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "26e29e8761de0284a43a91cb9f300c9f2b4ef8fc3a5ecaa522c675de3fe5d8aa"
+      "sha256": "057ecea3433534681128c3b59f0b2f99676483dbbe94dcc4f589cf62c39619e2"
     },
     {
       "path": "xtask/src/main.rs",
