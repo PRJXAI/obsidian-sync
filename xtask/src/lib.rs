@@ -6,6 +6,7 @@ pub mod dependency_baseline;
 pub mod deployment;
 pub mod docs;
 pub mod evidence;
+mod fixture;
 pub mod grype;
 pub mod images;
 pub mod policy;

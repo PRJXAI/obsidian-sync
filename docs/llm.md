@@ -5,13 +5,14 @@ Start with [llms.txt](../llms.txt), [operations](operations.md) and the [protoco
 ## Components
 
 - `src/transport.rs`: bounded operational/HTTP transport and admission; health endpoints disclose availability only.
-- `src/couch/`: persistent revision DAG, aliases/generations, losing branches/tombstones, local checkpoints, changes and bulk replication. Preserve the pinned upstream Commonlib/PouchDB contract.
+- `src/couch/`: persistent revision DAG, aliases/generations, losing branches/tombstones, local checkpoints, changes and bulk replication. `http.rs` retains routing, authentication/rates and admission; private `http/{codec,error,database,document,bulk,changes}.rs` isolate wire parsing/responses and endpoint flows. Public `http::router`/`http::ApiError` remain stable. Preserve the pinned upstream Commonlib/PouchDB contract.
 - `src/auth.rs`: random device principals/keys, digests, revocable vault grants and scoped reset capability. Basic username must equal principal UUID; Bearer shares the verifier. Client E2EE material never becomes a server authentication key.
 - `src/db.rs`: SQLite FULL/WAL, bounded connection/blocking work and process-lifetime writer authority. Retain the process lock through canceled blocking tasks.
 - `src/storage/`: common bounded streaming BlobStorage, generated vault/object keys, size/hash verification and durable create-only publication. Filesystem always available; optional S3/GCS/Azure features remain independently buildable.
-- `src/sync.rs`: historical internal CAS core, **not** LiveSync revision semantics. Do not use it as a single-head replacement for offline conflicts.
+- `src/blob.rs` / `src/replay.rs`: private shared blob reservation/publication/read path and payload-bound request replay. Couch and jobs use these without depending on the legacy CAS model; upload clones share admission and callers supply the current database authority.
+- `src/sync.rs`: historical internal CAS core, **not** LiveSync revision semantics. Its public blob methods delegate to the shared implementation using `Engine.db`; public API, replay hashes and schema remain unchanged. Do not use it as a single-head replacement for offline conflicts.
 - `src/jobs.rs`: persistent fenced read-only integrity jobs, bounded retries/backoff/fairness and restart recovery.
-- `xtask/`: all first-party infrastructure/security/SBOM/docs/release automation. `risk.rs` and `accepted-risks.json` classify the owner's exact current-stack snapshot after report validation; they do not suppress raw findings or waive missing evidence.
+- `xtask/`: all first-party infrastructure/security/SBOM/docs/release automation. Private `fixture.rs` owns only disposable UID-scoped container-data cleanup; successful client/S3/Compose runs check teardown before returning, with Drop fallback on failure/cancellation. `risk.rs` and `accepted-risks.json` classify the owner's exact current-stack snapshot after report validation; they do not suppress raw findings or waive missing evidence.
 
 ## Non-negotiable behavior
 
@@ -25,7 +26,7 @@ No note paths/bodies, keys, passphrases, signed URLs or raw provider errors in l
 
 ## Verification and delivery
 
-Use `scripts/check.sh`, all eight feature cells, genuine `cargo xtask test-livesync`, `scripts/test-s3.sh`, Linux Docker `tests` target, image verification and disposable Compose/Kubernetes smokes. `tests/couch.rs` exercises the real router; it is not an independent Apache CouchDB oracle. GUI/mobile and real cloud/CNI/DR checks remain separate.
+Use `scripts/check.sh`, all eight feature cells, genuine `cargo xtask test-livesync`, `scripts/test-s3.sh`, Linux Docker `tests` target, image verification, disposable Compose smoke and local Kustomize rendering. `tests/couch.rs` exercises the real router; it is not an independent Apache CouchDB oracle. GUI/mobile and real cloud/CNI/DR checks remain separate.
 
 Live Kubernetes tests and their k3d/K3s/pause dependencies are retired by owner request. Kustomize examples remain locally rendered, without kubectl, kubeconfig, server validation or cluster certification. Never create a test cluster or use/probe the operator context or real data/accounts.
 

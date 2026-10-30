@@ -41,7 +41,14 @@ Run `cargo xtask sync-generated` after moving source files.
 - `scripts/test-s3.sh`
 - `scripts/validate-deployments.sh`
 - `src/auth.rs`
+- `src/blob.rs`
 - `src/config.rs`
+- `src/couch/http/bulk.rs`
+- `src/couch/http/changes.rs`
+- `src/couch/http/codec.rs`
+- `src/couch/http/database.rs`
+- `src/couch/http/document.rs`
+- `src/couch/http/error.rs`
 - `src/couch/http.rs`
 - `src/couch/json.rs`
 - `src/couch/lifecycle.rs`
@@ -53,6 +60,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `src/jobs.rs`
 - `src/lib.rs`
 - `src/main.rs`
+- `src/replay.rs`
 - `src/storage/cloud.rs`
 - `src/storage/filesystem.rs`
 - `src/storage/mod.rs`
@@ -78,6 +86,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/deployment.rs`
 - `xtask/src/docs.rs`
 - `xtask/src/evidence.rs`
+- `xtask/src/fixture.rs`
 - `xtask/src/grype.rs`
 - `xtask/src/images.rs`
 - `xtask/src/lib.rs`

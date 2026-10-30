@@ -1,4 +1,4 @@
-use crate::{Result, clients, docs, ensure, util};
+use crate::{Result, clients, docs, ensure, fixture::DataCleanup, util};
 use std::{
     fs,
     os::unix::fs::PermissionsExt,
@@ -22,6 +22,10 @@ pub fn test_build_context(root: &Path) -> Result {
     )?;
     let included = [
         "Cargo.toml",
+        "src/couch/http/codec.rs",
+        "src/blob.rs",
+        "src/replay.rs",
+        "xtask/src/fixture.rs",
         "config/filesystem.toml",
         "xtask/Cargo.toml",
         "xtask/src/lib.rs",
@@ -38,6 +42,9 @@ pub fn test_build_context(root: &Path) -> Result {
     }
     let excluded = [
         ".env",
+        "src/couch/http/private-canary.toml",
+        "src/couch/http/.env",
+        "src/couch/http/private/nested.rs",
         "config/private-canary.toml",
         ".cargo/credentials.toml",
         "data/private-canary",
@@ -189,6 +196,7 @@ struct Compose {
     project: String,
     file: PathBuf,
     env: Vec<(String, String)>,
+    finished: bool,
 }
 impl Compose {
     fn command(&self, args: &[&str]) -> Command {
@@ -202,10 +210,17 @@ impl Compose {
             .envs(self.env.iter().map(|(k, v)| (k, v)));
         c
     }
+    fn finish(&mut self) -> Result {
+        if !self.finished {
+            util::cleanup(&mut self.command(&["down", "-v"]), 90)?;
+            self.finished = true;
+        }
+        Ok(())
+    }
 }
 impl Drop for Compose {
     fn drop(&mut self) {
-        let _ = util::cleanup(&mut self.command(&["down", "-v"]), 90);
+        let _ = self.finish();
     }
 }
 
@@ -229,8 +244,9 @@ fn s3_fixture(root: &Path, file: PathBuf) -> Result {
         fs::write(&target, value)?;
         fs::set_permissions(target, fs::Permissions::from_mode(0o600))?;
     }
-    let compose = Compose {
+    let mut compose = Compose {
         root: root.into(),
+        finished: false,
         project: format!("obsidian-sync-test-{}", &util::random_hex()[..12]),
         file,
         env: vec![
@@ -308,44 +324,10 @@ fn s3_fixture(root: &Path, file: PathBuf) -> Result {
         )
         .envs(env.iter().map(|(k, v)| (k, v))),
         900,
-    )
-}
-
-struct DataCleanup {
-    root: PathBuf,
-    data: PathBuf,
-}
-impl Drop for DataCleanup {
-    fn drop(&mut self) {
-        let _ = util::cleanup(
-            &mut util::cmd(
-                "docker",
-                &[
-                    "run",
-                    "--rm",
-                    "--network",
-                    "none",
-                    "--read-only",
-                    "--user",
-                    "65532:65532",
-                    "--cap-drop",
-                    "ALL",
-                    "--security-opt",
-                    "no-new-privileges",
-                    "--volume",
-                    &format!("{}:/data", self.data.display()),
-                    "--entrypoint",
-                    "rm",
-                    crate::security::BUILD_IMAGE,
-                    "-rf",
-                    "/data/metadata",
-                    "/data/blobs",
-                ],
-                &self.root,
-            ),
-            60,
-        );
-    }
+    )?;
+    compose.finish()?;
+    work.close()?;
+    Ok(())
 }
 pub fn writer_denied(result: &util::Captured) -> bool {
     !result.success
@@ -363,13 +345,11 @@ pub fn compose(root: &Path) -> Result {
     let data = path.join("data");
     fs::create_dir(&data)?;
     fs::set_permissions(&data, fs::Permissions::from_mode(0o777))?;
-    let _cleanup = DataCleanup {
-        root: root.into(),
-        data: data.clone(),
-    };
+    let mut cleanup = DataCleanup::new(root, &data);
     let port = clients::port()?;
-    let compose = Compose {
+    let mut compose = Compose {
         root: root.into(),
+        finished: false,
         project: format!("obsidian-sync-smoke-{}", &util::random_hex()[..12]),
         file: "docker-compose.yml".into(),
         env: vec![
@@ -396,6 +376,9 @@ pub fn compose(root: &Path) -> Result {
         &mut compose.command(&["run", "--rm", "--no-deps", "server", "create-vault"]),
         60,
     )?;
+    compose.finish()?;
+    cleanup.finish()?;
+    work.close()?;
     println!(
         "Compose smoke passed: private probes, writer exclusion, graceful stop and persistent restart"
     );

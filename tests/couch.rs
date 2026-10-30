@@ -113,6 +113,181 @@ async fn request(
     (status, value)
 }
 #[tokio::test]
+async fn encoded_document_ids_head_etag_and_if_match_keep_wire_contract() {
+    let f = Fixture::new().await;
+    let encoded = "/vault/folder%2Fnote%20%25.md";
+    let response = f
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(encoded)
+                .header(header::AUTHORIZATION, &f.auth)
+                .body(Body::from(r#"{"value":1}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 201);
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    let etag = response.headers()[header::ETAG].clone();
+    let bytes = to_bytes(response.into_body(), 1024).await.unwrap();
+    let created: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(created["id"], "folder/note %.md");
+    assert_eq!(
+        etag.to_str().unwrap(),
+        format!("\"{}\"", created["rev"].as_str().unwrap())
+    );
+    for method in ["GET", "HEAD"] {
+        let response = f
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri("/vault/folder/note%20%25.md")
+                    .header(header::AUTHORIZATION, &f.auth)
+                    .header(header::ORIGIN, "app://obsidian.md")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.headers()[header::ETAG], etag);
+        assert_eq!(
+            response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
+            "app://obsidian.md"
+        );
+        let bytes = to_bytes(response.into_body(), 1024).await.unwrap();
+        if method == "HEAD" {
+            assert!(bytes.is_empty());
+        } else {
+            assert_eq!(serde_json::from_slice::<Value>(&bytes).unwrap()["value"], 1);
+        }
+    }
+    let response = f
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(encoded)
+                .header(header::AUTHORIZATION, &f.auth)
+                .header(header::IF_MATCH, etag.clone())
+                .body(Body::from(r#"{"value":2}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 201);
+    drop(response);
+    let response = f
+        .app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(encoded)
+                .header(header::AUTHORIZATION, &f.auth)
+                .header(header::IF_MATCH, etag)
+                .body(Body::from(r#"{"value":3}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 409);
+    assert_eq!(f.call("GET", encoded, None).await.1["value"], 2);
+}
+
+#[tokio::test]
+async fn decoding_query_limits_and_unsupported_roots_are_explicit() {
+    let f = Fixture::new().await;
+    assert_eq!(request(&f.app, "", "GET", "/_uuids", None).await.0, 401);
+    assert_eq!(f.call("GET", "/_uuids", None).await.0, 501);
+    for path in [
+        "/vault/bad%",
+        "/vault/bad%GG",
+        "/vault/%FF",
+        "/vault/_changes?limit=1&limit=2",
+        "/vault/_changes?include_docs=yes",
+        "/vault/_all_docs?keys=invalid",
+    ] {
+        assert_eq!(f.call("GET", path, None).await.0, 400, "{path}");
+    }
+    let query = (0..33)
+        .map(|i| format!("k{i}=v"))
+        .collect::<Vec<_>>()
+        .join("&");
+    assert_eq!(f.call("GET", &format!("/vault?{query}"), None).await.0, 413);
+    let (status, body) = f.call("HEAD", "/vault/missing", None).await;
+    assert_eq!(status, 404);
+    assert_eq!(body, Value::Null);
+    assert_eq!(f.call("PUT", "/vault", None).await.0, 412);
+    let (_, rows) = f
+        .call(
+            "POST",
+            "/vault/_bulk_docs",
+            Some(json!({"docs":[
+                {"_id":"valid","value":1}, null, {"_id":"_unsupported"}
+            ]})),
+        )
+        .await;
+    assert_eq!(rows[0]["ok"], true);
+    assert_eq!(rows[1]["status"], 400);
+    assert_eq!(rows[2]["status"], 400);
+}
+
+#[tokio::test]
+async fn response_drop_releases_normal_and_feed_execution_permits() {
+    let f = Fixture::custom(|c| c.http.max_requests = 2).await;
+    for path in [
+        "/vault",
+        "/vault/_changes?limit=0",
+        "/vault/_changes?feed=continuous&limit=0",
+    ] {
+        let response = f
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header(header::AUTHORIZATION, &f.auth)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200);
+        let peer_response = f
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header(header::AUTHORIZATION, &f.auth)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(peer_response.status(), 200);
+        // Unconsumed responses still own execution. Dropping them is cancellation.
+        let blocked = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            f.call("GET", "/vault", None),
+        )
+        .await
+        .unwrap();
+        assert_eq!(blocked.0, 429);
+        drop(response);
+        drop(peer_response);
+        assert_eq!(f.call("GET", "/vault", None).await.0, 200);
+    }
+}
+
+#[tokio::test]
 async fn failed_authentication_cannot_spend_authenticated_rate_budgets() {
     let f = Fixture::custom(|config| {
         config.http.burst = 4;

@@ -2,6 +2,12 @@
 
 All first-party code, infrastructure/security/release tooling and tests are Rust in `xtask/`. Shell scripts launch Rust; Node/npm only exercise the pinned upstream compatibility bridge. No Python or first-party unsafe Rust. Read [architecture context](llm.md) and [repository instructions](../AGENTS.md).
 
+## Rust organization
+
+Keep the runtime library and executable in the root crate, and repository automation in the separate `xtask` workspace member. Use cohesive domain modules rather than extra crates or a generic framework for each operation. A `module.rs` can own private children in `module/`; keep imports explicit between siblings and use `pub(super)`/`pub(crate)` for implementation details. Preserve existing public paths through re-exports when moving types.
+
+Keep public-contract integration tests in `tests/` and implementation tests in adjacent `#[cfg(test)]` modules. Formatting, strict Clippy, Rustdoc and every storage feature cell remain checks, not substitutes for the race/cancellation/restart and real-client fixtures.
+
 ## Documentation lifecycle
 
 Maintain durable operator guidance, not parallel implementation diaries. Transfer useful limits/evidence before retiring pages; Git retains their history. Never erase private failure captures or rewrite historical findings as fixed.

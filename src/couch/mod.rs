@@ -8,9 +8,9 @@ mod revisions;
 use crate::{
     Error, Result,
     auth::{Identity, authorize},
+    blob::BlobPublisher,
     db::Database,
     storage::Store,
-    sync::Engine,
 };
 pub use revisions::{parse_revision, validate_id};
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
@@ -43,7 +43,7 @@ pub const MAX_SEQUENCE: i64 = 1000000;
 #[derive(Clone)]
 pub struct Couch {
     pub(crate) db: Database,
-    pub(crate) engine: Engine,
+    pub(crate) blobs: BlobPublisher,
     pub(crate) options: crate::config::HttpConfig,
     pub(crate) changed: Arc<Notify>,
     pub(crate) stop: watch::Receiver<bool>,
@@ -57,8 +57,7 @@ impl Couch {
     ) -> Result<Self> {
         config.validate()?;
         Ok(Self {
-            engine: Engine::new(
-                db.clone(),
+            blobs: BlobPublisher::new(
                 store,
                 config.max_inflight,
                 config.max_blob_bytes,

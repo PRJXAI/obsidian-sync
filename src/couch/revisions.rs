@@ -166,7 +166,7 @@ fn existing(c: &Connection, vault: Uuid, id: &str, rev: &str) -> Result<Option<B
         .optional()?;
     match row {
         Some((Some(blob), Some(hash))) => {
-            let info = crate::sync::blob_info(
+            let info = crate::blob::blob_info(
                 c,
                 crate::storage::BlobKey {
                     vault,
@@ -315,13 +315,14 @@ impl Couch {
         let info = if let Some(info) = ready {
             // CouchDB keeps the first immutable body. E2EE replays can legitimately
             // contain fresh ciphertext for this same revision; verify what is stored.
-            let (_, mut reader) = self.engine.read_blob(who, info.key).await?;
+            let (_, mut reader) = self.blobs.read_blob(&self.db, who, info.key).await?;
             crate::storage::copy_verified(&mut reader, &mut tokio::io::sink(), info).await?;
             info
         } else {
             let info = self
-                .engine
+                .blobs
                 .reserve(
+                    &self.db,
                     who,
                     vault,
                     incoming.bytes.len() as u64,
@@ -329,8 +330,9 @@ impl Couch {
                     &key,
                 )
                 .await?;
-            self.engine
+            self.blobs
                 .upload(
+                    &self.db,
                     who,
                     info,
                     Box::pin(std::io::Cursor::new(incoming.bytes.clone())),
@@ -339,27 +341,81 @@ impl Couch {
             info
         };
         let who = who.clone();
-        let result=self.db.run(move|c|{
-            let tx=c.transaction_with_behavior(TransactionBehavior::Immediate)?;authorize(&tx,&who,vault,true)?;
-            if new_edits{check_edit(&tx,vault,&incoming.id,incoming.parent.as_deref(),incoming.deleted)?;}
-            let before=leaves(&tx,vault,&incoming.id)?;
-            let duplicate=existing(&tx,vault,&incoming.id,&incoming.rev)?.is_some();merge_history(&tx,vault,&incoming)?;
-            if !duplicate {
-                let ready:bool=tx.query_row("SELECT ready FROM blobs WHERE vault=?1 AND id=?2",params![vault.to_string(),info.key.object.to_string()],|r|r.get(0))?;
-                if !ready{return Err(Error::Integrity);}
-                tx.execute("UPDATE couch_revisions SET blob=?1,digest=?2,deleted=?3,kind=?4 WHERE vault=?5 AND id=?6 AND rev=?7",params![info.key.object.to_string(),incoming.digest.to_vec(),incoming.deleted,incoming.kind,vault.to_string(),incoming.id,incoming.rev])?;
-            }
-            let current=leaves(&tx,vault,&incoming.id)?;
-            if current.is_empty()||current.len()>MAX_LEAVES{return Err(Error::Limit);}
-            // History-only merges can change which branches are leaves and must refresh the feed.
-            let previous:Option<String>=tx.query_row("SELECT winner FROM couch_heads WHERE vault=?1 AND id=?2",params![vault.to_string(),incoming.id],|r|r.get(0)).optional()?;
-            if !duplicate||before!=current||previous.as_deref()!=Some(&current[0].0){
-                if tx.execute("UPDATE couch_databases SET seq=seq+1 WHERE vault=?1 AND seq<?2",params![vault.to_string(),MAX_SEQUENCE])?!=1{return Err(Error::Limit);}
-                let seq:i64=tx.query_row("SELECT seq FROM couch_databases WHERE vault=?1",[vault.to_string()],|r|r.get(0))?;
-                tx.execute("INSERT INTO couch_heads(vault,id,seq,winner) VALUES(?1,?2,?3,?4) ON CONFLICT(vault,id) DO UPDATE SET seq=excluded.seq,winner=excluded.winner",params![vault.to_string(),incoming.id,seq,current[0].0])?;
-            }
-            tx.commit()?;Ok(json!({"ok":true,"id":incoming.id,"rev":incoming.rev}))
-        }).await?;
+        let result = self
+            .db
+            .run(move |c| {
+                let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                authorize(&tx, &who, vault, true)?;
+                if new_edits {
+                    check_edit(
+                        &tx,
+                        vault,
+                        &incoming.id,
+                        incoming.parent.as_deref(),
+                        incoming.deleted,
+                    )?;
+                }
+                let before = leaves(&tx, vault, &incoming.id)?;
+                let duplicate = existing(&tx, vault, &incoming.id, &incoming.rev)?.is_some();
+                merge_history(&tx, vault, &incoming)?;
+                if !duplicate {
+                    let ready: bool = tx.query_row(
+                        "SELECT ready FROM blobs WHERE vault=?1 AND id=?2",
+                        params![vault.to_string(), info.key.object.to_string()],
+                        |r| r.get(0),
+                    )?;
+                    if !ready {
+                        return Err(Error::Integrity);
+                    }
+                    tx.execute(
+                        "UPDATE couch_revisions SET blob=?1,digest=?2,deleted=?3,kind=?4
+                     WHERE vault=?5 AND id=?6 AND rev=?7",
+                        params![
+                            info.key.object.to_string(),
+                            incoming.digest.to_vec(),
+                            incoming.deleted,
+                            incoming.kind,
+                            vault.to_string(),
+                            incoming.id,
+                            incoming.rev
+                        ],
+                    )?;
+                }
+                let current = leaves(&tx, vault, &incoming.id)?;
+                if current.is_empty() || current.len() > MAX_LEAVES {
+                    return Err(Error::Limit);
+                }
+                // History-only merges can change which branches are leaves and must refresh the feed.
+                let previous: Option<String> = tx
+                    .query_row(
+                        "SELECT winner FROM couch_heads WHERE vault=?1 AND id=?2",
+                        params![vault.to_string(), incoming.id],
+                        |r| r.get(0),
+                    )
+                    .optional()?;
+                if !duplicate || before != current || previous.as_deref() != Some(&current[0].0) {
+                    let advanced = tx.execute(
+                        "UPDATE couch_databases SET seq=seq+1 WHERE vault=?1 AND seq<?2",
+                        params![vault.to_string(), MAX_SEQUENCE],
+                    )?;
+                    if advanced != 1 {
+                        return Err(Error::Limit);
+                    }
+                    let seq: i64 = tx.query_row(
+                        "SELECT seq FROM couch_databases WHERE vault=?1",
+                        [vault.to_string()],
+                        |r| r.get(0),
+                    )?;
+                    tx.execute(
+                        "INSERT INTO couch_heads(vault,id,seq,winner) VALUES(?1,?2,?3,?4)
+                     ON CONFLICT(vault,id) DO UPDATE SET seq=excluded.seq,winner=excluded.winner",
+                        params![vault.to_string(), incoming.id, seq, current[0].0],
+                    )?;
+                }
+                tx.commit()?;
+                Ok(json!({"ok":true,"id":incoming.id,"rev":incoming.rev}))
+            })
+            .await?;
         self.changed.notify_waiters();
         Ok(result)
     }
@@ -388,19 +444,53 @@ impl Couch {
             return Err(Error::Limit);
         }
         let who = who.clone();
-        self.db.run(move|c|{
-            let tx=c.transaction_with_behavior(TransactionBehavior::Immediate)?;authorize(&tx,&who,vault,true)?;
-            let old:Option<(i64,i64)>=tx.query_row("SELECT revision,length(body) FROM couch_local WHERE vault=?1 AND id=?2",params![vault.to_string(),id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-            if old.map(|o|format!("0-{}",o.0))!=expected{return Err(Error::Conflict);}
-            let count:i64=tx.query_row("SELECT count(*) FROM couch_local WHERE vault=?1",[vault.to_string()],|r|r.get(0))?;
-            if old.is_none()&&count>=2048{return Err(Error::Limit);}
-            let old_charge=old.map_or(0,|o|o.1+4096);let new_charge=if deleted{0}else{bytes.len() as i64+4096};let delta=new_charge-old_charge;
-            if tx.execute("UPDATE vaults SET allocated=allocated+?1 WHERE id=?2 AND ?1<=quota-allocated",params![delta,vault.to_string()])?!=1{return Err(Error::Limit);}
-            let revision=old.map_or(1,|o|o.0+1);
-            if revision>MAX_SEQUENCE{return Err(Error::Limit);}
-            if deleted{tx.execute("DELETE FROM couch_local WHERE vault=?1 AND id=?2",params![vault.to_string(),id])?;}
-            else{tx.execute("INSERT INTO couch_local(vault,id,revision,body) VALUES(?1,?2,?3,?4) ON CONFLICT(vault,id) DO UPDATE SET revision=excluded.revision,body=excluded.body",params![vault.to_string(),id,revision,bytes])?;}
-            tx.commit()?;Ok(json!({"ok":true,"id":id,"rev":format!("0-{}",if deleted{0}else{revision})}))
+        self.db.run(move |c| {
+            let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            authorize(&tx, &who, vault, true)?;
+            let old: Option<(i64, i64)> = tx.query_row(
+                "SELECT revision,length(body) FROM couch_local WHERE vault=?1 AND id=?2",
+                params![vault.to_string(), id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            ).optional()?;
+            if old.map(|o| format!("0-{}", o.0)) != expected {
+                return Err(Error::Conflict);
+            }
+            let count: i64 = tx.query_row(
+                "SELECT count(*) FROM couch_local WHERE vault=?1",
+                [vault.to_string()],
+                |r| r.get(0),
+            )?;
+            if old.is_none() && count >= 2048 {
+                return Err(Error::Limit);
+            }
+            let old_charge = old.map_or(0, |o| o.1 + 4096);
+            let new_charge = if deleted { 0 } else { bytes.len() as i64 + 4096 };
+            let delta = new_charge - old_charge;
+            let charged = tx.execute(
+                "UPDATE vaults SET allocated=allocated+?1 WHERE id=?2 AND ?1<=quota-allocated",
+                params![delta, vault.to_string()],
+            )?;
+            if charged != 1 {
+                return Err(Error::Limit);
+            }
+            let revision = old.map_or(1, |o| o.0 + 1);
+            if revision > MAX_SEQUENCE {
+                return Err(Error::Limit);
+            }
+            if deleted {
+                tx.execute(
+                    "DELETE FROM couch_local WHERE vault=?1 AND id=?2",
+                    params![vault.to_string(), id],
+                )?;
+            } else {
+                tx.execute(
+                    "INSERT INTO couch_local(vault,id,revision,body) VALUES(?1,?2,?3,?4)
+                     ON CONFLICT(vault,id) DO UPDATE SET revision=excluded.revision,body=excluded.body",
+                    params![vault.to_string(), id, revision, bytes],
+                )?;
+            }
+            tx.commit()?;
+            Ok(json!({"ok":true,"id":id,"rev":format!("0-{}",if deleted{0}else{revision})}))
         }).await
     }
 }

@@ -74,7 +74,7 @@ fn plan(c: &Connection, vault: Uuid, id: &str, options: &ReadOptions) -> Result<
         vault,
         object: blob.parse().map_err(|_| Error::Integrity)?,
     };
-    let info = crate::sync::blob_info(c, key)?;
+    let info = crate::blob::blob_info(c, key)?;
     if digest != info.digest {
         return Err(Error::Integrity);
     }
@@ -118,7 +118,7 @@ impl Couch {
         if plan.info.size > self.options.max_document_bytes as u64 {
             return Err(Error::Limit);
         }
-        let (info, reader) = self.engine.read_blob(who, plan.info.key).await?;
+        let (info, reader) = self.blobs.read_blob(&self.db, who, plan.info.key).await?;
         let mut bytes = Vec::with_capacity(info.size as usize);
         reader.take(info.size + 1).read_to_end(&mut bytes).await?;
         let mut doc: Value = super::cpu()?
@@ -301,12 +301,31 @@ impl Couch {
             wanted.push((id.clone(), values));
         }
         let who = who.clone();
-        self.db.run(move|c|{
-            let tx=c.transaction()?;authorize(&tx,&who,vault,false)?;let mut result=serde_json::Map::new();
-            for(id,revisions)in wanted{let mut missing=Vec::new();for rev in revisions{
-                let found:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM couch_revisions WHERE vault=?1 AND id=?2 AND rev=?3 AND blob IS NOT NULL)",params![vault.to_string(),id,rev],|r|r.get(0))?;if !found{missing.push(rev);}
-            }if !missing.is_empty(){result.insert(id,json!({"missing":missing}));}}Ok(Value::Object(result))
-        }).await
+        self.db
+            .run(move |c| {
+                let tx = c.transaction()?;
+                authorize(&tx, &who, vault, false)?;
+                let mut result = serde_json::Map::new();
+                for (id, revisions) in wanted {
+                    let mut missing = Vec::new();
+                    for rev in revisions {
+                        let found: bool = tx.query_row(
+                            "SELECT EXISTS(SELECT 1 FROM couch_revisions
+                         WHERE vault=?1 AND id=?2 AND rev=?3 AND blob IS NOT NULL)",
+                            params![vault.to_string(), id, rev],
+                            |r| r.get(0),
+                        )?;
+                        if !found {
+                            missing.push(rev);
+                        }
+                    }
+                    if !missing.is_empty() {
+                        result.insert(id, json!({"missing":missing}));
+                    }
+                }
+                Ok(Value::Object(result))
+            })
+            .await
     }
     pub async fn bulk_get(
         &self,
@@ -463,22 +482,70 @@ impl Couch {
                 validate_id(key)?;
             }
         }
-        let (total,seq,rows)=self.db.run(move|c|{
-            let tx=c.transaction()?;authorize(&tx,&identity,vault,false)?;
-            let seq:i64=tx.query_row("SELECT seq FROM couch_databases WHERE vault=?1",[vault.to_string()],|r|r.get(0))?;
-            let total:i64=tx.query_row("SELECT count(*) FROM couch_heads h JOIN couch_revisions r ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner WHERE h.vault=?1 AND r.deleted=0",[vault.to_string()],|r|r.get(0))?;
-            let mut rows=Vec::new();
-            if let Some(keys)=opts.keys {for key in keys{
-                let row:Option<(String,bool)>=tx.query_row("SELECT h.winner,r.deleted FROM couch_heads h JOIN couch_revisions r ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner WHERE h.vault=?1 AND h.id=?2",params![vault.to_string(),key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-                rows.push((key,row));
-            }}else{
-                let order=if opts.descending{"DESC"}else{"ASC"};
-                let compare_start=if opts.descending{"<="}else{">="};let compare_end=match(opts.descending,opts.inclusive_end){(false,true)=>"<=",(false,false)=>"<",(true,true)=>">=",(true,false)=>">"};
-                // All SQL fragments are static enum choices; user keys remain bound parameters.
-                let sql=format!("SELECT h.id,h.winner,r.deleted FROM couch_heads h JOIN couch_revisions r ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner WHERE h.vault=?1 AND r.deleted=0 AND (?2 IS NULL OR h.id {compare_start} ?2) AND (?3 IS NULL OR h.id {compare_end} ?3) ORDER BY h.id {order} LIMIT ?4 OFFSET ?5");
-                let mut stmt=tx.prepare(&sql)?;rows=stmt.query_map(params![vault.to_string(),opts.start,opts.end,opts.limit as i64,opts.skip as i64],|r|Ok((r.get::<_,String>(0)?,Some((r.get(1)?,r.get(2)?)))))?.collect::<std::result::Result<_,_>>()?;
-            }Ok((total,seq,rows))
-        }).await?;
+        let (total, seq, rows) = self
+            .db
+            .run(move |c| {
+                let tx = c.transaction()?;
+                authorize(&tx, &identity, vault, false)?;
+                let seq: i64 = tx.query_row(
+                    "SELECT seq FROM couch_databases WHERE vault=?1",
+                    [vault.to_string()],
+                    |r| r.get(0),
+                )?;
+                let total: i64 = tx.query_row(
+                    "SELECT count(*) FROM couch_heads h JOIN couch_revisions r
+                 ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner
+                 WHERE h.vault=?1 AND r.deleted=0",
+                    [vault.to_string()],
+                    |r| r.get(0),
+                )?;
+                let mut rows = Vec::new();
+                if let Some(keys) = opts.keys {
+                    for key in keys {
+                        let row: Option<(String, bool)> = tx.query_row(
+                        "SELECT h.winner,r.deleted FROM couch_heads h JOIN couch_revisions r
+                         ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner
+                         WHERE h.vault=?1 AND h.id=?2",
+                        params![vault.to_string(), key],
+                        |r| Ok((r.get(0)?, r.get(1)?)),
+                    ).optional()?;
+                        rows.push((key, row));
+                    }
+                } else {
+                    let order = if opts.descending { "DESC" } else { "ASC" };
+                    let compare_start = if opts.descending { "<=" } else { ">=" };
+                    let compare_end = match (opts.descending, opts.inclusive_end) {
+                        (false, true) => "<=",
+                        (false, false) => "<",
+                        (true, true) => ">=",
+                        (true, false) => ">",
+                    };
+                    // All SQL fragments are static enum choices; user keys remain bound parameters.
+                    let sql = format!(
+                        "SELECT h.id,h.winner,r.deleted FROM couch_heads h JOIN couch_revisions r
+                     ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner
+                     WHERE h.vault=?1 AND r.deleted=0
+                     AND (?2 IS NULL OR h.id {compare_start} ?2)
+                     AND (?3 IS NULL OR h.id {compare_end} ?3)
+                     ORDER BY h.id {order} LIMIT ?4 OFFSET ?5"
+                    );
+                    let mut stmt = tx.prepare(&sql)?;
+                    rows = stmt
+                        .query_map(
+                            params![
+                                vault.to_string(),
+                                opts.start,
+                                opts.end,
+                                opts.limit as i64,
+                                opts.skip as i64
+                            ],
+                            |r| Ok((r.get::<_, String>(0)?, Some((r.get(1)?, r.get(2)?)))),
+                        )?
+                        .collect::<std::result::Result<_, _>>()?;
+                }
+                Ok((total, seq, rows))
+            })
+            .await?;
         let mut result = Vec::new();
         let mut size = 0;
         let mut heap = 0;
@@ -547,17 +614,56 @@ impl Couch {
         let identity = who.clone();
         let filter = filter.clone();
         let opts = options.clone();
-        let (seq,rows,pending)=self.db.run(move|c|{
-            let tx=c.transaction()?;authorize(&tx,&identity,vault,false)?;
-            let seq:i64=tx.query_row("SELECT seq FROM couch_databases WHERE vault=?1",[vault.to_string()],|r|r.get(0))?;
-            if since>seq{return Err(Error::Invalid);}
-            let (kind,equal,ids)=match filter{Filter::All=>(None,false,None),Filter::Type{value,equal}=>(Some(value),equal,None),Filter::Ids(ids)=>(None,false,Some(serde_json::to_string(&ids)?))};
-            let predicate="h.vault=?1 AND h.seq>?2 AND (?3 IS NULL OR CASE WHEN ?4 THEN r.kind=?3 ELSE r.kind IS NULL OR r.kind<>?3 END) AND (?5 IS NULL OR h.id IN (SELECT value FROM json_each(?5)))";
-            let mut stmt=tx.prepare(&format!("SELECT h.id,h.winner,h.seq,r.deleted FROM couch_heads h JOIN couch_revisions r ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner WHERE {predicate} ORDER BY h.seq LIMIT ?6"))?;
-            let rows=stmt.query_map(params![vault.to_string(),since,kind,equal,ids,limit as i64],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,bool>(3)?)))?.collect::<std::result::Result<Vec<_>,_>>()?;
-            let count:i64=tx.query_row(&format!("SELECT count(*) FROM couch_heads h JOIN couch_revisions r ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner WHERE {predicate}"),params![vault.to_string(),since,kind,equal,ids],|r|r.get(0))?;
-            let mut selected=Vec::new();for(id,winner,sequence,deleted)in rows{let revisions=leaves(&tx,vault,&id)?;let plan=if include_docs{Some(plan(&tx,vault,&id,&ReadOptions{rev:Some(winner),..opts.clone()})?)}else{None};selected.push((id,sequence,deleted,revisions,plan));}
-            let pending=count-selected.len() as i64;Ok((seq,selected,pending))
+        let (seq, rows, pending) = self.db.run(move |c| {
+            let tx = c.transaction()?;
+            authorize(&tx, &identity, vault, false)?;
+            let seq: i64 = tx.query_row(
+                "SELECT seq FROM couch_databases WHERE vault=?1",
+                [vault.to_string()],
+                |r| r.get(0),
+            )?;
+            if since > seq {
+                return Err(Error::Invalid);
+            }
+            let (kind, equal, ids) = match filter {
+                Filter::All => (None, false, None),
+                Filter::Type { value, equal } => (Some(value), equal, None),
+                Filter::Ids(ids) => (None, false, Some(serde_json::to_string(&ids)?)),
+            };
+            let predicate = "h.vault=?1 AND h.seq>?2
+                AND (?3 IS NULL OR CASE WHEN ?4 THEN r.kind=?3 ELSE r.kind IS NULL OR r.kind<>?3 END)
+                AND (?5 IS NULL OR h.id IN (SELECT value FROM json_each(?5)))";
+            let mut stmt = tx.prepare(&format!(
+                "SELECT h.id,h.winner,h.seq,r.deleted FROM couch_heads h JOIN couch_revisions r
+                 ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner
+                 WHERE {predicate} ORDER BY h.seq LIMIT ?6"
+            ))?;
+            let rows = stmt.query_map(
+                params![vault.to_string(), since, kind, equal, ids, limit as i64],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?, r.get::<_, bool>(3)?)),
+            )?.collect::<std::result::Result<Vec<_>, _>>()?;
+            let count: i64 = tx.query_row(
+                &format!("SELECT count(*) FROM couch_heads h JOIN couch_revisions r
+                    ON r.vault=h.vault AND r.id=h.id AND r.rev=h.winner WHERE {predicate}"),
+                params![vault.to_string(), since, kind, equal, ids],
+                |r| r.get(0),
+            )?;
+            let mut selected = Vec::new();
+            for (id, winner, sequence, deleted) in rows {
+                let revisions = leaves(&tx, vault, &id)?;
+                let plan = if include_docs {
+                    Some(plan(&tx, vault, &id, &ReadOptions {
+                        rev: Some(winner),
+                        ..opts.clone()
+                    })?)
+                } else {
+                    None
+                };
+                selected.push((id, sequence, deleted, revisions, plan));
+            }
+            let pending = count - selected.len() as i64;
+            Ok((seq, selected, pending))
         }).await?;
         let mut results = Vec::new();
         let mut size = 0;

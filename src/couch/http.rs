@@ -1,13 +1,15 @@
 //! Bounded HTTP adapter for the verified LiveSync/PouchDB replication contract.
-use super::{
-    Couch,
-    reads::{ChangeOptions, Filter, ListOptions, ReadOptions},
-    revisions::validate_id,
-};
+mod bulk;
+mod changes;
+mod codec;
+mod database;
+mod document;
+mod error;
+use super::Couch;
 use crate::{Error, auth::Identity};
 use axum::{
-    Json, Router,
-    body::{Body, to_bytes},
+    Router,
+    body::Body,
     extract::{Request, State},
     http::{HeaderValue, Method, StatusCode, header},
     middleware::{self, Next},
@@ -15,8 +17,10 @@ use axum::{
     routing::{any, get},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
+use codec::{Query, body_json, decode, response};
+pub use error::ApiError;
 use futures_util::StreamExt;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -24,7 +28,6 @@ use std::{
 };
 use tokio::sync::Semaphore;
 use tower_http::cors::CorsLayer;
-use uuid::Uuid;
 
 #[derive(Clone)]
 struct App {
@@ -54,91 +57,6 @@ impl Bucket {
         }
         self.tokens -= 1.0;
         true
-    }
-}
-#[derive(Debug)]
-pub struct ApiError {
-    status: StatusCode,
-    code: &'static str,
-    reason: &'static str,
-}
-impl ApiError {
-    fn auth() -> Self {
-        Self {
-            status: StatusCode::UNAUTHORIZED,
-            code: "unauthorized",
-            reason: "Authentication required",
-        }
-    }
-    fn busy() -> Self {
-        Self {
-            status: StatusCode::TOO_MANY_REQUESTS,
-            code: "too_many_requests",
-            reason: "Retry later",
-        }
-    }
-    fn large() -> Self {
-        Self {
-            status: StatusCode::PAYLOAD_TOO_LARGE,
-            code: "request_entity_too_large",
-            reason: "Configured transfer limit exceeded",
-        }
-    }
-    fn object(&self) -> Value {
-        json!({"error":self.code,"reason":self.reason,"status":self.status.as_u16()})
-    }
-}
-impl From<Error> for ApiError {
-    fn from(error: Error) -> Self {
-        let (status, code, reason) = match error {
-            Error::Invalid => (StatusCode::BAD_REQUEST, "bad_request", "Invalid request"),
-            Error::Unauthorized => (StatusCode::FORBIDDEN, "forbidden", "Access denied"),
-            Error::Conflict => (StatusCode::CONFLICT, "conflict", "Document update conflict"),
-            Error::NotFound => (StatusCode::NOT_FOUND, "not_found", "missing"),
-            Error::Unsupported => (
-                StatusCode::NOT_IMPLEMENTED,
-                "not_implemented",
-                "Operation is outside the supported LiveSync protocol",
-            ),
-            Error::TooLarge => return Self::large(),
-            Error::Limit => (
-                StatusCode::INSUFFICIENT_STORAGE,
-                "insufficient_storage",
-                "Configured resource quota exceeded",
-            ),
-            Error::Timeout => (
-                StatusCode::GATEWAY_TIMEOUT,
-                "timeout",
-                "Operation timed out",
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal_server_error",
-                "Operation failed",
-            ),
-        };
-        Self {
-            status,
-            code,
-            reason,
-        }
-    }
-}
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        let mut response = (self.status, Json(self.object())).into_response();
-        if self.status == StatusCode::UNAUTHORIZED {
-            response.headers_mut().insert(
-                header::WWW_AUTHENTICATE,
-                HeaderValue::from_static("Basic realm=\"obsidian-sync\""),
-            );
-        }
-        if self.status == StatusCode::TOO_MANY_REQUESTS {
-            response
-                .headers_mut()
-                .insert(header::RETRY_AFTER, HeaderValue::from_static("1"));
-        }
-        response
     }
 }
 type ApiResult<T> = std::result::Result<T, ApiError>;
@@ -339,112 +257,6 @@ async fn authenticate(app: &App, headers: &axum::http::HeaderMap) -> ApiResult<I
     }
     Ok(who)
 }
-fn decode(value: &str) -> ApiResult<String> {
-    let bytes = value.as_bytes();
-    for (i, b) in bytes.iter().enumerate() {
-        if *b == b'%'
-            && (i + 2 >= bytes.len()
-                || !bytes[i + 1].is_ascii_hexdigit()
-                || !bytes[i + 2].is_ascii_hexdigit())
-        {
-            return Err(Error::Invalid.into());
-        }
-    }
-    percent_encoding::percent_decode_str(value)
-        .decode_utf8()
-        .map(|s| s.into_owned())
-        .map_err(|_| Error::Invalid.into())
-}
-#[derive(Default)]
-struct Query(HashMap<String, String>);
-impl Query {
-    fn parse(raw: Option<&str>) -> ApiResult<Self> {
-        let pairs: Vec<(String, String)> = serde_urlencoded::from_str(raw.unwrap_or(""))
-            .map_err(|_| ApiError::from(Error::Invalid))?;
-        if pairs.len() > 32 {
-            return Err(ApiError::large());
-        }
-        let mut map = HashMap::new();
-        for (k, v) in pairs {
-            if map.insert(k, v).is_some() {
-                return Err(Error::Invalid.into());
-            }
-        }
-        Ok(Self(map))
-    }
-    fn get(&self, key: &str) -> Option<&str> {
-        self.0.get(key).map(String::as_str)
-    }
-    fn boolean(&self, key: &str) -> ApiResult<bool> {
-        match self.get(key) {
-            None | Some("false") => Ok(false),
-            Some("true") => Ok(true),
-            _ => Err(Error::Invalid.into()),
-        }
-    }
-    fn number(&self, key: &str, default: usize) -> ApiResult<usize> {
-        self.get(key)
-            .map(|s| s.parse().map_err(|_| Error::Invalid.into()))
-            .unwrap_or(Ok(default))
-    }
-    fn json(&self, key: &str) -> ApiResult<Option<Value>> {
-        self.get(key)
-            .map(|s| serde_json::from_str(s).map_err(|_| Error::Invalid.into()))
-            .transpose()
-    }
-    fn read_options(&self) -> ApiResult<ReadOptions> {
-        Ok(ReadOptions {
-            rev: self.get("rev").map(str::to_owned),
-            latest: self.boolean("latest")?,
-            revs: self.boolean("revs")?,
-            conflicts: self.boolean("conflicts")?,
-            revs_info: self.boolean("revs_info")?,
-            deleted_conflicts: self.boolean("deleted_conflicts")?,
-            all_leaves: match self.get("style") {
-                None | Some("main_only") => false,
-                Some("all_docs") => true,
-                _ => return Err(Error::Invalid.into()),
-            },
-        })
-    }
-}
-async fn body_json(request: Request, max: usize) -> ApiResult<Value> {
-    if request
-        .headers()
-        .get(header::CONTENT_ENCODING)
-        .is_some_and(|v| v != "identity")
-    {
-        return Err(Error::Unsupported.into());
-    }
-    let bytes = tokio::time::timeout(Duration::from_secs(30), to_bytes(request.into_body(), max))
-        .await
-        .map_err(|_| ApiError::from(Error::Timeout))?
-        .map_err(|_| ApiError::large())?;
-    super::cpu()?
-        .run(move || {
-            super::json::preflight(&bytes)?;
-            let value: Value = serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)?;
-            super::json::footprint(&value)?;
-            if !value.is_object() {
-                return Err(Error::Invalid);
-            }
-            Ok(value)
-        })
-        .await
-        .map_err(ApiError::from)
-}
-async fn response(status: StatusCode, value: Value, max: usize) -> ApiResult<Response> {
-    let bytes = super::cpu()?
-        .run(move || {
-            super::json::footprint(&value)?;
-            Ok(serde_json::to_vec(&value)?)
-        })
-        .await?;
-    if bytes.len() > max {
-        return Err(ApiError::large());
-    }
-    Ok((status, [(header::CONTENT_TYPE, "application/json")], bytes).into_response())
-}
 async fn dispatch(State(app): State<App>, request: Request) -> Response {
     let head = request.method() == Method::HEAD;
     let mut result = match handle(&app, request).await {
@@ -499,154 +311,15 @@ async fn handle(app: &App, request: Request) -> ApiResult<Response> {
         return Err(Error::NotFound.into());
     }
     let Some(raw_doc) = doc.filter(|d| !d.is_empty()) else {
-        return match method {
-            Method::GET | Method::HEAD => {
-                response(
-                    StatusCode::OK,
-                    wire_sequences(app.couch.info(&who, &name, vault).await?, vault),
-                    max,
-                )
-                .await
-            }
-            Method::PUT => Ok((
-                StatusCode::PRECONDITION_FAILED,
-                Json(json!({"error":"file_exists","reason":"Database is already provisioned"})),
-            )
-                .into_response()),
-            Method::DELETE => {
-                app.couch.reset(&who, &name, vault).await?;
-                response(StatusCode::OK, json!({"ok":true}), max).await
-            }
-            Method::POST => {
-                let mut value = body_json(request, app.couch.options.max_request_bytes).await?;
-                if value.get("_id").is_none() {
-                    value["_id"] = json!(Uuid::new_v4().simple().to_string());
-                }
-                put(app, &who, vault, value, true).await
-            }
-            _ => Err(Error::Unsupported.into()),
-        };
+        return database::handle(app, &who, &name, vault, method, request).await;
     };
     let id = decode(raw_doc)?;
     match id.as_str() {
-        "_revs_diff" if method == Method::POST => {
-            response(
-                StatusCode::OK,
-                app.couch
-                    .revs_diff(
-                        &who,
-                        vault,
-                        body_json(request, app.couch.options.max_request_bytes).await?,
-                    )
-                    .await?,
-                max,
-            )
-            .await
-        }
-        "_bulk_get" if method == Method::POST => {
-            response(
-                StatusCode::OK,
-                app.couch
-                    .bulk_get(
-                        &who,
-                        vault,
-                        body_json(request, app.couch.options.max_request_bytes).await?,
-                        query.read_options()?,
-                    )
-                    .await?,
-                max,
-            )
-            .await
-        }
-        "_bulk_docs" if method == Method::POST => {
-            let body = body_json(request, app.couch.options.max_request_bytes).await?;
-            let docs = body
-                .get("docs")
-                .and_then(Value::as_array)
-                .ok_or(Error::Invalid)?;
-            if docs.len() > app.couch.options.max_batch_docs {
-                return Err(ApiError::large());
-            }
-            let new_edits = body
-                .get("new_edits")
-                .map(|v| v.as_bool().ok_or(Error::Invalid))
-                .transpose()?
-                .unwrap_or(true);
-            let mut results = Vec::new();
-            for doc in docs {
-                let mut doc = doc.clone();
-                if new_edits && doc.is_object() && doc.get("_id").is_none() {
-                    doc["_id"] = json!(Uuid::new_v4().simple().to_string());
-                }
-                let id = doc.get("_id").cloned().unwrap_or(Value::Null);
-                let rev = doc.get("_rev").cloned();
-                let (length, _, doc) = super::measured(doc).await?;
-                let result = if length > app.couch.options.max_document_bytes {
-                    Err(ApiError::large())
-                } else {
-                    app.couch
-                        .put(&who, vault, doc, new_edits)
-                        .await
-                        .map_err(ApiError::from)
-                };
-                match result {
-                    Ok(row) if new_edits => results.push(row),
-                    Ok(_) => (),
-                    Err(error) => {
-                        let mut row = error.object();
-                        row["id"] = id;
-                        if let Some(rev) = rev {
-                            row["rev"] = rev;
-                        }
-                        results.push(row);
-                    }
-                }
-            }
-            response(StatusCode::CREATED, json!(results), max).await
-        }
+        "_revs_diff" if method == Method::POST => bulk::revs_diff(app, &who, vault, request).await,
+        "_bulk_get" if method == Method::POST => bulk::get(app, &who, vault, &query, request).await,
+        "_bulk_docs" if method == Method::POST => bulk::put(app, &who, vault, request).await,
         "_all_docs" if matches!(method, Method::GET | Method::HEAD | Method::POST) => {
-            let body = if method == Method::POST {
-                Some(body_json(request, app.couch.options.max_request_bytes).await?)
-            } else {
-                None
-            };
-            let keys = body
-                .as_ref()
-                .and_then(|b| b.get("keys"))
-                .cloned()
-                .or(query.json("keys")?)
-                .map(|v| serde_json::from_value::<Vec<String>>(v).map_err(|_| Error::Invalid))
-                .transpose()?;
-            let start = query
-                .json("startkey")?
-                .or(query.json("start_key")?)
-                .map(|v| v.as_str().map(str::to_owned).ok_or(Error::Invalid))
-                .transpose()?;
-            let end = query
-                .json("endkey")?
-                .or(query.json("end_key")?)
-                .map(|v| v.as_str().map(str::to_owned).ok_or(Error::Invalid))
-                .transpose()?;
-            let options = ListOptions {
-                keys,
-                start,
-                end,
-                inclusive_end: query.get("inclusive_end") != Some("false"),
-                descending: query.boolean("descending")?,
-                include_docs: query.boolean("include_docs")?,
-                conflicts: query.boolean("conflicts")?,
-                limit: query
-                    .number("limit", app.couch.options.max_batch_docs)?
-                    .min(app.couch.options.max_batch_docs),
-                skip: query.number("skip", 0)?,
-                update_seq: query.boolean("update_seq")?,
-            };
-            response(
-                StatusCode::OK,
-                wire_sequences(app.couch.all_docs(&who, vault, options).await?, vault),
-                max,
-            )
-            .await
+            bulk::all_docs(app, &who, vault, method, &query, request).await
         }
         "_changes" if matches!(method, Method::GET | Method::HEAD | Method::POST) => {
             let body = if method == Method::POST {
@@ -654,7 +327,7 @@ async fn handle(app: &App, request: Request) -> ApiResult<Response> {
             } else {
                 json!({})
             };
-            changes(app, &who, &name, vault, &query, body).await
+            changes::handle(app, &who, &name, vault, &query, body).await
         }
         "_ensure_full_commit" if method == Method::POST => {
             app.couch.resolve(&who, &name, true).await?;
@@ -668,248 +341,6 @@ async fn handle(app: &App, request: Request) -> ApiResult<Response> {
         "_revs_limit" if matches!(method, Method::GET | Method::HEAD) => {
             response(StatusCode::OK, json!(super::MAX_ANCESTRY), max).await
         }
-        _ => {
-            if id.starts_with('_') && !id.starts_with("_local/") && !id.starts_with("_design/") {
-                return Err(Error::Unsupported.into());
-            }
-            validate_id(&id)?;
-            match method {
-                Method::GET | Method::HEAD => {
-                    let opts = query.read_options()?;
-                    let value = if let Some(open) = query.get("open_revs") {
-                        let revs = if open == "all" {
-                            None
-                        } else {
-                            Some(
-                                serde_json::from_str::<Vec<String>>(open)
-                                    .map_err(|_| Error::Invalid)?,
-                            )
-                        };
-                        app.couch.open_revs(&who, vault, &id, revs, opts).await?
-                    } else {
-                        app.couch.get(&who, vault, &id, opts).await?
-                    };
-                    let mut result = response(StatusCode::OK, value.clone(), max).await?;
-                    if let Some(rev) = value.get("_rev").and_then(Value::as_str) {
-                        result.headers_mut().insert(
-                            header::ETAG,
-                            format!("\"{rev}\"").parse().map_err(|_| Error::Integrity)?,
-                        );
-                    }
-                    Ok(result)
-                }
-                Method::PUT => {
-                    let if_match = request
-                        .headers()
-                        .get(header::IF_MATCH)
-                        .and_then(|v| v.to_str().ok())
-                        .map(|v| v.trim_matches('"').to_owned());
-                    let mut value = body_json(request, app.couch.options.max_request_bytes).await?;
-                    if !value.is_object() {
-                        return Err(Error::Invalid.into());
-                    }
-                    if value.get("_id").is_some_and(|v| v.as_str() != Some(&id)) {
-                        return Err(Error::Invalid.into());
-                    }
-                    value["_id"] = json!(id);
-                    let rev = query.get("rev").map(str::to_owned).or(if_match);
-                    if let Some(rev) = rev {
-                        if value.get("_rev").is_some_and(|r| r.as_str() != Some(&rev)) {
-                            return Err(Error::Conflict.into());
-                        }
-                        value["_rev"] = json!(rev);
-                    }
-                    let new_edits = if query.get("new_edits").is_some() {
-                        query.boolean("new_edits")?
-                    } else {
-                        true
-                    };
-                    put(app, &who, vault, value, new_edits).await
-                }
-                Method::DELETE => {
-                    let rev = query.get("rev").ok_or(Error::Conflict)?;
-                    put(
-                        app,
-                        &who,
-                        vault,
-                        json!({"_id":id,"_rev":rev,"_deleted":true}),
-                        true,
-                    )
-                    .await
-                }
-                _ => Err(Error::Unsupported.into()),
-            }
-        }
+        _ => document::handle(app, &who, vault, id, method, &query, request).await,
     }
-}
-async fn put(
-    app: &App,
-    who: &Identity,
-    vault: Uuid,
-    value: Value,
-    new_edits: bool,
-) -> ApiResult<Response> {
-    let (length, _, value) = super::measured(value).await?;
-    if length > app.couch.options.max_document_bytes {
-        return Err(ApiError::large());
-    }
-    let result = app.couch.put(who, vault, value, new_edits).await?;
-    let rev = result.get("rev").and_then(Value::as_str).map(str::to_owned);
-    let mut response = response(
-        StatusCode::CREATED,
-        result,
-        app.couch.options.max_response_bytes,
-    )
-    .await?;
-    if let Some(rev) = rev {
-        response.headers_mut().insert(
-            header::ETAG,
-            format!("\"{rev}\"").parse().map_err(|_| Error::Integrity)?,
-        );
-    }
-    Ok(response)
-}
-fn wire_sequences(mut value: Value, vault: Uuid) -> Value {
-    for field in ["update_seq", "last_seq"] {
-        if let Some(counter) = value.get(field).and_then(Value::as_i64) {
-            value[field] = json!(super::sequence(vault, counter));
-        }
-    }
-    if let Some(rows) = value.get_mut("results").and_then(Value::as_array_mut) {
-        for row in rows {
-            if let Some(counter) = row.get("seq").and_then(Value::as_i64) {
-                row["seq"] = json!(super::sequence(vault, counter));
-            }
-        }
-    }
-    value
-}
-fn with_active(mut response: Response, permit: tokio::sync::OwnedSemaphorePermit) -> Response {
-    response.extensions_mut().insert(Arc::new(permit));
-    response
-}
-async fn changes(
-    app: &App,
-    who: &Identity,
-    name: &str,
-    vault: Uuid,
-    query: &Query,
-    body: Value,
-) -> ApiResult<Response> {
-    let filter = match query.get("filter") {
-        None => {
-            if let Some(selector) = body.get("selector") {
-                Filter::parse(selector)?
-            } else {
-                Filter::All
-            }
-        }
-        Some("_selector") => Filter::parse(
-            body.get("selector")
-                .or(query.json("selector")?.as_ref())
-                .ok_or(Error::Invalid)?,
-        )?,
-        Some("_doc_ids") => {
-            let value = body
-                .get("doc_ids")
-                .cloned()
-                .or(query.json("doc_ids")?)
-                .ok_or(Error::Invalid)?;
-            let ids: Vec<String> = serde_json::from_value(value).map_err(|_| Error::Invalid)?;
-            if ids.len() > app.couch.options.max_batch_docs {
-                return Err(ApiError::large());
-            }
-            for id in &ids {
-                validate_id(id)?;
-            }
-            Filter::Ids(ids)
-        }
-        _ => return Err(Error::Unsupported.into()),
-    };
-    let info = app.couch.info(who, name, vault).await?;
-    let since = match query.get("since") {
-        Some("now") => info["update_seq"].as_i64().ok_or(Error::Integrity)?,
-        Some(s) => super::parse_sequence(vault, s)?,
-        None => 0,
-    };
-    let limit = query
-        .number("limit", app.couch.options.max_batch_docs)?
-        .min(app.couch.options.max_batch_docs);
-    let include = query.boolean("include_docs")?;
-    let options = query.read_options()?;
-    let feed = query.get("feed").unwrap_or("normal");
-    if !matches!(feed, "normal" | "longpoll" | "continuous") {
-        return Err(Error::Unsupported.into());
-    }
-    let timeout = query
-        .number(
-            "timeout",
-            (app.couch.options.longpoll_seconds * 1000) as usize,
-        )?
-        .min((app.couch.options.longpoll_seconds * 1000) as usize);
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(timeout as u64);
-    let mut stop = app.couch.stop.clone();
-    let (page, active) = loop {
-        let active = app
-            .slots
-            .clone()
-            .acquire_owned()
-            .await
-            .map_err(|_| ApiError::busy())?;
-        let notified = app.couch.changed.notified();
-        tokio::pin!(notified);
-        notified.as_mut().enable();
-        let page = app
-            .couch
-            .changes(
-                who,
-                vault,
-                ChangeOptions {
-                    since,
-                    limit,
-                    include_docs: include,
-                    read: options.clone(),
-                    filter: filter.clone(),
-                },
-            )
-            .await?;
-        if feed == "normal"
-            || page["results"].as_array().is_some_and(|r| !r.is_empty())
-            || limit == 0
-            || *stop.borrow()
-            || tokio::time::Instant::now() >= deadline
-        {
-            break (page, active);
-        }
-        drop(active);
-        tokio::select! {_=notified=>(),_=tokio::time::sleep_until(deadline)=>(),_=stop.changed()=>()}
-    };
-    let page = wire_sequences(page, vault);
-    if feed != "continuous" {
-        return Ok(with_active(
-            response(StatusCode::OK, page, app.couch.options.max_response_bytes).await?,
-            active,
-        ));
-    }
-    let rows = page
-        .get("results")
-        .and_then(Value::as_array)
-        .cloned()
-        .ok_or(Error::Integrity)?;
-    let last = page["last_seq"].clone();
-    let pending = page["pending"].clone();
-    let stream = async_stream::try_stream! {
-        for row in rows{let mut bytes=super::cpu().map_err(std::io::Error::other)?.run(move||Ok(serde_json::to_vec(&row)?)).await.map_err(std::io::Error::other)?;bytes.push(b'\n');yield bytes;}
-        let mut bytes=serde_json::to_vec(&json!({"last_seq":last,"pending":pending})).map_err(std::io::Error::other)?;bytes.push(b'\n');yield bytes;
-    };
-    let body = Body::from_stream(stream.map(|r: std::result::Result<Vec<u8>, std::io::Error>| r));
-    Ok(with_active(
-        (
-            StatusCode::OK,
-            [(header::CONTENT_TYPE, "application/json")],
-            body,
-        )
-            .into_response(),
-        active,
-    ))
 }

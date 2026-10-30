@@ -2,6 +2,71 @@
 
 This is the measured delivery/operations status, not an implementation diary or release certificate. Earlier audits, retired tools and failed experiments remain in Git and private evidence. Consolidating documentation does not relabel them successful.
 
+## Local verification — 2026-10-30
+
+Final implementation source **`cdd8fc7`**, clean tree at SBOM generation; the subsequent handoff commit changes documentation only. Host: Apple M4 Pro (14 CPUs, 24 GiB), macOS **26.6.2 / arm64**, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1**. No application/tooling dependency, lockfile, schema, CI feature cell or accepted-risk policy was changed.
+
+| Executed command | Result |
+|---|---|
+| `scripts/check.sh` with the existing local pinned-tool directory on PATH | PASS: debug/release, formatting, strict Clippy, **47 application + 74 xtask tests**; **3 provider + 6 explicit diagnostics ignored**; fresh audit **0.22.2** / deny **0.20.2** and generated/docs checks |
+| `scripts/check-features.sh` | PASS: all **eight** storage-feature cells, including filesystem-only, with debug/release/Clippy/tests |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --locked --workspace --no-deps --all-features` | PASS: runtime and tooling documentation, including public intra-doc links |
+| `docker build --target tests .` | PASS: actual Linux/musl tests, **121 passed / 9 ignored** |
+| Builder/runtime Docker builds; `cargo xtask verify-image` | PASS: static/nonroot runtime, only `/server` executable, no shell/package manager |
+| `cargo xtask test-build-context` | PASS: nested HTTP modules included; private/nested canaries excluded |
+| `cargo xtask test-livesync`; `scripts/test-s3.sh`; `cargo xtask test-livesync --image obsidian-sync:local` | PASS: **11** genuine Commonlib/PouchDB scenarios per backend, including encrypted/compressed notes, 3 MiB attachment, conflicts, checkpoints and serving restart; separate S3 storage contract passes |
+| `scripts/smoke-compose.sh`; `scripts/validate-deployments.sh` | PASS: private probes, second-writer rejection, graceful stop and persisted administration; optional examples render, no Kubernetes API operation |
+| `cargo xtask generate-sbom`; `cargo xtask scan-sbom --sbom-dir .work/sbom` | PASS: nine inventories; source/runtime **0/0** matches, builder **19 accepted / 0 blocking**; fresh valid Grype DB built **2026-10-30T06:23:28Z** |
+| `cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json` | PASS: content identity **`sha256:8a0089b6cd8df7cfdfbd50229408e952a44b8896796b5286c0d927df36d8c0da`**; not publication authorization |
+| `cargo xtask scan-sources` with pinned audit | PASS: fresh audit/deny, minimized-source and independent history secret scans, source-mount privacy |
+| `cargo xtask scan-supply-chain --platform linux/arm64` (at `7cb73c6`, unchanged pins/policy) | PASS: seven active registry images; runtime base **0**, frontend **23**, Gitleaks **225**, Grype **23**, Syft **18**, Rust base **16**, RustFS **15** findings, all nonzero findings explicitly accepted and **0 blocking**; not vulnerability-free |
+
+**Benchmark:** `scripts/benchmark.sh` at `7cb73c6` (same runtime source as `cdd8fc7`), local release/filesystem persistence-core workload with four workers and synthetic data. Other repository builds/scans/fixtures had finished; host one-minute load was **3.60**, so this is not controlled-idle or comparative performance evidence. Maximum RSS **11,419,648 bytes**; no network/plugin throughput claim.
+
+| Workload | Operations | Ops/s | p50 / p95 / p99 ms |
+|---|---:|---:|---|
+| 1 KiB full commit | 200 | 95.48 | 10.287 / 11.547 / 13.309 |
+| 64 MiB streamed attachment | 3 | 10.08 | 100.048 / 104.128 / 104.128 |
+| 203-event feed, page 100 | 100 | 11,531.64 | 0.079 / 0.134 / 0.188 |
+| Eight-client CAS metadata | 800 | 8,222.06 | 0.370 / 0.569 / 0.804 |
+
+Final post-run checks found no matching server process, owned fixture container or `livesync-*`/`s3-*`/`compose-*` fixture directory. No real vault/provider/cluster was accessed, no image published and no cache/evidence archive was bulk-deleted. Logs: `.work/cleanup-*.log`; final post-correction gates use `.work/cleanup-verified-*.log`. Private SBOM/security evidence remains under `.work/sbom/` and `.work/security/`; SBOM materials bind clean source `cdd8fc7` and tree digest `sha256:e05720c910ec8949857f2b21aefe9c5ceb57b7eec1b5b4145435179db73e76dd`.
+
+Earlier failed attempts remain in Git/private captures: invalid `max_requests=1` test configuration, missing nested HTTP modules in the Docker build-context allowlist, and a synthetic readiness socket returning `WouldBlock` on macOS. These were corrected without weakening admission limits, context privacy or readiness deadlines/assertions; the final reruns above passed.
+
+Still unqualified: actual Obsidian desktop/mobile UI, native AWS/GCS/Azure/MinIO, private TLS/CNI, provider disaster recovery, hosted Required CI/publication and amd64 registry rescanning in this cleanup run. Desktop two-vault acceptance remains manual/pending; pinned client success is not UI certification. Kubernetes testing is retired, not pending. Duplicate-dependency and upstream fixture deprecation warnings remain; no failing check was waived or removed.
+
+## Repository assessment and local sync — 2026-10-30
+
+Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged at that assessment. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).
+
+| Executed command | Result |
+|---|---|
+| `cargo xtask docs check` (initial) | PASS; no initial link/source-review drift |
+| `scripts/check.sh` | PASS: debug/release builds, formatting, strict workspace Clippy, **42 application + 66 xtask tests**; **3 provider + 6 diagnostic tests ignored**; fresh Cargo audit and deny pass |
+| `scripts/check-features.sh` | PASS: all **eight** storage-feature cells, including filesystem-only, with debug/release/Clippy/tests and formatting |
+| `cargo xtask test-livesync` | PASS: **11** reported genuine Commonlib/PouchDB scenarios against a disposable native filesystem server, including restart |
+| `scripts/test-s3.sh` | PASS: explicit S3 storage contract plus the same real-client/restart fixture against disposable loopback RustFS; not native-provider certification |
+| `scripts/validate-deployments.sh` | PASS: optional Compose/Kustomize rendering only; no cluster/API operation |
+| `docker build --target tests .` | PASS: Linux/musl test stage executed, not merely a cached test result |
+| `docker build --target build -t obsidian-sync:builder .`; `docker build -t obsidian-sync:local .` | PASS, with build cache reuse |
+| `cargo xtask verify-image` | PASS: static ELF, explicit nonroot identity, only `/server` executable, no shell/package manager |
+| `cargo xtask test-livesync --image obsidian-sync:local` | PASS: the same real-client/restart scenarios against the container runtime |
+| `scripts/smoke-compose.sh` | PASS: private probes, second-writer denial, graceful stop and subsequent offline administration on persisted storage; the separate client fixture verifies content after a serving restart |
+| `cargo xtask generate-sbom`; `cargo xtask scan-sbom --sbom-dir .work/sbom` | PASS: nine inventories and fresh Grype matching; source/runtime **0/0** matches, builder **19 accepted / 0 blocking** |
+| `cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json` | PASS: bound runtime identity `sha256:baf10f55108f4c910066b71c52c0ecd1d54f3eedda3730987acf4ae36340aef2`; content verification, not publication approval |
+| `cargo xtask scan-sources` | PASS: fresh audit/deny, minimized source and independent history secret scans, source-mount check |
+| `cargo test --locked -p xtask` (final standalone run) | PASS: **66** tests, **6** explicit diagnostics ignored |
+| `cargo xtask sync-generated`; `cargo xtask sync-generated --check`; `cargo xtask docs check`; `scripts/validate-deployments.sh` (documentation handoff) | PASS: generated files unchanged, links/source fingerprints current, optional deployment examples render |
+
+The native, S3 and runtime fixtures exercised Unicode note create/read/update/move/logical-delete, two-peer offline conflicts, concurrent update CAS, paginated replication, a **3 MiB** binary roundtrip, E2EE/compression and randomized encrypted replay, bootstrap recreation, Fast Fetch, live feeds and durable conflicts/checkpoints/encrypted content after restart. Each fixture stopped the server cleanly after the final verification. Post-run checks found no matching server process, fixture container or `livesync-*`/`s3-*`/`compose-*` fixture directory. No existing vault or external provider was accessed.
+
+**Desktop limitation:** this was not initiated inside Obsidian's UI. The installed desktop application was not launched and no existing vault was opened. The tools available here did not provide desktop UI automation; genuine pinned client libraries were used instead. The disposable two-vault desktop test remains pending: follow [getting started](getting-started.md#5-connect-obsidian), use private key entry, verify peer note/attachment operations, offline conflicts and restart, then stop the disposable backend and close the test vaults. Mobile, Obsidian filesystem watchers and plugin onboarding are not certified by these results.
+
+Warnings retained: deny reported duplicate versions of `hashbrown`, `syn` and `winnow`; npm reported deprecated transitive compatibility-fixture packages and **zero audited vulnerabilities**. No dependency or policy was changed to remove warnings. Local review command logs are ignored files under `.work/repository-review-*-20261030.log`; SBOM/scan materials remain private under `.work/sbom/` and `.work/security/`. Materials identify `e240ab9` with a dirty documentation tree at generation time, not a final clean release revision.
+
+Not rerun for this assessment: full seven-image registry scans/ledger/baseline, hosted Required CI/publication, benchmarks, native AWS/GCS/Azure/MinIO, private TLS/CNI or provider disaster recovery. The broad workspace run intentionally skips credentialed provider/explicit diagnostic tests; S3 was separately exercised above. Live Kubernetes testing remains retired, not a blocked prerequisite. No images were published and no real infrastructure was deployed.
+
 ## Current-stack decision — 2026-10-30
 
 The owner accepted the investigated current-stack risks and authorized independent tool-image delivery and consumer integration. The exact policy is [documented here](security.md); all original findings remain counted. This is not an exploit-absence, vulnerability-free or regulated-production claim.
@@ -80,7 +145,7 @@ Validation of this scope:
 - **PASS after visibility change:** both seven-image registry scans complete: **320 total / 320 accepted / 0 blocking** matches per architecture, six accepted-risk assets and one clean static base. The earlier container-DNS failures remain retained; no host/Docker DNS setting was changed. Registry scans are not native execution or a newly verified application release. Fresh complete baseline/hosted Required CI remain separate.
 - **PASS:** anonymous package verification now covers both index/member/config digests, four native bindings and exact provenance. The initial verifier rejected GHCR's HTTP **307** blob response; a bounded, fixed HTTPS CDN hop now works without forwarding Authorization or logging signed URLs. Negative host/scheme/port/credential/fragment/path/size cases and **66 ordinary xtask tests / six ignored diagnostics**, plus strict all-target/all-feature Clippy, pass. Earlier 401/403 and 307 attempts remain retained.
 
-Producer checks pass **133 ordinary tests / 39 ignored diagnostics**, strict Clippy and fresh dependency audit. Its explicit anonymous positive control verifies a public index, native manifest and parsed config; the new publisher gate has not completed a real publication. The previous consumer hosted run [41123422579](https://github.com/PRJXAI/obsidian-sync/actions/runs/41123422579) failed its SBOM job and Required CI; publication did not run. Until packages are public and fresh Required CI passes, no application image release is claimed. Previous measurements remain attributed to their older scope.
+Producer checks pass **133 ordinary tests / 39 ignored diagnostics**, strict Clippy and fresh dependency audit. Its explicit anonymous positive control verifies a public index, native manifest and parsed config; the new publisher gate has not completed a real publication. The previous consumer hosted run [41123422579](https://github.com/PRJXAI/obsidian-sync/actions/runs/41123422579) failed its SBOM job and Required CI; publication did not run. At that earlier run, public packages and fresh Required CI were still prerequisites. Public access was subsequently verified as recorded above; a successful fresh Required CI and application image release are not claimed here. Previous measurements remain attributed to their older scope.
 
 ## Previous scanner integration validation — b026257
 
