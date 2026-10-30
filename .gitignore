@@ -23,6 +23,8 @@
 /secrets/
 /data/
 /.work/
+# Local agent scheduling state is not a public source/scan input.
+/.pi-loop.json
 /.pi-loop.json.lock
 /quality_reports/
 *.profraw

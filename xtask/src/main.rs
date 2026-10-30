@@ -74,6 +74,11 @@ enum Task {
         #[arg(long)]
         source_revision: String,
     },
+    /// Aggregate existing bound registry and source/runtime/builder evidence privately.
+    DependencyBaseline {
+        #[arg(long,default_value="linux/amd64",value_parser=["linux/amd64","linux/arm64"])]
+        platform: String,
+    },
     PublishSecuritySummary {
         #[arg(long)]
         source_revision: String,
@@ -159,6 +164,9 @@ fn execute(command: Task) -> Result {
             platform,
             source_revision,
         } => xtask::supply_sbom::ledger(&root, &platform, &source_revision),
+        Task::DependencyBaseline { platform } => {
+            xtask::dependency_baseline::generate(&root, &platform)
+        }
         Task::PublishSecuritySummary { source_revision } => {
             xtask::supply_sbom::public_summary(&root, &source_revision)
         }

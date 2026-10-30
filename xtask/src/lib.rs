@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod clients;
+pub mod dependency_baseline;
 pub mod deployment;
 pub mod docs;
 pub mod evidence;

@@ -22,6 +22,14 @@ DB retrieval must succeed; DB schema/validity/time are checked, with a 72-hour m
 
 Every Grype match blocks, including **Unknown and Negligible**. Matcher-suppression accounting is explicitly enabled; any reported ignored/suppressed match is counted too, not silently dropped by a default ignore rule. No `--only-fixed`, severity threshold, VEX exception or advisory allowlist is used. Missing/empty/unsupported SBOMs, malformed reports, foreign package IDs, stale evidence, tool/schema changes and substituted source/config/layers/hashes fail closed.
 
+## Private dependency baseline
+
+`cargo xtask dependency-baseline --platform linux/amd64` validates existing fresh registry and source/runtime/populated-builder receipts, native SBOMs/reports and the ten bound generated-material files. CI invokes it even when vulnerability scans report findings. It creates only `.work/security/dependency-baseline.json` (0600); existing/symlinked destinations fail. Compact aggregate accounting and streamed pre-write pretty output are capped at 64 MiB, with at most 64 assets; overflow leaves no published partial baseline. These are report bounds, not host-disk quotas.
+
+Each asset retains config/layers, receipt/SBOM/report digests, DB identity/time, severities and suppressed records. Package/advisory grouping preserves every report occurrence/location and never deduplicates away affected assets. Registry and build architectures remain separate; source/build revision/tree/dirty state come from the original materials, not caller-supplied current HEAD. Build archive hashes are retained assertions, not independently rehashed archive bytes. Classification is only `published-fix-needs-review` or `no-published-fix-in-report-needs-review`; all findings stay under investigation with no invented owner, applicability ruling or risk acceptance. Missing/stale/changed/contradictory/foreign evidence fails closed.
+
+The baseline remains private and is not added to public artifact uploads. Its underlying raw evidence still needs an approved durable private archive; a runner-local file is not that archive. No new scan, complete-native-coverage claim, signature or release authorization follows. See the [implementation plan](dependency-image-plan.md) and [results](results.md).
+
 ## Supplier rebuild experiment (retired)
 
 The unused local-only `rebuild-tool` command, compiler/test framework and exclusive Go/Git bases are removed. No candidate was adopted by CI; normal pinned Syft/Grype/Gitleaks scans and their containment/verification remain unchanged, including noexec scanner scratch. Historical source/lock/binary/image materials and findings remain private in `.work/tool-rebuild/`; see [results](results.md). Retirement is not advisory remediation, independent acceptance or elimination of Go-based supplier tools.

@@ -47,6 +47,8 @@ cargo xtask generate-sbom
 cargo xtask scan-sbom --sbom-dir .work/sbom
 cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
 cargo xtask scan-supply-chain --platform linux/amd64
+# After all registry/generated scan receipts exist; raw baseline remains private:
+cargo xtask dependency-baseline --platform linux/amd64
 scripts/smoke-compose.sh
 scripts/smoke-kubernetes.sh
 scripts/benchmark.sh

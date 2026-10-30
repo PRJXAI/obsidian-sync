@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed fixed RustFS evaluations, preserved S3 defaults and scanner policy, payload-inventory failure, exact public fixture build-context entries and new private-canary exclusions",
+  "reason": "Reviewed private dependency baseline and CI artifact boundaries, bounded output/negative tests and local scheduler-state exclusion without reading or modifying its contents; source experiments retain every blocker",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -27,11 +27,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "e0aa4e0af84563f76d320d1f6c3b28b7c9c2f32c41e0f21fe3c93428b6cde2e9"
+      "sha256": "16e5af168e8b4eeeaa11b65f6acd5d681377c723d8342ddf7bdab0fa5a1cf606"
     },
     {
       "path": ".gitignore",
-      "sha256": "db9cd8ce9ba80e9d8e58e636c7ea63adee29efec7ac3641af963052bfabdff48"
+      "sha256": "44f9f8106b760167f7209c2f3d1a489e1ad6aa4f2c1bf03d899db000951de6af"
     },
     {
       "path": "AGENTS.md",
@@ -338,6 +338,10 @@
       "sha256": "f5e8b90453958881cc1ba91f36a51e3698e63f70588a4328934549b4f8011a70"
     },
     {
+      "path": "xtask/src/dependency_baseline.rs",
+      "sha256": "0f06e7e0ec2450e443948cec11c38c01c30f433689e97d65ce2a3af20db46098"
+    },
+    {
       "path": "xtask/src/deployment.rs",
       "sha256": "bc2058d17ab477ede0e5460fb73df189b9adbb0a914d191a376c77a9bc1e81ec"
     },
@@ -359,11 +363,11 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "6ee449b46bef6913eafdc881204a542c78fc49e012c357b65efb2ae05ec7117c"
+      "sha256": "702b9f5feffb79654a762caa582479daadc4e6ce210c10e803bc3e3a3445838e"
     },
     {
       "path": "xtask/src/main.rs",
-      "sha256": "0fadc4c5268206b98483665613ce1a97512f10113d40206ce225a2ccca4d5f3b"
+      "sha256": "b9f3e895cc003d8642ec24cc6c62d5cb746b5610a335f3e758df5a43ce7a5141"
     },
     {
       "path": "xtask/src/policy.rs",
@@ -390,6 +394,10 @@
       "sha256": "bbe9fc046143f4313c683b868247e24317ccc50169dfcfd6721d686adfb26536"
     },
     {
+      "path": "xtask/tests/dependency_baseline.rs",
+      "sha256": "9a4f91e6000d6e67fae64479d3575e28823a23d0b8c9ecf6cf6488e5342c69e0"
+    },
+    {
       "path": "xtask/tests/fixtures/rustfs/Dockerfile",
       "sha256": "d1c4297d34f1b7b2a3a79eebb14d13908b88abb7164b9aa9f47b6f50607c0a54"
     },
@@ -403,7 +411,7 @@
     },
     {
       "path": "xtask/tests/rustfs_candidate.rs",
-      "sha256": "8b9638e8794f97b4b69905e1ac7f87de7ddb46bb90421b36a3d985b38f8005a1"
+      "sha256": "3ce4fc5e9c8406f6cbc931fe5d139e66df50787f821a3769d0b2c4a241c27077"
     },
     {
       "path": "xtask/tests/support/mod.rs",
@@ -411,7 +419,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "f5f1725c964982bc0048525866a186a32d26746e3eff93f818e94a744fb8e61a"
+      "sha256": "b3fe232eb335e5d7a4cc340fdca276a9228ac4eb390208a2ea8fe1a2d29cb05f"
     }
   ]
 }

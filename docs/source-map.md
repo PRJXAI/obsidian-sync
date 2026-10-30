@@ -73,6 +73,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `tests/storage_contract.rs`
 - `xtask/Cargo.toml`
 - `xtask/src/clients.rs`
+- `xtask/src/dependency_baseline.rs`
 - `xtask/src/deployment.rs`
 - `xtask/src/docs.rs`
 - `xtask/src/evidence.rs`
@@ -86,6 +87,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/supply_sbom.rs`
 - `xtask/src/util.rs`
 - `xtask/tests/cancellation.rs`
+- `xtask/tests/dependency_baseline.rs`
 - `xtask/tests/fixtures/rustfs/Dockerfile`
 - `xtask/tests/fixtures/rustfs/native.rs`
 - `xtask/tests/grype.rs`

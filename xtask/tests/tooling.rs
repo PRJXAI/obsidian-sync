@@ -130,6 +130,8 @@ fn ignore_rules_preserve_required_manifests() -> Result {
             &[
                 ".env",
                 ".env.production",
+                ".pi-loop.json",
+                ".pi-loop.json.lock",
                 "nested/.env",
                 "nested/.env.local",
                 "config/local.toml",
@@ -177,6 +179,12 @@ fn ignore_rules_preserve_required_manifests() -> Result {
             assert_eq!(status.success(), ignored, "{path}");
         }
     }
+    put(root, ".pi-loop.json", "SYNTHETIC_PRIVATE_LOOP_CANARY")?;
+    put(root, ".pi-loop.json.lock", "SYNTHETIC_PRIVATE_LOOP_LOCK")?;
+    let public = tempfile::tempdir()?;
+    util::copy_public_sources(root, public.path())?;
+    assert!(!public.path().join(".pi-loop.json").exists());
+    assert!(!public.path().join(".pi-loop.json.lock").exists());
     Ok(())
 }
 #[test]

@@ -77,6 +77,8 @@ Remaining work:
 
 ## M2 — Supplier images, binaries and native code
 
+The detailed [dependency and consumer-image execution plan](dependency-image-plan.md) defines the cross-repository baseline, per-asset work packages, sequencing, evidence gates and explicit decisions. It covers scanner compiler/module remediation alongside the separate builder, frontend, helper, RustFS, node and runtime images; it does not authorize publication or relax the consumer policy.
+
 The current inventory has nine active images, not seven executables: tool containers, frontend, populated builder, helper, node and S3 service remain distinct assets. The 2026-10-29 current-inventory scan fails on eight images with no scan errors. The released RustFS 1.0.4 evaluation still has 15 findings per architecture; a separate minimal-runtime arm64 prototype passes storage/client tests but fails missing-payload inventory. Neither is adopted. Devsecops CLI publication cannot fix these independent service/builder/node assets, and its exact Gitleaks accepted risk does not override this consumer's all-findings policy. Exact executed evidence and limitations are in [results](results.md).
 
 Create an artifact-specific findings ledger: image and config/layer digest, architecture, source revision, executable/library path, advisory, fixed version/commit, feature/call-path conditions, current use, evidence, reviewer and status. Deduplicate package associations without discarding affected assets.
