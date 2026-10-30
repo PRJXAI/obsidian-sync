@@ -2,6 +2,13 @@
 
 This is the measured delivery/operations status, not an implementation diary or release certificate. Earlier audits, retired tools and failed experiments remain in Git and private evidence. Consolidating documentation does not relabel them successful.
 
+## Cleanup implementation — 2026-10-30
+
+Branch `refactor/behavior-preserving-cleanup`; scope and unchanged guarantees are in the [execution contract](cleanup-plan.md#execution-contract).
+
+- Documentation reconciliation: generated/link checks and local deployment rendering pass. Removed the unsupported `/_uuids` claim and contradictory live Kubernetes recommendation; retained historical failed release evidence.
+- Transaction readability: expanded job claims/completion/inspection, revision/checkpoint publication and read selection without changing transaction modes, SQL predicates/parameters, authorization order or commits. `cargo test --locked --workspace` passes (**42 application / 66 xtask**, **9 ignored**); `cargo xtask test-livesync` passes all **11** genuine-client scenarios including restart.
+
 ## Repository assessment and local sync — 2026-10-30
 
 Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged. The [cleanup plan](cleanup-plan.md) is proposed work, not an implemented refactor. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).

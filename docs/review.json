@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed one bounded fixed-GHCR config-blob HTTPS CDN redirect with no Authorization forwarding, no signed URL logs and unchanged metadata/digest limits; reviewed negative redirect tests, anonymous four-native-binding/provenance success and both seven-image accepted-risk scans after owner visibility changes.",
+  "reason": "Reviewed unchanged transaction guarantees in jobs, Couch revisions and reads against core/Couch/interruption/recovery tests and protocol/consistency/threat-model docs; expanded SQL and control flow only",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -231,11 +231,11 @@
     },
     {
       "path": "src/couch/reads.rs",
-      "sha256": "30e12db2a849a42a9db40657a50dfc14bd350a2083041ef0311e361adbf8db7a"
+      "sha256": "6420123ac1547167a0ee4ce620f9fa646fd2b0863fca1967bb01cde3ba4c0b9a"
     },
     {
       "path": "src/couch/revisions.rs",
-      "sha256": "4a27d549731e281f238e5f5e09e4db816ddb947104251ecb288002a9814f501b"
+      "sha256": "f8d5453309a892e25b67ae0c7f826d3c9ff05082807caabd919410641792ff3d"
     },
     {
       "path": "src/db.rs",
@@ -247,7 +247,7 @@
     },
     {
       "path": "src/jobs.rs",
-      "sha256": "5c557ddad0598ce1d973becd757eccfb4facd1d2287b9d8ea6d6c9e659733e91"
+      "sha256": "8150db05ab420e787b053e6ef69febc4bfa9eaef239aced7e41cbd8dfe74892d"
     },
     {
       "path": "src/lib.rs",

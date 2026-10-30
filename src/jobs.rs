@@ -119,35 +119,88 @@ impl Queue {
     pub async fn claim(&self) -> Result<Option<Claim>> {
         let max = self.max_attempts;
         let now = now()?;
-        self.db.run(move|c|{
-            let tx=c.transaction_with_behavior(TransactionBehavior::Immediate)?;
-            tx.execute("UPDATE jobs SET state='failed',owner=NULL WHERE state='queued' AND attempts>=?1",[max])?;
-            let row:Option<(String,String,u32)>=tx.query_row("SELECT j.id,j.vault,j.attempts FROM jobs j JOIN vaults v ON v.id=j.vault WHERE j.state='queued' AND j.available<=?1 ORDER BY v.last_claim,j.available,j.id LIMIT 1",[now],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
-            let Some((id,vault,attempts))=row else{return Ok(None);};
-            let claim=Claim{id:id.parse().map_err(|_|Error::Integrity)?,vault:vault.parse().map_err(|_|Error::Integrity)?,owner:Uuid::new_v4(),attempts:attempts+1};
-            tx.execute("UPDATE jobs SET state='running',owner=?1,attempts=attempts+1,claimed=?2 WHERE id=?3 AND state='queued'",params![claim.owner.to_string(),now,id])?;
-            tx.execute("UPDATE vaults SET last_claim=(SELECT coalesce(max(last_claim),0)+1 FROM vaults) WHERE id=?1",[vault])?;
-            tx.commit()?;Ok(Some(claim))
+        self.db.run(move |c| {
+            let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            tx.execute(
+                "UPDATE jobs SET state='failed',owner=NULL WHERE state='queued' AND attempts>=?1",
+                [max],
+            )?;
+            let row: Option<(String, String, u32)> = tx.query_row(
+                "SELECT j.id,j.vault,j.attempts FROM jobs j JOIN vaults v ON v.id=j.vault
+                 WHERE j.state='queued' AND j.available<=?1
+                 ORDER BY v.last_claim,j.available,j.id LIMIT 1",
+                [now],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            ).optional()?;
+            let Some((id, vault, attempts)) = row else {
+                return Ok(None);
+            };
+            let claim = Claim {
+                id: id.parse().map_err(|_| Error::Integrity)?,
+                vault: vault.parse().map_err(|_| Error::Integrity)?,
+                owner: Uuid::new_v4(),
+                attempts: attempts + 1,
+            };
+            tx.execute(
+                "UPDATE jobs SET state='running',owner=?1,attempts=attempts+1,claimed=?2
+                 WHERE id=?3 AND state='queued'",
+                params![claim.owner.to_string(), now, id],
+            )?;
+            tx.execute(
+                "UPDATE vaults SET last_claim=(SELECT coalesce(max(last_claim),0)+1 FROM vaults) WHERE id=?1",
+                [vault],
+            )?;
+            tx.commit()?;
+            Ok(Some(claim))
         }).await
     }
     pub async fn complete(&self, claim: Claim, success: bool) -> Result<()> {
         let max = self.max_attempts;
         let available = now()? + backoff(claim.attempts, rand::random()) as i64;
-        self.db.run(move|c|{
-            let state=if success{"done"}else if claim.attempts>=max{"failed"}else{"queued"};
-            let changed=c.execute("UPDATE jobs SET state=?1,owner=NULL,available=?2 WHERE id=?3 AND state='running' AND owner=?4",params![state,available,claim.id.to_string(),claim.owner.to_string()])?;
-            if changed!=1{return Err(Error::Conflict);}Ok(())
-        }).await
+        self.db
+            .run(move |c| {
+                let state = if success {
+                    "done"
+                } else if claim.attempts >= max {
+                    "failed"
+                } else {
+                    "queued"
+                };
+                let changed = c.execute(
+                    "UPDATE jobs SET state=?1,owner=NULL,available=?2
+                 WHERE id=?3 AND state='running' AND owner=?4",
+                    params![
+                        state,
+                        available,
+                        claim.id.to_string(),
+                        claim.owner.to_string()
+                    ],
+                )?;
+                if changed != 1 {
+                    return Err(Error::Conflict);
+                }
+                Ok(())
+            })
+            .await
     }
     async fn inspect(&self, claim: &Claim, store: &Store, timeout: Duration) -> Result<()> {
         let mut after = String::new();
         loop {
             let vault = claim.vault;
             let cursor = after.clone();
-            let batch=self.db.run(move|c|{
-                let mut stmt=c.prepare("SELECT id FROM blobs WHERE vault=?1 AND ready=1 AND id>?2 ORDER BY id LIMIT 64")?;
-                let ids=stmt.query_map(params![vault.to_string(),cursor],|r|r.get::<_,String>(0))?.collect::<std::result::Result<Vec<_>,_>>()?;
-                ids.into_iter().map(|id|{let key=BlobKey{vault,object:id.parse().map_err(|_|Error::Integrity)?};blob_info(c,key)}).collect::<Result<Vec<_>>>()
+            let batch = self.db.run(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT id FROM blobs WHERE vault=?1 AND ready=1 AND id>?2 ORDER BY id LIMIT 64",
+                )?;
+                let ids = stmt.query_map(params![vault.to_string(), cursor], |r| r.get::<_, String>(0))?
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
+                ids.into_iter().map(|id| {
+                    let key = BlobKey {
+                        vault,
+                        object: id.parse().map_err(|_| Error::Integrity)?,
+                    };
+                    blob_info(c, key)
+                }).collect::<Result<Vec<_>>>()
             }).await?;
             if batch.is_empty() {
                 return Ok(());
