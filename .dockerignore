@@ -43,6 +43,8 @@ xtask/tests/support/**
 !xtask/tests/support/mod.rs
 !xtask/tests/fixtures
 xtask/tests/fixtures/**
+!xtask/tests/fixtures/k3d_cleanup.rs
+!xtask/tests/fixtures/k3d_control.rs
 !xtask/tests/fixtures/rustfs
 xtask/tests/fixtures/rustfs/**
 !xtask/tests/fixtures/rustfs/native.rs

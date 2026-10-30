@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed latest release/base updates, explicit eight-image scope and build-only utility reuse preserving source/context/cleanup controls; retained original evidence and all blocking scan/legal/native requirements",
+  "reason": "Reviewed unconditional owned data/partial-resource compensation after k3d delete failure and preserved error propagation; verified synthetic failed-delete/cancel/pre-existing/residual regressions and final migration docs",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -7,7 +7,7 @@
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "c34ccbc12f6c730267e6a1e6d2a37fecd2f5e86e139e639db125bdd5c0512d48"
+      "sha256": "40f0265255a4d9e3825d572c31fc389c43a49199f49752dd7d5fdce08431edda"
     },
     {
       "path": ".cargo/config.toml",
@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "d8fb6a4577b2aa11daaec51fb0d315028826ecddab04e830c72af131f205d829"
+      "sha256": "1f64b741efeebdc0d80d92a682db649a6e0c6457b3156e0948234dc8a826b993"
     },
     {
       "path": ".env.example",
@@ -27,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "6dc43abc4aade02d62589c22b7b2239b724dc3f8192de5596b72001a98bc2f96"
+      "sha256": "b6ee2f0ebdaee09630dc7e0e884a81c6911338ff712c1d45c86937618fa6d25d"
     },
     {
       "path": ".gitignore",
@@ -335,7 +335,7 @@
     },
     {
       "path": "xtask/src/clients.rs",
-      "sha256": "998e2d707ed50ec78cf57ea981ccdde08192216a1c7a5fb76cc6deb6c45bc9fe"
+      "sha256": "afa96418ba537dc3e2bdd9e8f6e0670aed4a7662e2bd70a6d5551fdfe3c101e2"
     },
     {
       "path": "xtask/src/dependency_baseline.rs",
@@ -343,7 +343,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "ee5f39b11d598b085ec94876e86dfae7378bb00c87b3826edbf547d248205bff"
+      "sha256": "e5e6e3d92682d1b9899140ae1a7f5b05ed694a51f8a4240504fbed3149b42fdc"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -387,7 +387,7 @@
     },
     {
       "path": "xtask/src/util.rs",
-      "sha256": "e1a6db1d94421997c4042cfdfd9d1ae6dd1cf14a5391dea8830e5bea703a27cb"
+      "sha256": "b35dda28a4f34932bc62ab20e5ed318f5f841387c50f86323ad3d547245b8e11"
     },
     {
       "path": "xtask/tests/cancellation.rs",
@@ -396,6 +396,14 @@
     {
       "path": "xtask/tests/dependency_baseline.rs",
       "sha256": "9a4f91e6000d6e67fae64479d3575e28823a23d0b8c9ecf6cf6488e5342c69e0"
+    },
+    {
+      "path": "xtask/tests/fixtures/k3d_cleanup.rs",
+      "sha256": "2cbd44b40386beebb2bc61c7e99b879bd5b59e30733c2f3b746eb933f471d391"
+    },
+    {
+      "path": "xtask/tests/fixtures/k3d_control.rs",
+      "sha256": "60fbf20d0ed28c7ce2d52f6fe867f1f6c25e72219eed220c3cf7991a74750ade"
     },
     {
       "path": "xtask/tests/fixtures/rustfs/Dockerfile",
@@ -410,6 +418,10 @@
       "sha256": "6a121bdc7ba1b16843fa7f5c0401c74516aeecb82a2fa7c7867b7b1d1c3fd041"
     },
     {
+      "path": "xtask/tests/k3d.rs",
+      "sha256": "2040818b5ce9e2ab5892e30a012c337b056fe2cb62986995d0c9b22f4ce3d9ad"
+    },
+    {
       "path": "xtask/tests/rustfs_candidate.rs",
       "sha256": "3ce4fc5e9c8406f6cbc931fe5d139e66df50787f821a3769d0b2c4a241c27077"
     },
@@ -419,7 +431,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "594d01f182dc444adcabc73763f8dac917b6e15ca8f1310efaa75fced6345a27"
+      "sha256": "3dd6e7d59f4646cb5c62724489fb6d1fed6e6622411db209cf2ed3c68ec08b13"
     }
   ]
 }

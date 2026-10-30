@@ -123,9 +123,9 @@ The bootstrap key alone permits scoped first-device destroy/recreate. This archi
 
 ## Kubernetes and cloud operation
 
-Render deploy/kustomize overlays before use. Use only scripts/smoke-kubernetes.sh for tests: it creates/deletes a disposable kind cluster and uses its own kubeconfig for setup, commands and teardown. Never invoke tests against the current context.
+Render deploy/kustomize overlays before use. Use only scripts/smoke-kubernetes.sh for tests: it creates/deletes a disposable k3d/K3s cluster and uses its own private HOME/kubeconfig for setup, commands and teardown, with loopback API exposure and default-context updates disabled. Never invoke tests against the current context.
 
-Real deployments require separate authorization, an immutable approved image, one authoritative local POSIX metadata PVC, replicas=1/Recreate, restrictive security context/NetworkPolicy and approved private TLS ingress. Cloud storage still requires the metadata PVC. Default kind CNI does not prove NetworkPolicy isolation. Provision databases/keys through one offline admin writer while the controller is stopped.
+Real deployments require separate authorization, an immutable approved image, one authoritative local POSIX metadata PVC, replicas=1/Recreate, restrictive security context/NetworkPolicy and approved private TLS ingress. Cloud storage still requires the metadata PVC. The disposable k3d smoke does not certify NetworkPolicy isolation. Provision databases/keys through one offline admin writer while the controller is stopped.
 
 S3/MinIO must support conditional create and pass the startup probe; use an exclusive installation prefix. Native GCS/Azure require provider contract tests and staging/abandoned-upload lifecycle rules, never expiry of final objects. Azure requires an expiring HTTPS-only container SAS with the documented minimal permissions. Credential refresh/session-token limitations are in the storage runbook; rotation currently requires restart.
 

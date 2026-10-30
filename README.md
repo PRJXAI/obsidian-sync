@@ -45,6 +45,8 @@ scripts/validate-deployments.sh
 
 All first-party tooling and infrastructure tests are Rust in `xtask/`; run `cargo xtask --help` and `cargo test --locked -p xtask`. Shell scripts are thin launchers. npm/Node are used only to exercise the pinned upstream JavaScript clients, never in the server runtime.
 
+Disposable Kubernetes checks use pinned k3d/K3s, not kind, with a private kubeconfig, authenticated PVC-restart verification and owned-resource teardown. This does not imply a vulnerability-free test node or production deployment approval.
+
 CI builds shared image artifacts once, uses [Syft → SBOM → offline Grype](docs/scanner-pipeline.md), and runs security/integration gates with a fail-closed `Required CI` aggregate. It uploads public count/status summaries plus native Syft JSON, SPDX and CycloneDX inventories with bound materials. Trivy and its comparison/transition gate are retired; Grype findings and scan errors remain blocking. The expanded supply-chain gate currently reports unresolved test/tool-image findings; it is not a clean-release claim.
 
 The external Apache CouchDB reference image is retired. Existing in-process HTTP fixtures use synthetic requests and temporary SQLite/filesystem storage; no second mock server is needed. Genuine Commonlib/PouchDB tests still run against the real Rust server. These are not independent Apache CouchDB verification.

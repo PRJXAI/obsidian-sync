@@ -210,10 +210,18 @@ pub struct Captured {
     pub stderr: Vec<u8>,
 }
 pub fn capture(c: &mut Command, seconds: u64) -> Result<Captured> {
+    capture_mode(c, seconds, true)
+}
+pub(crate) fn cleanup_output(c: &mut Command, seconds: u64) -> Result<Vec<u8>> {
+    let captured = capture_mode(c, seconds, false)?;
+    ensure(captured.success, "Cleanup inspection failed")?;
+    Ok(captured.stdout)
+}
+fn capture_mode(c: &mut Command, seconds: u64, interruptible: bool) -> Result<Captured> {
     let mut stdout = tempfile::tempfile()?;
     let mut stderr = tempfile::tempfile()?;
     c.stdout(stdout.try_clone()?).stderr(stderr.try_clone()?);
-    let status = wait_bounded(c, seconds, Some((&stdout, &stderr)), true)?;
+    let status = wait_bounded(c, seconds, Some((&stdout, &stderr)), interruptible)?;
     stdout.seek(SeekFrom::Start(0))?;
     stderr.seek(SeekFrom::Start(0))?;
     let mut out = Vec::new();

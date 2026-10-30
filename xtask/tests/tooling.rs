@@ -382,11 +382,12 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
 #[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 8);
+    assert_eq!(images.len(), 10);
     assert!(images.keys().all(|image| {
         !image.contains("trivy")
             && !image.starts_with("couchdb:")
             && !image.starts_with("alpine:")
+            && !image.starts_with("kindest/node:")
             && !image.starts_with("golang:")
             && !image.starts_with("cgr.dev/chainguard/git:")
     }));
@@ -400,7 +401,9 @@ fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Re
         security::GITLEAKS,
         security::BUILD_IMAGE,
         sbom::SYFT,
-        deployment::KIND,
+        deployment::K3S,
+        deployment::K3D_TOOLS,
+        deployment::PAUSE,
     ] {
         assert!(images.contains_key(pin), "{pin}");
     }
@@ -578,7 +581,7 @@ fn kube_commands_always_use_disposable_config_without_touching_sentinel() -> Res
     let sentinel = temp.path().join("operator-config");
     fs::write(&sentinel, "synthetic sentinel")?;
     let disposable = temp.path().join("disposable-kubeconfig");
-    for program in ["kind", "kubectl"] {
+    for program in ["k3d", "kubectl"] {
         let c = deployment::fenced_command(temp.path(), &disposable, program, &["version"]);
         assert!(
             c.get_envs()

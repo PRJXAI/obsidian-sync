@@ -101,6 +101,21 @@ pub fn config(source: &str, work: &Path, port: u16, image: bool, s3: bool) -> Re
         .insert("burst".into(), toml::Value::Integer(1024));
     Ok(toml::to_string_pretty(&value)?)
 }
+pub fn issued_credentials(data: &str) -> Result<BTreeMap<String, String>> {
+    let values = data
+        .lines()
+        .map(|line| {
+            line.split_once('=')
+                .map(|(a, b)| (a.into(), b.into()))
+                .ok_or_else(|| "Invalid issue output".into())
+        })
+        .collect::<Result<BTreeMap<String, String>>>()?;
+    ensure(
+        values.contains_key("principal") && values.contains_key("token"),
+        "Missing issued credentials",
+    )?;
+    Ok(values)
+}
 struct Server {
     root: PathBuf,
     work: PathBuf,
@@ -175,19 +190,7 @@ impl Server {
             args.push("--allow-database-reset");
         }
         let data = self.admin(&args)?;
-        let values = data
-            .lines()
-            .map(|line| {
-                line.split_once('=')
-                    .map(|(a, b)| (a.into(), b.into()))
-                    .ok_or_else(|| "Invalid issue output".into())
-            })
-            .collect::<Result<BTreeMap<String, String>>>()?;
-        ensure(
-            values.contains_key("principal") && values.contains_key("token"),
-            "Missing issued credentials",
-        )?;
-        Ok(values)
+        issued_credentials(&data)
     }
     fn start(&mut self) -> Result {
         let mut c = self.command(true);

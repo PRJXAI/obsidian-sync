@@ -127,7 +127,7 @@ jobs:
           docker load -i .work/ci-images/runtime.tar
       - run: |
           go install sigs.k8s.io/kustomize/kustomize/v5@v5.8.3
-          go install sigs.k8s.io/kind@v0.33.0
+          go install -ldflags '-X github.com/k3d-io/k3d/v5/version.Version=v5.9.0' github.com/k3d-io/k3d/v5@v5.9.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
