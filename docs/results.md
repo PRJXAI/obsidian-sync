@@ -19,9 +19,11 @@ Branch `refactor/behavior-preserving-cleanup`; scope and unchanged guarantees ar
 
 - Idiomatic Rust organization: codec owns sequence encoding; HTTP child modules import siblings explicitly rather than through parent aliases, helper visibility remains restricted, and `http::ApiError` is re-exported at its original public path. Runtime crate/module responsibilities and maintenance conventions are documented. Workspace tests (**47 application / 74 xtask**, **9 ignored**), strict all-target/all-feature Clippy, native real-client/restart scenarios and `RUSTDOCFLAGS='-D warnings' cargo doc --locked --workspace --no-deps --all-features` pass. No new dependency, crate or generic framework was introduced.
 
+- Retained late rerun failure: the pinned-audit `check.sh` rerun stopped in the existing `s3_readiness_waits_past_503_for_unauthenticated_403` test with `WouldBlock` on its synthetic socket. An accepted BSD/macOS socket can inherit the nonblocking listener flag; the fixture now explicitly restores blocking reads while retaining its two-second read timeout, bounded accept loop and 503-before-403 assertion. Targeted readiness, all **121** workspace tests and strict all-feature Clippy pass after this test-only portability correction; no production readiness policy changed.
+
 ## Repository assessment and local sync — 2026-10-30
 
-Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged. The [cleanup plan](cleanup-plan.md) is proposed work, not an implemented refactor. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).
+Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged at that assessment. The [cleanup plan](cleanup-plan.md) was then proposed work; its subsequent implementation is recorded above. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).
 
 | Executed command | Result |
 |---|---|

@@ -663,6 +663,9 @@ fn s3_readiness_waits_past_503_for_unauthenticated_403() -> Result {
                     Err(e) => return Err(e),
                 }
             };
+            // BSD/macOS can inherit the listener's nonblocking flag. Keep request
+            // reads bounded by the timeout, not a race with the client's first byte.
+            stream.set_nonblocking(false)?;
             stream.set_read_timeout(Some(Duration::from_secs(2)))?;
             let mut request = [0; 1024];
             if stream.read(&mut request)? == 0 {

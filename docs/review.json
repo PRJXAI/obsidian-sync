@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed idiomatic Rust module boundaries, explicit sibling imports, private codec sequence encoding and stable ApiError re-export; read updated maintenance/cleanup/architecture contracts and wire tests; workspace/Clippy/Rustdoc/genuine clients pass",
+  "reason": "Reviewed readiness test portability correction: accepted BSD/macOS sockets explicitly blocking with unchanged two-second read timeout, bounded accept and 503-before-403 assertion; production wait_http and safety contracts unchanged, targeted and workspace tests/Clippy pass",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -479,7 +479,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "b5ae902de025165c85bcc9cd70bfecc204e740283451f2d1f7517ea14849044f"
+      "sha256": "8c15fe4c412f0c0555cbb752fb74dfd829dc1f98bc764145cdcaa55a0b60bd95"
     }
   ]
 }
