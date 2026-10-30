@@ -1,4 +1,9 @@
-use super::{ApiResult, App, body_json, put, response, wire_sequences};
+//! Operations on an already resolved, active database alias.
+use super::{
+    ApiResult, App,
+    codec::{body_json, response, wire_sequences},
+    document::put,
+};
 use crate::{Error, auth::Identity};
 use axum::{
     Json,

@@ -1,12 +1,24 @@
 # Repository assessment and safe simplification plan
 
-Assessment: **2026-10-30**, source `e240ab9`. This is a proposed sequence of behavior-preserving changes, not an implemented refactor. The assessment adds documentation only. Executed checks and exclusions are recorded in [results](results.md#repository-assessment-and-local-sync--2026-10-30).
+Assessment baseline: **2026-10-30**, source `e240ab9`. The original assessment and proposed phases below are retained for comparison. Phases 1–5 have now been implemented on `refactor/behavior-preserving-cleanup`; verification and retained failed attempts are in [results](results.md#cleanup-implementation--2026-10-30). The earlier assessment-only evidence remains [separately attributed](results.md#repository-assessment-and-local-sync--2026-10-30).
 
 ## Execution contract
 
 Implementation branch: `refactor/behavior-preserving-cleanup`. Before changing transaction code or shared publication ownership, the intended consistency/security guarantees are **unchanged**: immediate SQLite CAS/replay, body durability before references, reauthorization at publication/replay, first-body-wins imported revisions, retained branches/tombstones, generation fencing, shared bounded upload permits/deadlines and writer-lock lifetime through canceled blocking tasks. Public APIs, CLI/configuration, schema, stored hashes and error classifications remain stable. Only fixture lifecycle error reporting may become stricter: cleanup failures must not report success.
 
 The numbered phases below describe the approved scope. Conditional CI deduplication, dependency upgrades and disk cleanup require evidence/approval and are not automatic parts of the refactor. Desktop acceptance remains a separate manual/UI test.
+
+| Phase | Implementation status |
+|---|---|
+| 1. Documentation | Corrected unsupported UUID route, retired Kubernetes recommendation and historical public-package wording. |
+| 2. Transaction readability | Expanded job, publication/checkpoint and read-selection flows without changing predicates or transaction boundaries. |
+| 3. Shared core | Private `blob`/`replay` modules; public `Engine` wrappers and current `Engine.db` behavior retained. |
+| 4. HTTP | Private codec/error/database/document/bulk/changes modules; router/middleware/public paths unchanged; characterization tests added before extraction. |
+| 5. Fixtures | One private owned-data cleanup helper, explicit checked teardown, Drop fallback and failure/cancellation tests. Eight-cell CI coverage unchanged. |
+| 6. Dependencies/cache | Read-only duplicate-tree review completed; no dependency updates or cache/evidence/data deletion justified. |
+| Rust organization | Cohesive modules, explicit sibling imports, restricted visibility and stable public re-exports; no new framework/crates/dependencies. See [maintenance](maintenance.md#rust-organization). |
+
+The plan's desktop GUI acceptance remains pending; genuine Commonlib/PouchDB execution is not relabeled as an Obsidian UI run.
 
 ## What has been built
 

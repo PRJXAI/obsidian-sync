@@ -1,4 +1,8 @@
-use super::{ApiError, ApiResult, App, Query, body_json, response, wire_sequences};
+//! Bulk replication and bounded document listing endpoints.
+use super::{
+    ApiError, ApiResult, App,
+    codec::{Query, body_json, response, wire_sequences},
+};
 use crate::{
     Error,
     auth::Identity,

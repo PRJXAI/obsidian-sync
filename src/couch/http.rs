@@ -18,10 +18,9 @@ use axum::{
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use codec::{Query, body_json, decode, response};
-use document::put;
 pub use error::ApiError;
 use futures_util::StreamExt;
-use serde_json::{Value, json};
+use serde_json::json;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -29,7 +28,6 @@ use std::{
 };
 use tokio::sync::Semaphore;
 use tower_http::cors::CorsLayer;
-use uuid::Uuid;
 
 #[derive(Clone)]
 struct App {
@@ -345,19 +343,4 @@ async fn handle(app: &App, request: Request) -> ApiResult<Response> {
         }
         _ => document::handle(app, &who, vault, id, method, &query, request).await,
     }
-}
-fn wire_sequences(mut value: Value, vault: Uuid) -> Value {
-    for field in ["update_seq", "last_seq"] {
-        if let Some(counter) = value.get(field).and_then(Value::as_i64) {
-            value[field] = json!(super::sequence(vault, counter));
-        }
-    }
-    if let Some(rows) = value.get_mut("results").and_then(Value::as_array_mut) {
-        for row in rows {
-            if let Some(counter) = row.get("seq").and_then(Value::as_i64) {
-                row["seq"] = json!(super::sequence(vault, counter));
-            }
-        }
-    }
-    value
 }

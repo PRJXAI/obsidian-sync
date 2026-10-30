@@ -1,4 +1,8 @@
-use super::{ApiError, ApiResult, App, Query, body_json, response};
+//! Document and local-checkpoint wire operations; revision semantics stay in Couch.
+use super::{
+    ApiError, ApiResult, App,
+    codec::{Query, body_json, response},
+};
 use crate::{
     Error,
     auth::Identity,

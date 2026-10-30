@@ -1,3 +1,4 @@
+//! Stable, sanitized Couch-compatible error responses.
 use crate::Error;
 use axum::{
     Json,

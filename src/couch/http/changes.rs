@@ -1,5 +1,8 @@
 //! Bounded changes feeds; waiting releases execution, response bodies retain active permits.
-use super::{ApiError, ApiResult, App, Query, response, wire_sequences};
+use super::{
+    ApiError, ApiResult, App,
+    codec::{Query, response, wire_sequences},
+};
 use crate::{
     Error,
     auth::Identity,

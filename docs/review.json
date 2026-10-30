@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed fixed-scope fixture cleanup, successful teardown checks and failure/cancellation Drop order against new lifecycle tests, real native/S3/runtime/Compose fixtures and build-context canaries; reviewed explicit HTTP Docker allowlist and maintenance/threat/protocol docs",
+  "reason": "Reviewed idiomatic Rust module boundaries, explicit sibling imports, private codec sequence encoding and stable ApiError re-export; read updated maintenance/cleanup/architecture contracts and wire tests; workspace/Clippy/Rustdoc/genuine clients pass",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -219,31 +219,31 @@
     },
     {
       "path": "src/couch/http.rs",
-      "sha256": "ff1ea2e115aeb797678c3ce9f80a3d37e8dab4273740082ae0b6ea27f4e64657"
+      "sha256": "ec20d796341597912e416d51f280bb2786a36bbe1275f1910555f12c04b1d735"
     },
     {
       "path": "src/couch/http/bulk.rs",
-      "sha256": "add25d43ea4fe7097d17ce078e4b8f6894ed6b2aa85c09576561aee4617583b6"
+      "sha256": "e29d838a025ce8a117f7c81d656a1ad373a67f3353af07b8ef27c14f1dc4c4b6"
     },
     {
       "path": "src/couch/http/changes.rs",
-      "sha256": "35f863ecda05ac8408a13da31929f64e3223f54477fbac369002fad37333c476"
+      "sha256": "e86da8089efb94d028c8a953225a7a8b54cc8dfa04585a0fcdc61314f8ef8a6b"
     },
     {
       "path": "src/couch/http/codec.rs",
-      "sha256": "e7fa878857096c2219aaaa4046ede3e2aebbca330715ca66232fdc11907dfe20"
+      "sha256": "9856606a0c8914948930422a7821829b88d895498745acab24c72ff85ca5a7ca"
     },
     {
       "path": "src/couch/http/database.rs",
-      "sha256": "5deaa18e47b51a7dcd4fc062d80b5978ed43d0340c8d4cbf3f4c0ade55fe1d13"
+      "sha256": "bb9aa66615cce74e993c7eebe200138f3bd88f60c15a52aacc137d1847b196b4"
     },
     {
       "path": "src/couch/http/document.rs",
-      "sha256": "7e3a1bd1e94a5b0cf33d25aa6c179cdc28d7c5cf9ce71f8a03ed7110ddac7848"
+      "sha256": "a3dab3215d5bdd17903bbe5413d00c94a67c50d4d3e58d85404acb3871b92ee1"
     },
     {
       "path": "src/couch/http/error.rs",
-      "sha256": "5f1ecf6ef00c4485007d544342472f55ff65928af55d0c6d5ed1d3b28d50bb12"
+      "sha256": "02753865ff4dfd0605cced41cffba823cebb5389ed4fd3be54d2ac62ab59f1d1"
     },
     {
       "path": "src/couch/json.rs",
@@ -279,7 +279,7 @@
     },
     {
       "path": "src/lib.rs",
-      "sha256": "0046f516cced12b718e1d4a6935cf96e682b3fbd8cbdc357d6bfa634d65abe2e"
+      "sha256": "51d7f537e68a39ed95372e8e65881675d95c00e244c22fa7384ca152018616dc"
     },
     {
       "path": "src/main.rs",

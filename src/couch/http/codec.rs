@@ -12,6 +12,23 @@ use axum::{
 };
 use serde_json::Value;
 use std::{collections::HashMap, time::Duration};
+use uuid::Uuid;
+
+pub(super) fn wire_sequences(mut value: Value, vault: Uuid) -> Value {
+    for field in ["update_seq", "last_seq"] {
+        if let Some(counter) = value.get(field).and_then(Value::as_i64) {
+            value[field] = serde_json::json!(crate::couch::sequence(vault, counter));
+        }
+    }
+    if let Some(rows) = value.get_mut("results").and_then(Value::as_array_mut) {
+        for row in rows {
+            if let Some(counter) = row.get("seq").and_then(Value::as_i64) {
+                row["seq"] = serde_json::json!(crate::couch::sequence(vault, counter));
+            }
+        }
+    }
+    value
+}
 
 pub(super) fn decode(value: &str) -> ApiResult<String> {
     let bytes = value.as_bytes();
