@@ -2,26 +2,7 @@
 
 This is the measured delivery/operations status, not an implementation diary or release certificate. Earlier audits, retired tools and failed experiments remain in Git and private evidence. Consolidating documentation does not relabel them successful.
 
-## Cleanup implementation — 2026-10-30
-
-Branch `refactor/behavior-preserving-cleanup`; scope and unchanged guarantees are in the [execution contract](cleanup-plan.md#execution-contract).
-
-- Documentation reconciliation: generated/link checks and local deployment rendering pass. Removed the unsupported `/_uuids` claim and contradictory live Kubernetes recommendation; retained historical failed release evidence.
-- Transaction readability: expanded job claims/completion/inspection, revision/checkpoint publication and read selection without changing transaction modes, SQL predicates/parameters, authorization order or commits. `cargo test --locked --workspace` passes (**42 application / 66 xtask**, **9 ignored**); `cargo xtask test-livesync` passes all **11** genuine-client scenarios including restart.
-- Shared publication: added pre-refactor characterization for request-key boundaries/scoped replays and the public `Engine.db` field; both pass before and after extraction. Private `blob`/`replay` modules now serve Couch/jobs and legacy wrappers without schema/API/hash changes. Workspace tests pass (**44 application / 66 xtask**, **9 ignored**), strict all-target/all-feature Clippy passes, and all **11** native real-client/restart scenarios pass.
-
-- HTTP extraction: added three pre-refactor characterization tests for encoded IDs/ETag/HEAD/If-Match, malformed queries/unsupported roots/mixed bulk rows, and response-drop permit release. The initial permit test used invalid `max_requests=1` and failed fixture configuration; corrected it to the unchanged minimum of two with two held responses, then all **18** Couch tests passed before refactoring. Error/codec, database, document, bulk and changes-feed moves were each followed by all **18** Couch tests and **11** real-client/restart scenarios, all passing. Strict workspace/all-target/all-feature Clippy passes. `http.rs` is reduced from **915 to 363 lines**; helpers remain private and middleware/admission order is unchanged.
-
-- Retained build failure: the first Linux image build after HTTP extraction failed because the explicit `.dockerignore` allowlist excluded the new `src/couch/http/*.rs` modules. Added that specific code directory with child-deny rules and positive/negative build-context canaries; no broad source-directory or private-file exception was added.
-
-- Fixture cleanup: shared private `DataCleanup` preserves fixed builder image, UID, mounts, targets and deadlines; successful client/S3/Compose runs now check cleanup/temporary-directory closure rather than relying solely on Drop. Eight added tooling tests cover failed startup/child exit, cleanup command scope, failed cleanup/retry/idempotence, Drop and cancellation. **74 xtask tests pass**, **6 diagnostics ignored**; native, disposable S3 and rebuilt-runtime client fixtures and Compose smoke pass. Build-context privacy canaries and the corrected Linux/musl `tests` target pass (**47 application / 74 xtask**, **9 ignored**); static/nonroot image verification passes.
-- Dependency review: `cargo tree --locked --workspace --duplicates` and its `--target all` variant confirm the reported duplicates are transitive (`hashbrown` via SQLite/collections, `syn` across proc-macro generations, `winnow` via TOML/parser). No forced version convergence, client upgrade, lockfile change, CI coverage reduction or bulk cache/evidence deletion was performed.
-
-- Idiomatic Rust organization: codec owns sequence encoding; HTTP child modules import siblings explicitly rather than through parent aliases, helper visibility remains restricted, and `http::ApiError` is re-exported at its original public path. Runtime crate/module responsibilities and maintenance conventions are documented. Workspace tests (**47 application / 74 xtask**, **9 ignored**), strict all-target/all-feature Clippy, native real-client/restart scenarios and `RUSTDOCFLAGS='-D warnings' cargo doc --locked --workspace --no-deps --all-features` pass. No new dependency, crate or generic framework was introduced.
-
-- Retained late rerun failure: the pinned-audit `check.sh` rerun stopped in the existing `s3_readiness_waits_past_503_for_unauthenticated_403` test with `WouldBlock` on its synthetic socket. An accepted BSD/macOS socket can inherit the nonblocking listener flag; the fixture now explicitly restores blocking reads while retaining its two-second read timeout, bounded accept loop and 503-before-403 assertion. Targeted readiness, all **121** workspace tests and strict all-feature Clippy pass after this test-only portability correction; no production readiness policy changed.
-
-### Final gate rerun
+## Local verification — 2026-10-30
 
 Final implementation source **`cdd8fc7`**, clean tree at SBOM generation; the subsequent handoff commit changes documentation only. Host: Apple M4 Pro (14 CPUs, 24 GiB), macOS **26.6.2 / arm64**, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1**. No application/tooling dependency, lockfile, schema, CI feature cell or accepted-risk policy was changed.
 
@@ -51,11 +32,13 @@ Final implementation source **`cdd8fc7`**, clean tree at SBOM generation; the su
 
 Final post-run checks found no matching server process, owned fixture container or `livesync-*`/`s3-*`/`compose-*` fixture directory. No real vault/provider/cluster was accessed, no image published and no cache/evidence archive was bulk-deleted. Logs: `.work/cleanup-*.log`; final post-correction gates use `.work/cleanup-verified-*.log`. Private SBOM/security evidence remains under `.work/sbom/` and `.work/security/`; SBOM materials bind clean source `cdd8fc7` and tree digest `sha256:e05720c910ec8949857f2b21aefe9c5ceb57b7eec1b5b4145435179db73e76dd`.
 
+Earlier failed attempts remain in Git/private captures: invalid `max_requests=1` test configuration, missing nested HTTP modules in the Docker build-context allowlist, and a synthetic readiness socket returning `WouldBlock` on macOS. These were corrected without weakening admission limits, context privacy or readiness deadlines/assertions; the final reruns above passed.
+
 Still unqualified: actual Obsidian desktop/mobile UI, native AWS/GCS/Azure/MinIO, private TLS/CNI, provider disaster recovery, hosted Required CI/publication and amd64 registry rescanning in this cleanup run. Desktop two-vault acceptance remains manual/pending; pinned client success is not UI certification. Kubernetes testing is retired, not pending. Duplicate-dependency and upstream fixture deprecation warnings remain; no failing check was waived or removed.
 
 ## Repository assessment and local sync — 2026-10-30
 
-Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged at that assessment. The [cleanup plan](cleanup-plan.md) was then proposed work; its subsequent implementation is recorded above. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).
+Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged at that assessment. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).
 
 | Executed command | Result |
 |---|---|
@@ -78,7 +61,7 @@ Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged a
 
 The native, S3 and runtime fixtures exercised Unicode note create/read/update/move/logical-delete, two-peer offline conflicts, concurrent update CAS, paginated replication, a **3 MiB** binary roundtrip, E2EE/compression and randomized encrypted replay, bootstrap recreation, Fast Fetch, live feeds and durable conflicts/checkpoints/encrypted content after restart. Each fixture stopped the server cleanly after the final verification. Post-run checks found no matching server process, fixture container or `livesync-*`/`s3-*`/`compose-*` fixture directory. No existing vault or external provider was accessed.
 
-**Desktop limitation:** this was not initiated inside Obsidian's UI. The installed desktop application was not launched and no existing vault was opened. The tools available here did not provide desktop UI automation; genuine pinned client libraries were used instead. The disposable two-vault desktop test remains pending as described in the cleanup plan. Mobile, Obsidian filesystem watchers and plugin onboarding are not certified by these results.
+**Desktop limitation:** this was not initiated inside Obsidian's UI. The installed desktop application was not launched and no existing vault was opened. The tools available here did not provide desktop UI automation; genuine pinned client libraries were used instead. The disposable two-vault desktop test remains pending: follow [getting started](getting-started.md#5-connect-obsidian), use private key entry, verify peer note/attachment operations, offline conflicts and restart, then stop the disposable backend and close the test vaults. Mobile, Obsidian filesystem watchers and plugin onboarding are not certified by these results.
 
 Warnings retained: deny reported duplicate versions of `hashbrown`, `syn` and `winnow`; npm reported deprecated transitive compatibility-fixture packages and **zero audited vulnerabilities**. No dependency or policy was changed to remove warnings. Local review command logs are ignored files under `.work/repository-review-*-20261030.log`; SBOM/scan materials remain private under `.work/sbom/` and `.work/security/`. Materials identify `e240ab9` with a dirty documentation tree at generation time, not a final clean release revision.
 

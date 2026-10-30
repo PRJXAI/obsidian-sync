@@ -2,15 +2,11 @@
 
 All first-party code, infrastructure/security/release tooling and tests are Rust in `xtask/`. Shell scripts launch Rust; Node/npm only exercise the pinned upstream compatibility bridge. No Python or first-party unsafe Rust. Read [architecture context](llm.md) and [repository instructions](../AGENTS.md).
 
-## Cleanup planning
-
-The [repository assessment and simplification plan](cleanup-plan.md) identifies behavior-preserving cleanup candidates, their dependencies and regression gates. It records a plan, not completed refactoring; measured runs belong in [results](results.md).
-
 ## Rust organization
 
 Keep the runtime library and executable in the root crate, and repository automation in the separate `xtask` workspace member. Use cohesive domain modules rather than extra crates or a generic framework for each operation. A `module.rs` can own private children in `module/`; keep imports explicit between siblings and use `pub(super)`/`pub(crate)` for implementation details. Preserve existing public paths through re-exports when moving types.
 
-`couch/http.rs` owns the router, shared admission/authentication and dispatch. Its private children own encoding/error responses and database/document/bulk/feed operations; storage/revision logic does not belong in those handlers. Private `blob` and `replay` modules serve both Couch and the legacy `sync` API without coupling their distinct consistency models. Keep public-contract integration tests in `tests/` and implementation tests in adjacent `#[cfg(test)]` modules. Formatting, strict Clippy, Rustdoc and every storage feature cell remain checks, not substitutes for the race/cancellation/restart and real-client fixtures.
+Keep public-contract integration tests in `tests/` and implementation tests in adjacent `#[cfg(test)]` modules. Formatting, strict Clippy, Rustdoc and every storage feature cell remain checks, not substitutes for the race/cancellation/restart and real-client fixtures.
 
 ## Documentation lifecycle
 

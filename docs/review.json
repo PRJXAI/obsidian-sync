@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed readiness test portability correction: accepted BSD/macOS sockets explicitly blocking with unchanged two-second read timeout, bounded accept and 503-before-403 assertion; production wait_http and safety contracts unchanged, targeted and workspace tests/Clippy pass",
+  "reason": "Removed owner-requested internal cleanup plan and implementation diary; reviewed maintenance, consistency, architecture, protocol/threat contracts and retained results/failure evidence and desktop acceptance guidance; docs/xtask/deployment checks pass without source changes",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
