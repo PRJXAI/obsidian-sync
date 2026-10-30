@@ -2,6 +2,10 @@
 
 All first-party code, infrastructure/security/release tooling and tests are Rust in `xtask/`. Shell scripts launch Rust; Node/npm only exercise the pinned upstream compatibility bridge. No Python or first-party unsafe Rust. Read [architecture context](llm.md) and [repository instructions](../AGENTS.md).
 
+## Cleanup planning
+
+The [repository assessment and simplification plan](cleanup-plan.md) identifies behavior-preserving cleanup candidates, their dependencies and regression gates. It records a plan, not completed refactoring; measured runs belong in [results](results.md).
+
 ## Documentation lifecycle
 
 Maintain durable operator guidance, not parallel implementation diaries. Transfer useful limits/evidence before retiring pages; Git retains their history. Never erase private failure captures or rewrite historical findings as fixed.
