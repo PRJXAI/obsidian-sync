@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed exact owner risk snapshot/occurrence and receipt-scope tests, Rust CI archive/publication code and allowlists, committed-page batch retirement boundaries, actual published scanner provenance and failed anonymous controls; consolidated SRE runbooks without transferring old evidence or marking deployment controls verified",
+  "reason": "Reviewed final private native-reference/platform export and fixed-source all-platform live catalog diagnostic; preserved missing-layer failures and exact source/daemon/config bindings; reviewed native-first optional-deployment docs and measured partial validation.",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -27,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "4555a683370c24781a3ed36c93e28b127c5eabb4c7e8ed150fa5c8950c0f619d"
+      "sha256": "c9905eb17eb764e1366712ba141f81f2d4299685deb255569bf9484480782344"
     },
     {
       "path": ".gitignore",
@@ -335,7 +335,7 @@
     },
     {
       "path": "xtask/src/accepted-risks.json",
-      "sha256": "bcd211ba6e1b7bf002751f362092a70f80de3cb22398361874b23771dd9c36dd"
+      "sha256": "923a35e44ff18e74afe80d5d66ab399d2489301e12f92df92242eee3d2b85852"
     },
     {
       "path": "xtask/src/ci.rs",
@@ -363,7 +363,7 @@
     },
     {
       "path": "xtask/src/grype.rs",
-      "sha256": "602594f3dadf016e4596fab2c79892496a1c9ea9e39e311541ca57d590160be8"
+      "sha256": "068e1d9bd91c5a07024396f7387575e177b1e10ee147a96cdb5383624585f8a2"
     },
     {
       "path": "xtask/src/images.rs",
@@ -387,11 +387,11 @@
     },
     {
       "path": "xtask/src/risk.rs",
-      "sha256": "2b999914b60e4539cbc1531c807c20790ae446801ce5dd85b9a4d40a248a8d25"
+      "sha256": "c87a1be64ce70a4c39d1d0d83096c63c3d7973d85b1bc4bbb1cdb2ed402398cd"
     },
     {
       "path": "xtask/src/sbom.rs",
-      "sha256": "97567c6e8388ef334b6ab83228c86282594c11f1fca55079c6a723be516f0eac"
+      "sha256": "570659308307e21af543881176d1ca5f3b1da2f044d352d57a14a41035cefacc"
     },
     {
       "path": "xtask/src/security.rs",
@@ -431,7 +431,7 @@
     },
     {
       "path": "xtask/tests/go_symbols.rs",
-      "sha256": "ca8981414fee347bee63d50c0293b3c54963157a222966278dd04e4b65c41afe"
+      "sha256": "d338b103cf0c1b4be649c7009b34dc776a719d860121154d1b158d9e0ebc3dff"
     },
     {
       "path": "xtask/tests/grype.rs",
@@ -443,7 +443,7 @@
     },
     {
       "path": "xtask/tests/publication.rs",
-      "sha256": "a4844cc18e5128a9de3649c1814b23ab7c6da4aa2cd8821239976bac32ebc800"
+      "sha256": "c7f859cf27efcd579ea32c30db16ddd63558da90a642c8d72fb0107dbafebc63"
     },
     {
       "path": "xtask/tests/rustfs_candidate.rs",
@@ -455,7 +455,7 @@
     },
     {
       "path": "xtask/tests/tool_delivery.rs",
-      "sha256": "e2fdf312473afc5dd21a6ade8310f5a91250ec705481162aeb8d28c6880ec390"
+      "sha256": "8462d2bd4138dcee5e5a14fb6228d9ad9174acfc16f281f371fbd930c61361af"
     },
     {
       "path": "xtask/tests/tooling.rs",

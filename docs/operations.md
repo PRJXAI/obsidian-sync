@@ -2,6 +2,8 @@
 
 Target: **Self-hosted LiveSync 1.0.39 / Commonlib 0.1.44 / PouchDB 9**, pinned in [protocol contract](livesync-protocol.md). This is a Rust CouchDB-compatible replication subset, not Apache CouchDB. Actual Commonlib/PouchDB tests run against the Rust server. Existing in-process HTTP fixtures use synthetic requests with temporary SQLite/filesystem storage; the external Apache CouchDB reference fixture is retired by owner request. No second mock server is added, and these fixtures are not an independent compatibility oracle; GUI/mobile Obsidian validation is separate. MCP is deferred. Never test against an existing vault or real infrastructure without separate authorization.
 
+For a first installation, use [getting started](getting-started.md), the [configuration guide](configuration.md), or the [copy-paste LLM setup prompt](setup-with-ai.md). This page is the operator reference for existing installations and recovery.
+
 ## Build and checks
 
 Rustup installs pinned stable 1.99.1; a C compiler is needed for bundled SQLite. Repository tooling and infrastructure tests use the Rust `xtask` workspace crate. Node 26.13.0 LTS/npm are only for real upstream JavaScript client fixtures; Docker/Compose are needed for container tests; Kustomize, kubectl and k3d 5.9.0 for disposable deployments.
@@ -12,7 +14,7 @@ cargo build --release --locked
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
-cargo install cargo-audit --version 0.22.1 --locked
+cargo install cargo-audit --version 0.22.2 --locked
 cargo install cargo-deny --version 0.20.2 --locked
 scripts/check.sh
 scripts/check-features.sh
@@ -26,7 +28,9 @@ scripts/validate-deployments.sh
 
 Node packages are test-only, exact versions/lockfile committed, installed with lifecycle scripts disabled. The final image is digest-pinned Chainguard static **distroless/nonroot**; only the statically linked musl `/server` executable is added. No Node runtime, shell, package manager, application config or secret is included. Test/build stages are not runtime ancestors.
 
-## Compose: provision before starting
+## Compose example: provision before starting
+
+This is one optional deployment route. The server can run as a native executable or through another approved container runner; Compose and Kustomize are not runtime dependencies. Use [getting started](getting-started.md) for the native walkthrough. The copy commands below are for a fresh installation only: never overwrite an existing `.env`, local config or data directory.
 
 ```sh
 cp .env.example .env
@@ -35,17 +39,35 @@ cp config/filesystem.toml config/local.toml
 sudo install -d -o 65532 -g 65532 -m 0700 data
 docker compose build
 # Locally provision the lowercase database alias, not a filesystem vault directory:
-docker compose run --rm server create-database --name myvault
-# Use the returned vault UUID. This command deliberately prints a new secret once:
-docker compose run --rm server issue --vault VAULT_UUID --allow-database-reset
+docker compose run --rm --no-deps server check-config
+docker compose run --rm --no-deps server create-database --name myvault
+```
+
+Before starting, follow the [human-only private bootstrap-key step](getting-started.md#human-only-private-key-step), using `docker run --log-driver none` with these exact mounts. Do not use `docker compose run` for secret-printing issuance, and do not return its output to an LLM tool or centralized logging.
+
+```sh
 docker compose up -d
 curl -i http://127.0.0.1:8080/health/live   # 204
 curl -i http://127.0.0.1:8080/health/ready  # 204; 503 while shutting down
 ```
 
-Protect credential output; do not forward one-shot `issue` output into centralized logs. No application request logs contain tokens or note bodies. The bootstrap credential's username is its printed `principal` UUID and password is its printed 64-character `token`. There are no default passwords. Keep the service private: Compose binds host loopback. For native execution change `listen` to `127.0.0.1:8080`; container configs use `0.0.0.0` only inside their isolated network.
+Protect credential output; do not forward one-shot `issue` output into model context, shared terminals or centralized logs. No application request logs contain tokens or note bodies. The bootstrap credential's username is its printed `principal` UUID and password is its printed 64-character `token`. There are no default passwords. Keep the service private: Compose binds host loopback. For native execution change `listen` to `127.0.0.1:8080`; container configs use `0.0.0.0` only inside their isolated network.
 
 `/data` must be writable by UID 65532. Service-created metadata/blob roots are private 0700. Never mount a real Obsidian vault or let agents edit internal files. Database aliases are locally provisioned lowercase ASCII names (maximum 80 bytes); `health` is reserved for probes. Remote arbitrary database creation is denied.
+
+### Private container key issuance
+
+Human-only: run in a private terminal, never an LLM tool, shared terminal or central log capture. For the default filesystem mounts, with the server stopped:
+
+```sh
+docker run --rm --network none --log-driver none --read-only \
+  --user 65532:65532 --cap-drop ALL --security-opt no-new-privileges \
+  -v "$PWD/data:/data" \
+  -v "$PWD/config/local.toml:/etc/obsidian-sync/config.toml:ro" \
+  obsidian-sync:local issue --vault VAULT_UUID --allow-database-reset
+```
+
+For normal device keys omit reset permission; optionally add `--read-only`. Use the current vault UUID after a reset and exactly the installation's config/data mounts. Provider credential mounts, if selected, remain private. Native users invoke the executable with `--config` in a private terminal instead; there is no container log driver in that route. Disabling Docker logging does not prevent stdout capture by an assistant tool.
 
 ### Verified release deployment
 
@@ -104,7 +126,8 @@ After initialization and a verified test note, pause synchronization and replace
 docker compose stop
 docker compose run --rm server list-databases
 # Reset changes the vault UUID: use the CURRENT UUID from list-databases.
-docker compose run --rm server issue --vault CURRENT_VAULT_UUID
+# Human-only: issue the normal device key via the private log-disabled command
+# from getting-started.md, using CURRENT_VAULT_UUID and omitting reset permission.
 docker compose run --rm server revoke --principal BOOTSTRAP_PRINCIPAL_UUID
 docker compose up -d
 ```
@@ -148,17 +171,20 @@ Stop the service for every local admin command; each acquires the same writer lo
 
 ```sh
 docker compose run --rm server list-databases
-docker compose run --rm server issue --vault CURRENT_UUID --read-only
 docker compose run --rm server revoke --principal PRINCIPAL_UUID
 docker compose run --rm server verify-storage
 docker compose run --rm server checkpoint
 ```
 
+For a read-only device key, use the same human-only, log-disabled issuance procedure with `issue --vault CURRENT_UUID --read-only`; never capture the token in an agent tool. `check-config` only parses/validates the TOML and returns before opening SQLite or storage. In contrast, `verify-storage` opens storage and creates retained capability-probe objects: it is not a dry run.
+
 `create-vault` remains a legacy internal-core operation; use `create-database --name NAME` for LiveSync. Do not issue credentials to archived vault UUIDs (the CLI rejects this). There is no public archive browser/restore/purge API; archive recovery is an operator backup/restore concern until dedicated reviewed tooling exists.
 
 `enqueue-integrity --vault UUID --credential-file /mounted/token --request-id KEY` durably enqueues a read-only integrity job. The mounted private file contains ONLY its token. `job-status --job UUID --credential-file /mounted/token` requires its current vault grant. Start `serve` to run the bounded worker. Claims are persistent/fenced, retries finite with exponential jitter, and claims round-robin across vaults. Terminal jobs remain within the quota. Archived job records remain persisted but retired grants no longer authorize old-generation inspection. No exactly-once external effects are claimed.
 
-## Kubernetes
+## Kubernetes example
+
+Kustomize manifests are an optional deployment example, not a required service or a reason to create a cluster for a simple installation.
 
 Base and filesystem/S3/GCS/Azure overlays provide ClusterIP, restricted namespace/security context, Recreate/replicas=1, a persistent PVC, no service-account token, limits/probes and NetworkPolicy. No public Ingress, LoadBalancer, HPA, Funnel or bundled Tailscale process is installed. The Rust runtime stays binary-only.
 

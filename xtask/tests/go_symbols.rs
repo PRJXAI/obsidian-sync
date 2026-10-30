@@ -3,7 +3,11 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeSet, fs, io::Read, os::unix::fs::PermissionsExt, path::Path, time::Duration,
 };
-use xtask::{Result, deployment, ensure, grype, sbom, security, util};
+use xtask::{Result, deployment, ensure, security, util};
+// Historical subjects are immutable; production scanner adoption cannot relabel
+// the earlier applicability evidence or silently change these binary paths.
+const ORIGINAL_GRYPE: &str = "anchore/grype:v0.121.0@sha256:621d56d1d68106b787022c81546f7e0a36202a25d1239f0c20195fab8c16f7ea";
+const ORIGINAL_SYFT: &str = "anchore/syft:v1.55.0-nonroot@sha256:ec5bdbc745485920c6f444239f0c09ed87b3c4c165ff9433f95bc66b3500fbf9";
 
 fn messages(bytes: &[u8]) -> Result<Vec<Value>> {
     Ok(serde_json::Deserializer::from_slice(bytes)
@@ -145,8 +149,8 @@ fn inspect_fixed_go_binaries_offline() -> Result {
     let mut inputs = Vec::new();
     let mut modules = BTreeSet::from(["stdlib".to_string()]);
     let targets = [
-        (0, grype::GRYPE, "/grype"),
-        (1, sbom::SYFT, "/syft"),
+        (0, ORIGINAL_GRYPE, "/grype"),
+        (1, ORIGINAL_SYFT, "/syft"),
         (
             3,
             "docker/dockerfile:1.28.0@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b",
@@ -229,7 +233,7 @@ fn inspect_fixed_go_binaries_offline() -> Result {
     };
     for (n, (index, image, path)) in targets.iter().enumerate() {
         let catalog = root.join(format!(
-            ".work/security/sbom-chain/arm64/image-{index:02}.syft.json"
+            ".work/security/sbom-chain/arm64-before-devsecops/image-{index:02}.syft.json"
         ));
         let identity = util::text(
             docker().args([
@@ -342,7 +346,7 @@ fn inspect_fixed_go_binaries_offline() -> Result {
             continue;
         }
         let result = invoke(
-            sbom::SYFT,
+            ORIGINAL_SYFT,
             &[
                 "-mode=binary",
                 "-scan=symbol",

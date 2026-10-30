@@ -65,9 +65,18 @@ jobs:
     needs: [build, sbom]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with: {fetch-depth: 0, persist-credentials: false}
+      - name: Authenticate qualified DevSecOps tool pulls (host only)
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ vars.DEVSECOPS_PACKAGES_USER || github.actor }}
+          password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN || github.token }}
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load shared images; never rebuild scanned artifacts
@@ -83,12 +92,12 @@ jobs:
       - run: cargo xtask docs check
       - name: Audit Rust and scan minimized source/history inputs
         run: cargo xtask scan-sources
-      - name: Grype scans the exact source/runtime/builder Syft SBOMs offline
+      - name: DevSecOps Grype scans the exact source/runtime/builder Syft SBOMs offline
         run: cargo xtask scan-sbom --sbom-dir .work/sbom
       - name: Verify bound SBOM/report/config/layer runtime content
         if: always()
         run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
-      - name: Syft catalogs every declared image; Grype scans each SBOM offline
+      - name: DevSecOps Syft catalogs every image; DevSecOps Grype matches offline
         if: always()
         run: cargo xtask scan-supply-chain --platform linux/amd64
       - name: Retain every finding and exact owner-acceptance accounting
@@ -142,14 +151,23 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with: {persist-credentials: false}
+      - name: Authenticate qualified DevSecOps tool pulls (host only)
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ vars.DEVSECOPS_PACKAGES_USER || github.actor }}
+          password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN || github.token }}
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load exactly the scanned/tested images
         run: cargo xtask load-ci-images
-      - name: Generate inventories and bound materials offline
+      - name: DevSecOps Syft generates inventories and bound materials offline
         run: cargo xtask generate-sbom --runtime-archive "$PWD/.work/ci-images/runtime.tar" --builder-archive "$PWD/.work/ci-images/builder.tar"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
@@ -190,6 +208,8 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish && inputs.redistribution_reviewed && needs['required-ci'].result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    env:
+      DEVSECOPS_READ_TOKEN_AVAILABLE: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN != '' }}
     permissions:
       contents: read
       packages: write
@@ -203,10 +223,18 @@ jobs:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: sbom-materials, path: .work/sbom}
       - run: cargo xtask load-ci-images
-      - name: Fresh bound analysis before registry credentials; no raw-report artifact transfer
+      - name: Optional read-only tool authentication (never the publication token)
+        if: env.DEVSECOPS_READ_TOKEN_AVAILABLE == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ vars.DEVSECOPS_PACKAGES_USER || github.actor }}
+          password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN }}
+      - name: Fresh DevSecOps analysis before publication credentials; no raw-report artifact transfer
         run: cargo xtask scan-sbom --sbom-dir .work/sbom
       - run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+      - name: Registry login for application publication (after fresh analysis)
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

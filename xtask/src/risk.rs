@@ -105,7 +105,8 @@ pub fn assess(root: &Path, catalog: &Value, findings: &[Value], scope: &str) -> 
             || (scope == "builder"
                 && catalog["source"]["type"] == "image"
                 && p["asset"] == "populated-builder"
-                && p["dockerfile_sha256"].as_str() == recipe.as_deref()
+                && p["dockerfile_sha256"].as_str()
+                    == recipe.as_deref().and_then(|v| v.strip_prefix("sha256:"))
                 && p["platforms"]
                     .as_array()
                     .is_some_and(|ps| ps.iter().any(|v| v == &platform)))
@@ -115,6 +116,67 @@ pub fn assess(root: &Path, catalog: &Value, findings: &[Value], scope: &str) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn builder_recipe_uses_exact_raw_digest_and_rejects_scope_changes() -> Result {
+        let profile = snapshot()?["assets"]
+            .as_array()
+            .ok_or("assets")?
+            .iter()
+            .find(|p| p["asset"] == "populated-builder")
+            .ok_or("builder profile")?;
+        let rule = &profile["rules"][0];
+        let mut artifact = rule["identity"]["package"].clone();
+        artifact["locations"] = json!(
+            artifact["locations"]
+                .as_array()
+                .ok_or("locations")?
+                .iter()
+                .map(|p| json!({"path":p}))
+                .collect::<Vec<_>>()
+        );
+        let finding = json!({"artifact":artifact,"vulnerability":rule["identity"]["vulnerability"],"relatedVulnerabilities":rule["identity"]["related"]});
+        let root = tempfile::tempdir()?;
+        let dockerfile = util::read(&crate::root().join("Dockerfile"), 1024 * 1024)?;
+        std::fs::write(root.path().join("Dockerfile"), &dockerfile)?;
+        assert_eq!(profile["dockerfile_sha256"], util::digest(&dockerfile));
+        for arch in ["amd64", "arm64"] {
+            let catalog = json!({"source":{"type":"image","metadata":{"imageID":format!("sha256:{}", "f".repeat(64)),"os":"linux","architecture":arch}}});
+            assert_eq!(
+                assess(
+                    root.path(),
+                    &catalog,
+                    std::slice::from_ref(&finding),
+                    "builder"
+                )?["accepted"],
+                1
+            );
+            for scope in ["registry", "runtime", "source"] {
+                assert_eq!(
+                    assess(root.path(), &catalog, std::slice::from_ref(&finding), scope)?["blocking"],
+                    1
+                );
+            }
+            let mut foreign = catalog.clone();
+            foreign["source"]["metadata"]["architecture"] = json!("foreign");
+            assert_eq!(
+                assess(
+                    root.path(),
+                    &foreign,
+                    std::slice::from_ref(&finding),
+                    "builder"
+                )?["blocking"],
+                1
+            );
+        }
+        std::fs::write(root.path().join("Dockerfile"), b"changed recipe")?;
+        let catalog = json!({"source":{"type":"image","metadata":{"imageID":"foreign","os":"linux","architecture":"arm64"}}});
+        assert_eq!(
+            assess(root.path(), &catalog, &[finding], "builder")?["blocking"],
+            1
+        );
+        Ok(())
+    }
+
     #[test]
     fn exact_snapshot_preserves_findings_and_rejects_changes_duplicates_and_foreign_subjects()
     -> Result {

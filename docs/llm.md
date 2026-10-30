@@ -1,6 +1,6 @@
 # Architecture context
 
-Start with [llms.txt](../llms.txt), [operations](operations.md) and the [protocol contract](livesync-protocol.md). This is a private Self-hosted LiveSync/CouchDB replication subset, not Apache CouchDB or a new file-sync protocol. MCP is deferred.
+Start with [llms.txt](../llms.txt), [operations](operations.md) and the [protocol contract](livesync-protocol.md). User setup requests follow [the LLM setup contract](setup-with-ai.md), [getting started](getting-started.md) and [configuration](configuration.md): inspect/plan/approve first, never overwrite an existing installation, and keep key issuance out of tool stdout/model context. Native or container execution is a choice; Compose/Kustomize are optional deployment examples, not prerequisites. This is a private Self-hosted LiveSync/CouchDB replication subset, not Apache CouchDB or a new file-sync protocol. MCP is deferred.
 
 ## Components
 
@@ -31,7 +31,7 @@ Kubernetes tests enter only through `scripts/smoke-kubernetes.sh`, with private 
 
 CI reuses exact image archives and source/runtime/builder native JSON/SPDX/CycloneDX with bound materials and complete Cargo/npm lock graphs. Syft catalogs; Grype matches offline after separate fresh DB retrieval. Owner decision 2026-10-30 permits only exact accepted-risk snapshot matches, including known fixable findings. All severities/suppressions stay visible. New matches, runtime/source findings, missing inventories, malformed/stale/substituted data and scan/cleanup failures still block. A vacuous pause inventory is not clean.
 
-Only actual successful producer publish/provenance/access-verified digests may replace consumer tool pins. Keep host cargo-deny until complete equivalence exists; CLI images are not compilers/daemons/services. Publication does not authorize real deployment or regulated data. See [releases](releases.md), [security](security.md), [scanner contract](scanner-pipeline.md) and [verification](results.md).
+The active Syft/Grype pins now use the published DevSecOps source-13edb52 manifest digests. Private registry access is separate from anonymous/public access: security/SBOM jobs use host-only GHCR read authentication, and the publication job only uses an explicitly supplied read token before fresh scans, never its write token. Missing package grants/credentials block. Only actual successful producer publish/provenance/access-verified digests may replace consumer tool pins. Keep host cargo-deny until complete equivalence exists; CLI images are not compilers/daemons/services. Publication does not authorize real deployment or regulated data. See [releases](releases.md), [security](security.md), [scanner contract](scanner-pipeline.md) and [verification](results.md).
 
 All first-party code/tests/automation use Rust; Node/npm are confined to locked upstream compatibility clients, installed without lifecycle scripts. Shell files are thin launchers. Preserve Cargo.lock and pin external actions/images/toolchains.
 

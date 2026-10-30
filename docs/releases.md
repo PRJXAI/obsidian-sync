@@ -29,7 +29,7 @@ Adoption requires:
 
 Never put a guessed or placeholder digest in an active pin. Known supplier risks remain visible under the consumer's [exact snapshot policy](security.md); producer acceptance is not automatic consumer authorization.
 
-### Published candidates
+### Active scanner images
 
 Source **`13edb5277101befe100a435f5ade8da6ea3d40af`** passed both native architectures, independent publication and provenance:
 
@@ -38,9 +38,17 @@ Source **`13edb5277101befe100a435f5ade8da6ea3d40af`** passed both native archite
 | Syft | `sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c` | [41099233895](https://github.com/PRJXAI/devsecops/actions/runs/41099233895) |
 | Grype | `sha256:3079a040326484d0b50ac28c7fc2fb25894a22170e81445ab90c400d091378e0` | [41099238680](https://github.com/PRJXAI/devsecops/actions/runs/41099238680) |
 
-Credentialed `gh attestation verify` checks succeeded for the exact subject, source/signer digest, main ref, reusable workflow and GitHub-hosted runners. **Anonymous token access returns 401 for both**, while the known-public registry control passes. These are real published candidates, not active consumer replacements: existing working supplier pins stay unchanged until access is qualified.
+Credentialed qualification verified exact index/native manifest/config identities, published native catalog bindings, producer source/risk counts and GitHub provenance for both subjects. The active `sbom::SYFT` / `grype::GRYPE` constants use these published digests with the `sha-13edb5277101befe100a435f5ade8da6ea3d40af` source tag. The consumer retains the same investigated scanner findings and budgets, allowing only the verified binary relocation to `/usr/local/bin/{tool}`; changed advisories, versions, locations or excess occurrences still fail. This is explicit consumer reconciliation, not inheritance of producer acceptance.
 
-An organization owner must make the packages public, or explicitly grant this repository Actions read access and configure/verify least-privilege package login. Repository visibility alone does neither. `xtask/tests/tool_delivery.rs` stages the real immutable candidates and opt-in anonymous/index/native-config/provenance checks; its failed access attempts remain private. No automatic scanner fallback or pin override is introduced.
+**Anonymous token access still returns 401 for both**, while the known-public control passes. Operator-authenticated access passed; hosted CI access is a separate gate, not inferred from that success. `xtask/tests/tool_delivery.rs` contains separate ignored anonymous and explicitly authorized private qualification tests, plus ordinary pin/substitution/risk-migration negatives. Historical applicability subjects retain their original upstream image identities and binary paths.
+
+### Configure package read access
+
+Prefer granting this repository read access under each package's **Settings → Manage Actions access**, or make the packages public if the owner approves. Repository visibility alone does neither. The `security` and `sbom` jobs request only `contents: read` / `packages: read` and authenticate using `GITHUB_TOKEN` by default.
+
+If the cross-repository grant is unavailable, an owner can explicitly configure repository secret `DEVSECOPS_PACKAGES_READ_TOKEN` and variable `DEVSECOPS_PACKAGES_USER` for a dedicated least-privilege package reader. Do not use a publication/admin token. Authentication stays in the host Docker credential store, never scanner mounts, build layers, public artifacts or stdout. Fork workflows without access fail closed; no automatic upstream fallback or pin override exists.
+
+The application publication job deliberately withholds its write token until fresh analysis finishes. If the tools remain private, that job therefore needs the separately configured **read-only** token for its pre-publication scan. With public tools it needs no pre-scan login. Missing access blocks the scan/publication; never move the write login earlier to get around it.
 
 ## Build and validate locally
 
@@ -67,7 +75,7 @@ Image publication is explicitly authorized work, not automatic deployment. The w
 
 Rust `build-ci-images` and `load-ci-images` replace inline orchestration: Linux tests, one runtime/builder build, checksum-verified archives, strict tag/config/layer checks and exact public artifact allowlists. `install-deployment-tools` preserves the pinned host Kustomize/k3d gates; it does not substitute incomplete container replacements.
 
-Only the publish job receives registry-write/OIDC authority. It loads original archives, performs fresh bound analysis **before registry login**, then `publish-image` revalidates checkout/source/clean materials/archive/runtime evidence and promotes immutable native bytes without rebuilding. Native manifests are fetched back by digest and config-checked before provenance and the allowlisted result upload. Raw reports/private logs never cross public artifacts.
+Only the publish job receives registry-write/OIDC authority. It loads original archives, performs fresh bound analysis **before write-credential registry login** (optionally using a distinct read-only tool token), then `publish-image` revalidates checkout/source/clean materials/archive/runtime evidence and promotes immutable native bytes without rebuilding. Native manifests are fetched back by digest and config-checked before provenance and the allowlisted result upload. Raw reports/private logs never cross public artifacts.
 
 Application tags include the source SHA, run ID/attempt and `amd64`; consumers must pin the resulting digest. No arm64 application release is claimed. Existing output directories refuse reuse. Interrupted/partial registry pushes can leave bytes/tags: absence of a completed provenance/result handoff means **not delivered**, not guaranteed no registry mutation.
 

@@ -2,7 +2,7 @@ use crate::{Result, ensure, images, security, util};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fs, path::Path};
 
-pub const SYFT: &str = "anchore/syft:v1.55.0-nonroot@sha256:ec5bdbc745485920c6f444239f0c09ed87b3c4c165ff9433f95bc66b3500fbf9";
+pub const SYFT: &str = "ghcr.io/prjxai/devsecops/syft:sha-13edb5277101befe100a435f5ade8da6ea3d40af@sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c";
 pub const SOURCE_FILES: &[&str] = &[
     "Cargo.toml",
     "Cargo.lock",
@@ -142,6 +142,156 @@ fn publish_catalog(temporary: &Path, output: &Path, name: &str) -> Result {
     }
     Ok(())
 }
+fn registry_metadata(bytes: &[u8], expected: &str) -> Result<Value> {
+    ensure(
+        bytes.len() <= 4 * 1024 * 1024
+            && images::is_digest(expected)
+            && format!("sha256:{}", util::digest(bytes)) == expected,
+        "Registry metadata digest/bound mismatch",
+    )?;
+    let value = util::strict_json(bytes)?;
+    ensure(value["schemaVersion"] == 2, "Registry metadata schema")?;
+    Ok(value)
+}
+fn scanner_member(index: &Value, platform: &str) -> Result<String> {
+    ensure(
+        ["linux/amd64", "linux/arm64"].contains(&platform),
+        "Unsupported scanner platform",
+    )?;
+    let members = index["manifests"]
+        .as_array()
+        .filter(|v| v.len() == 2)
+        .ok_or("Exactly two scanner members required")?;
+    let mut seen = BTreeSet::new();
+    let mut selected = None;
+    for member in members {
+        let arch = member["platform"]["architecture"]
+            .as_str()
+            .ok_or("Missing native architecture")?;
+        ensure(
+            member["platform"]["os"] == "linux"
+                && ["amd64", "arm64"].contains(&arch)
+                && seen.insert(arch),
+            "Foreign/duplicate scanner platform",
+        )?;
+        let digest = member["digest"]
+            .as_str()
+            .filter(|v| images::is_digest(v))
+            .ok_or("Invalid scanner member digest")?;
+        if platform == format!("linux/{arch}") {
+            selected = Some(digest.to_owned());
+        }
+    }
+    selected.ok_or_else(|| "Missing scanner platform".into())
+}
+fn private_scanner_material(
+    material: &Value,
+    config: &str,
+    native: &str,
+    platform: &str,
+) -> Result {
+    let (os, arch) = platform.split_once('/').ok_or("Invalid platform")?;
+    // Classic Docker exposes the config ID; the containerd image store exposes
+    // the native manifest ID. Neither permits substituting the index identity.
+    ensure(
+        material["config_digest"] == config
+            && (material["image_id"] == config || material["image_id"] == native)
+            && material["os"] == os
+            && material["architecture"] == arch,
+        "Private scanner archive/platform mismatch",
+    )
+}
+fn catalog_private_scanner(
+    root: &Path,
+    image: &str,
+    platform: &str,
+    output: &Path,
+    name: &str,
+) -> Result {
+    ensure(
+        [SYFT, crate::grype::GRYPE].contains(&image),
+        "Qualified private scanner only",
+    )?;
+    util::local_docker(root)?;
+    let (tag, digest) = image.split_once('@').ok_or("Missing scanner digest")?;
+    let repository = tag.rsplit_once(':').ok_or("Missing scanner source tag")?.0;
+    let fetch = |reference: &str| -> Result<Vec<u8>> {
+        util::output(
+            &mut util::cmd(
+                "docker",
+                &["buildx", "imagetools", "inspect", "--raw", reference],
+                root,
+            ),
+            120,
+        )
+    };
+    let index = registry_metadata(&fetch(image)?, digest)?;
+    let native = scanner_member(&index, platform)?;
+    // Pull the native digest, never retag the index used to execute the scanner.
+    let reference = format!("{repository}@{native}");
+    let manifest = registry_metadata(&fetch(&reference)?, &native)?;
+    let config = manifest["config"]["digest"]
+        .as_str()
+        .filter(|v| images::is_digest(v))
+        .ok_or("Invalid native configuration")?;
+    ensure(
+        manifest.get("manifests").is_none()
+            && manifest["layers"].as_array().is_some_and(|v| !v.is_empty()),
+        "Expected native scanner manifest",
+    )?;
+    util::run(
+        &mut util::cmd(
+            "docker",
+            &["pull", "--platform", platform, &reference],
+            root,
+        ),
+        180,
+    )?;
+    let temporary = tempfile::Builder::new()
+        .prefix("private-scanner-")
+        .tempdir_in(root.join(".work"))?;
+    let archive = temporary.path().join("image.tar");
+    // A containerd daemon identifier is not an unambiguous save selector.
+    // Export the exact native reference and platform, not a daemon/index ID.
+    let inspected = images::inspect(root, &reference)?;
+    util::run(
+        &mut util::cmd(
+            "docker",
+            &[
+                "image",
+                "save",
+                "--platform",
+                platform,
+                "--output",
+                archive.to_str().ok_or("Invalid archive path")?,
+                &reference,
+            ],
+            root,
+        ),
+        180,
+    )?;
+    let material = images::archive_material(&inspected, &archive)?;
+    let (os, arch) = platform.split_once('/').ok_or("Invalid platform")?;
+    private_scanner_material(&material, config, &native, platform)?;
+    scan(
+        root,
+        "docker-archive:/images/image.tar",
+        &archive,
+        "/images/image.tar",
+        output,
+        name,
+    )?;
+    let subject =
+        crate::grype::image_subject(&util::json(&output.join(format!("{name}.syft.json")))?)?;
+    ensure(
+        subject["ImageID"] == config
+            && subject["DiffIDs"] == material["layers"]
+            && subject["os"] == os
+            && subject["architecture"] == arch,
+        "Private scanner catalog differs from original archive",
+    )
+}
+
 pub fn catalog_registry(
     root: &Path,
     image: &str,
@@ -149,6 +299,9 @@ pub fn catalog_registry(
     output: &Path,
     name: &str,
 ) -> Result {
+    if [SYFT, crate::grype::GRYPE].contains(&image) {
+        return catalog_private_scanner(root, image, platform, output, name);
+    }
     let temporary = tempfile::Builder::new()
         .prefix("syft-registry-output-")
         .tempdir_in(root.join(".work"))?;
@@ -308,4 +461,72 @@ pub fn generate(
     )?;
     println!("Generated nine Syft/SPDX/CycloneDX inventories, native identity and bound materials");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn private_scanner_material_keeps_manifest_config_and_daemon_levels_distinct() {
+        let config = format!("sha256:{}", "a".repeat(64));
+        let native = format!("sha256:{}", "b".repeat(64));
+        let good =
+            json!({"config_digest":config,"image_id":config,"os":"linux","architecture":"arm64"});
+        assert!(private_scanner_material(&good, &config, &native, "linux/arm64").is_ok());
+        let mut containerd = good.clone();
+        containerd["image_id"] = json!(native);
+        assert!(private_scanner_material(&containerd, &config, &native, "linux/arm64").is_ok());
+        for (pointer, value) in [
+            ("/config_digest", json!(native)),
+            ("/image_id", json!(format!("sha256:{}", "c".repeat(64)))),
+            ("/os", json!("windows")),
+            ("/architecture", json!("amd64")),
+        ] {
+            let mut bad = good.clone();
+            *bad.pointer_mut(pointer).unwrap() = value;
+            assert!(private_scanner_material(&bad, &config, &native, "linux/arm64").is_err());
+        }
+    }
+    #[test]
+    fn private_scanner_metadata_rejects_substitution_oversize_and_foreign_members() {
+        let a = format!("sha256:{}", "a".repeat(64));
+        let b = format!("sha256:{}", "b".repeat(64));
+        let index = json!({"schemaVersion":2,"manifests":[{"digest":a,"platform":{"os":"linux","architecture":"amd64"}},{"digest":b,"platform":{"os":"linux","architecture":"arm64"}}]});
+        let bytes = serde_json::to_vec(&index).unwrap();
+        let digest = format!("sha256:{}", util::digest(&bytes));
+        assert!(registry_metadata(&bytes, &digest).is_ok());
+        assert!(registry_metadata(&bytes, &a).is_err());
+        assert!(registry_metadata(&vec![b' '; 4 * 1024 * 1024 + 1], &digest).is_err());
+        assert_eq!(scanner_member(&index, "linux/amd64").unwrap(), a);
+        assert_eq!(scanner_member(&index, "linux/arm64").unwrap(), b);
+        assert!(scanner_member(&index, "windows/amd64").is_err());
+        for (pointer, value) in [
+            ("/manifests/0/platform/os", json!("windows")),
+            ("/manifests/0/platform/architecture", json!("arm64")),
+            ("/manifests/0/digest", json!("latest")),
+        ] {
+            let mut bad = index.clone();
+            *bad.pointer_mut(pointer).unwrap() = value;
+            assert!(scanner_member(&bad, "linux/arm64").is_err());
+        }
+        let mut bad = index.clone();
+        bad["manifests"]
+            .as_array_mut()
+            .unwrap()
+            .push(index["manifests"][0].clone());
+        assert!(scanner_member(&bad, "linux/arm64").is_err());
+        assert!(scanner_member(&json!({"schemaVersion":2}), "linux/amd64").is_err());
+        let bytes = br#"{"schemaVersion":1}"#;
+        assert!(registry_metadata(bytes, &format!("sha256:{}", util::digest(bytes))).is_err());
+        assert!(
+            catalog_private_scanner(
+                Path::new("unused"),
+                "foreign",
+                "linux/amd64",
+                Path::new("unused"),
+                "image"
+            )
+            .is_err()
+        );
+    }
 }

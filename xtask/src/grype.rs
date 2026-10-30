@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fs, path::Path, process::Command};
 
-pub const GRYPE: &str = "anchore/grype:v0.121.0@sha256:621d56d1d68106b787022c81546f7e0a36202a25d1239f0c20195fab8c16f7ea";
+pub const GRYPE: &str = "ghcr.io/prjxai/devsecops/grype:sha-13edb5277101befe100a435f5ade8da6ea3d40af@sha256:3079a040326484d0b50ac28c7fc2fb25894a22170e81445ab90c400d091378e0";
 pub const SEVERITIES: [&str; 6] = ["Critical", "High", "Medium", "Low", "Negligible", "Unknown"];
 
 pub(crate) fn command(

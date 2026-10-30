@@ -1,7 +1,13 @@
 //! Opt-in delivery verification against the exact published scanner source.
 #![forbid(unsafe_code)]
-use serde_json::json;
-use std::{fs, io::Read, os::unix::fs::DirBuilderExt, time::Duration};
+use serde_json::{Value, json};
+use std::{
+    fs,
+    io::{Read, Write},
+    os::unix::fs::{DirBuilderExt, OpenOptionsExt},
+    path::Path,
+    time::Duration,
+};
 use xtask::{Result, ensure, images, util};
 const SOURCE: &str = "13edb5277101befe100a435f5ade8da6ea3d40af";
 const SYFT: &str = "sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c";
@@ -246,6 +252,310 @@ fn verify_fixed_scanner_delivery() -> Result {
     let syft = verify("syft", SYFT);
     let grype = verify("grype", GRYPE);
     syft.and(grype)
+}
+
+// Private access is a separate explicit qualification, never an automatic
+// fallback that changes the result of the anonymous-access test above.
+fn private_json(path: &Path, value: &Value) -> Result {
+    let mut file = fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .mode(0o600)
+        .open(path)?;
+    file.write_all(&serde_json::to_vec_pretty(value)?)?;
+    file.sync_all()?;
+    Ok(())
+}
+fn carry_known_rules(old: &Value, published: &Value, tool: &str) -> Result<Vec<Value>> {
+    ensure(
+        ["syft", "grype"].contains(&tool),
+        "Unsupported scanner migration",
+    )?;
+    let old_rules = old["rules"].as_array().ok_or("Missing original rules")?;
+    let rules = published["rules"]
+        .as_array()
+        .ok_or("Missing published rules")?;
+    ensure(
+        !rules.is_empty() && rules.len() == old_rules.len(),
+        "Scanner finding set changed",
+    )?;
+    let mut used = std::collections::BTreeSet::new();
+    for rule in rules {
+        let mut original_identity = rule["identity"].clone();
+        ensure(
+            original_identity["package"]["locations"] == json!([format!("/usr/local/bin/{tool}")]),
+            "Unexpected packaged binary path",
+        )?;
+        original_identity["package"]["locations"] = json!([format!("/{tool}")]);
+        let original = old_rules
+            .iter()
+            .find(|r| {
+                r["identity"] == original_identity
+                    && r["maximum_occurrences"] == rule["maximum_occurrences"]
+            })
+            .ok_or("New/changed advisory or occurrence budget")?;
+        ensure(
+            used.insert(
+                original["id"]
+                    .as_str()
+                    .ok_or("Missing original rule identity")?,
+            ),
+            "Duplicate migrated finding",
+        )?;
+    }
+    Ok(rules.clone())
+}
+
+#[test]
+#[ignore = "explicit owner-authorized private delivery qualification and proposal, not public access or automatic approval"]
+fn verify_fixed_private_scanner_delivery() -> Result {
+    util::install_cancellation()?;
+    let root = xtask::root();
+    let supplier = root
+        .parent()
+        .ok_or("Missing workspace")?
+        .join("devsecops/.work/delivery-20261030");
+    let directory = root
+        .join(".work/delivery-20261030")
+        .join(format!("private-qualified-{}", util::random_hex()));
+    fs::DirBuilder::new().mode(0o700).create(&directory)?;
+    let producer = util::json(
+        &root
+            .parent()
+            .ok_or("Missing workspace")?
+            .join("devsecops/inventory/accepted-risks.json"),
+    )?;
+    ensure(
+        producer["decision"] == "owner-selected-stack-2026-10-30" && producer["schema"] == 1,
+        "Unknown producer decision",
+    )?;
+    let mut policy = util::json(&root.join("xtask/src/accepted-risks.json"))?;
+    let mut verified = Vec::new();
+    for (tool, expected) in [("syft", SYFT), ("grype", GRYPE)] {
+        let repository = format!("ghcr.io/prjxai/devsecops/{tool}");
+        let reference = format!("{repository}@{expected}");
+        let bytes = util::output(
+            &mut util::cmd(
+                "docker",
+                &["buildx", "imagetools", "inspect", "--raw", &reference],
+                &root,
+            ),
+            120,
+        )?;
+        digest(&bytes, expected)?;
+        let index = util::strict_json(&bytes)?;
+        ensure(index["schemaVersion"] == 2, "Invalid published index")?;
+        let members = index["manifests"]
+            .as_array()
+            .filter(|v| v.len() == 2)
+            .ok_or("Exactly two native members required")?;
+        let status = util::json(&supplier.join(format!("published-{tool}/release-status.json")))?;
+        ensure(
+            status["source_sha"] == SOURCE
+                && status["manifest_digest"] == expected
+                && status["tool"] == tool
+                && status["status"] == "accepted-risk",
+            "Publication identity mismatch",
+        )?;
+        private_json(&directory.join(format!("{tool}.index.json")), &index)?;
+        let mut arches = std::collections::BTreeSet::new();
+        for member in members {
+            let arch = member["platform"]["architecture"]
+                .as_str()
+                .ok_or("Missing architecture")?;
+            ensure(
+                member["platform"]["os"] == "linux"
+                    && ["amd64", "arm64"].contains(&arch)
+                    && arches.insert(arch),
+                "Unexpected native platform",
+            )?;
+            let id = member["digest"]
+                .as_str()
+                .filter(|v| images::is_digest(v))
+                .ok_or("Invalid native digest")?;
+            let bytes = util::output(
+                &mut util::cmd(
+                    "docker",
+                    &[
+                        "buildx",
+                        "imagetools",
+                        "inspect",
+                        "--raw",
+                        &format!("{repository}@{id}"),
+                    ],
+                    &root,
+                ),
+                120,
+            )?;
+            digest(&bytes, id)?;
+            let manifest = util::strict_json(&bytes)?;
+            ensure(
+                manifest["schemaVersion"] == 2
+                    && manifest.get("manifests").is_none()
+                    && manifest["layers"].as_array().is_some_and(|v| !v.is_empty()),
+                "Invalid native manifest",
+            )?;
+            let config = manifest["config"]["digest"]
+                .as_str()
+                .filter(|v| images::is_digest(v))
+                .ok_or("Invalid native config")?;
+            let catalog_dir = supplier.join(format!("{tool}-published-{arch}"));
+            let summary = util::json(&catalog_dir.join("summary.json"))?;
+            let catalog = catalog_dir.join(format!("{tool}.syft.json"));
+            ensure(
+                summary["source_sha"] == SOURCE
+                    && summary["arch"] == arch
+                    && summary["tools"].as_array().is_some_and(|v| v.len() == 1)
+                    && summary["tools"][0]["config_id"] == config
+                    && summary["tools"][0]["sbom_sha256"]
+                        == util::hash(&catalog)?.trim_start_matches("sha256:"),
+                "Native catalog binding mismatch",
+            )?;
+            let platform = format!("linux/{arch}");
+            let reference_image = producer["tools"][tool]["reference_image"]
+                .as_str()
+                .ok_or("Missing original image")?;
+            let assets = policy["assets"].as_array().ok_or("Missing assets")?;
+            let old = assets
+                .iter()
+                .find(|a| a["asset"] == reference_image && a["platform"] == platform)
+                .ok_or("Missing original accepted asset")?;
+            let mut rules = carry_known_rules(old, &producer["tools"][tool], tool)?;
+            for rule in &mut rules {
+                rule["id"] = json!(format!(
+                    "devsecops-{tool}-{arch}-{}",
+                    rule["id"].as_str().ok_or("Missing rule ID")?
+                ));
+            }
+            let assessment = status["architectures"]
+                .as_array()
+                .ok_or("Missing native release status")?
+                .iter()
+                .find(|v| v["arch"] == arch)
+                .ok_or("Missing native release status")?;
+            ensure(
+                assessment["risk"]["blocking"] == 0
+                    && assessment["risk"]["accepted"] == rules.len()
+                    && assessment["counts"]["ignoredMatches"] == 0,
+                "Published accounting changed",
+            )?;
+            let asset = json!({"asset":format!("{repository}:sha-{SOURCE}@{expected}"),"platform":platform,"config_id":config,"reference_report_sha256":assessment["report_sha256"],"rules":rules});
+            let assets = policy["assets"].as_array_mut().ok_or("Missing assets")?;
+            if let Some(existing) = assets.iter().find(|a| a["config_id"] == config) {
+                ensure(existing == &asset, "Existing migration differs")?;
+            } else {
+                assets.push(asset);
+            }
+            private_json(
+                &directory.join(format!("{tool}.{arch}.manifest.json")),
+                &manifest,
+            )?;
+            xtask::sbom::catalog_registry(
+                &root,
+                &format!("{repository}:sha-{SOURCE}@{expected}"),
+                &platform,
+                &directory,
+                &format!("{tool}.{arch}"),
+            )?;
+            verified.push(json!({"tool":tool,"platform":platform,"manifest_digest":id,"config_digest":config,"source":SOURCE}));
+        }
+        let provenance = util::output(
+            util::cmd(
+                "gh",
+                &[
+                    "attestation",
+                    "verify",
+                    &format!("oci://{reference}"),
+                    "--repo",
+                    "PRJXAI/devsecops",
+                    "--signer-workflow",
+                    "PRJXAI/devsecops/.github/workflows/tool.yml",
+                    "--signer-digest",
+                    SOURCE,
+                    "--source-digest",
+                    SOURCE,
+                    "--source-ref",
+                    "refs/heads/main",
+                    "--deny-self-hosted-runners",
+                    "--format",
+                    "json",
+                ],
+                &root,
+            )
+            .env_remove("GH_DEBUG"),
+            180,
+        )?;
+        let provenance = util::strict_json(&provenance)?;
+        ensure(
+            provenance.as_array().is_some_and(|a| {
+                a.iter().any(|v| {
+                    v["verificationResult"]["statement"]["subject"]
+                        .as_array()
+                        .is_some_and(|s| {
+                            s.iter().any(|s| {
+                                s["name"] == repository
+                                    && s["digest"]["sha256"]
+                                        == expected.trim_start_matches("sha256:")
+                            })
+                        })
+                })
+            }),
+            "Provenance subject mismatch",
+        )?;
+        private_json(
+            &directory.join(format!("{tool}.attestation.json")),
+            &provenance,
+        )?;
+    }
+    private_json(
+        &directory.join("proposed-consumer-risk-policy.json"),
+        &policy,
+    )?;
+    private_json(
+        &directory.join("summary.json"),
+        &json!({"schema":1,"source":SOURCE,"access":"authenticated operator registry access verified; CI token grants and anonymous access remain separate","native_bindings":verified,"risk_scope":"Only exact existing identities/limits with reviewed binary relocation; proposal requires explicit integration","public_access_verified":false,"ci_access_verified":false}),
+    )?;
+    println!(
+        "Verified both published private scanners and four native bindings; explicit policy proposal at {}",
+        directory.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn scanner_migration_refuses_new_findings_versions_paths_and_duplicate_budgets() {
+    let old = json!({"rules":[{"id":"old","identity":{"package":{"locations":["/syft"],"version":"1"},"vulnerability":{"id":"known"}},"maximum_occurrences":1}]});
+    let rule = json!({"id":"published","identity":{"package":{"locations":["/usr/local/bin/syft"],"version":"1"},"vulnerability":{"id":"known"}},"maximum_occurrences":1});
+    let good = json!({"rules":[rule]});
+    assert!(carry_known_rules(&old, &good, "syft").is_ok());
+    for (path, value) in [
+        ("/rules/0/identity/vulnerability/id", json!("new")),
+        ("/rules/0/identity/package/version", json!("2")),
+        ("/rules/0/identity/package/locations", json!(["/elsewhere"])),
+        ("/rules/0/maximum_occurrences", json!(2)),
+    ] {
+        let mut bad = good.clone();
+        *bad.pointer_mut(path).unwrap() = value;
+        assert!(carry_known_rules(&old, &bad, "syft").is_err());
+    }
+    let mut bad = good.clone();
+    bad["rules"]
+        .as_array_mut()
+        .unwrap()
+        .push(good["rules"][0].clone());
+    assert!(carry_known_rules(&old, &bad, "syft").is_err());
+}
+
+#[test]
+fn production_scanners_are_the_exact_qualified_devsecops_images() {
+    assert_eq!(
+        xtask::sbom::SYFT,
+        format!("ghcr.io/prjxai/devsecops/syft:sha-{SOURCE}@{SYFT}")
+    );
+    assert_eq!(
+        xtask::grype::GRYPE,
+        format!("ghcr.io/prjxai/devsecops/grype:sha-{SOURCE}@{GRYPE}")
+    );
 }
 
 #[test]

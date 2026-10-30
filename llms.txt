@@ -2,9 +2,16 @@
 
 > Private-network Rust backend implementing the Self-hosted LiveSync/PouchDB replication contract. Static distroless runtime; persistent single-writer SQLite metadata and interchangeable immutable blob storage. Not Apache CouchDB, an Obsidian client or a public managed service.
 
-## Operations
+## Start here
 
-- [README](README.md): product boundary, disposable quickstart and SRE overview.
+- [LLM-guided setup](docs/setup-with-ai.md): copy-paste prompt, setup questions, approval gates and secret-safe assistant contract.
+- [Getting started](docs/getting-started.md): runtime choice, native filesystem walkthrough, private device keys and first synthetic sync.
+- [Configuration](docs/configuration.md): host/container settings, storage choice, credential mounts and validation.
+- [README](README.md): product boundary and SRE overview.
+
+For setup requests, follow the LLM guide before writes. Ask only unresolved host/access/storage/fresh-install questions; default to filesystem and loopback with the simplest approved runtime. Compose and Kustomize are optional deployment examples, not product prerequisites; inspect only the tools the selected route needs. Inspect prerequisites read-only, obtain the exact plan's approval, and never overwrite an existing installation. Key issuance is human-only in a private terminal, or a separately trusted secret-capable workflow: no secret-printing command may send stdout into model context. Do not inspect existing vaults or private settings by default. Availability, synthetic sync and production approval are separate outcomes.
+
+## Operations
 - [Operations runbook](docs/operations.md): provisioning, private HTTPS, client onboarding, credentials, probes, backups, recovery and upgrades.
 - [Storage](docs/storage.md): filesystem/S3/GCS/Azure contracts and provider-specific limits.
 - [Build and release engineering](docs/releases.md): artifact reuse, our tool-image adoption, provenance, package access and publication.
@@ -32,6 +39,6 @@ Run real compatibility/provider and disposable deployment tests, not only happy 
 
 The owner accepted exact investigated stack risks on 2026-10-30, including known fixable findings. Preserve raw findings and accepted/blocking accounting. New/changed findings, runtime/source findings, missing inventories, stale/substituted/malformed evidence and scanner errors still block; no automatic VEX or broad suppression. Grype remains the image matcher; Syft catalogs.
 
-Use only actual published, provenance/access-verified DevSecOps digests. A source push, local tag, partial package push or clean runtime-only report is not release authorization. Host compilers/daemons and incomplete host security-tool replacements remain separate.
+CI uses the exact qualified DevSecOps Syft/Grype digests, with host-only GHCR pull authentication. A consumer GITHUB_TOKEN needs package Actions read access; public visibility or a separately supplied read-only token remains an owner setting. Do not infer a grant, leak a token into scanner mounts or silently fall back on an access failure. Use only actual published, provenance/access-verified DevSecOps digests. A source push, local tag, partial package push or clean runtime-only report is not release authorization. Host compilers/daemons and incomplete host security-tool replacements remain separate.
 
 No public ingress/Funnel, remote plaintext credentials, provider certification, policy-CNI/DR/GUI validation or regulated/FIPS compliance is implied. Read the runbooks before operating important data. Regenerate docs with `cargo xtask sync-generated`, review implementation/tests and only then acknowledge source fingerprints.
