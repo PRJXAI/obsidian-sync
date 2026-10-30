@@ -2,9 +2,10 @@
 use crate::{
     Error, Result,
     auth::{Identity, authorize},
+    blob::blob_info,
     db::Database,
+    replay::{record, replay, validate_key},
     storage::{BlobKey, Store},
-    sync::{blob_info, record, replay},
 };
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -52,14 +53,7 @@ impl Queue {
         })
     }
     pub async fn enqueue(&self, who: &Identity, vault: Uuid, key: &str) -> Result<Uuid> {
-        if key.is_empty()
-            || key.len() > 128
-            || !key
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-        {
-            return Err(Error::Invalid);
-        }
+        validate_key(key)?;
         let who = who.clone();
         let key = key.to_owned();
         let quota = self.quota;

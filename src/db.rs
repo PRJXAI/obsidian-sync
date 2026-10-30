@@ -141,6 +141,13 @@ impl Database {
         .await
     }
 }
+pub(crate) fn uint(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
+    let value: i64 = row.get(index)?;
+    value
+        .try_into()
+        .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(index, value))
+}
+
 const SCHEMA: &str = "
 BEGIN IMMEDIATE;
 CREATE TABLE IF NOT EXISTS principals(id TEXT PRIMARY KEY, digest BLOB UNIQUE NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);

@@ -8,6 +8,8 @@ One process owns the metadata directory, enforced by an OS advisory file lock he
 
 All logical operations require an authenticated, revocable principal and an explicit vault grant. Principals are independent of vault IDs. Credentials are random 256-bit bearer secrets stored only as SHA-256 digests (not human passwords); the LiveSync adapter verifies these keys as Basic UUID/password credentials (or Bearer tokens) through the same identity/grant layer. Optional per-database bootstrap reset permission is separate from ordinary write permission. Administrative operations are local CLI operations requiring access to metadata, never HTTP routes. Health probes disclose no vault data.
 
+The internal CAS API remains in `src/sync.rs`; its blob operations delegate to private `src/blob.rs`, also used directly by Couch. Payload-bound request replay is shared through `src/replay.rs`, including integrity jobs. This separation does not change publication, quota, authorization, deadlines or stored replay identity. `Engine` clones share upload admission and use their current public `db` field.
+
 ## Publication and races
 
 1. Allocate an upload reservation in an immediate transaction, authorize, and charge the vault quota BEFORE uploading. Bind its immutable random object key to that vault. Each reservation charges max(content size, 4 KiB), bounding zero-byte allocations. Reservations are never automatically released: interrupted uploads consume quota until a future supported repair tool can verify and repair them. This intentionally favors integrity over availability.

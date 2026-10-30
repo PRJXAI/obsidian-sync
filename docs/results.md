@@ -8,6 +8,7 @@ Branch `refactor/behavior-preserving-cleanup`; scope and unchanged guarantees ar
 
 - Documentation reconciliation: generated/link checks and local deployment rendering pass. Removed the unsupported `/_uuids` claim and contradictory live Kubernetes recommendation; retained historical failed release evidence.
 - Transaction readability: expanded job claims/completion/inspection, revision/checkpoint publication and read selection without changing transaction modes, SQL predicates/parameters, authorization order or commits. `cargo test --locked --workspace` passes (**42 application / 66 xtask**, **9 ignored**); `cargo xtask test-livesync` passes all **11** genuine-client scenarios including restart.
+- Shared publication: added pre-refactor characterization for request-key boundaries/scoped replays and the public `Engine.db` field; both pass before and after extraction. Private `blob`/`replay` modules now serve Couch/jobs and legacy wrappers without schema/API/hash changes. Workspace tests pass (**44 application / 66 xtask**, **9 ignored**), strict all-target/all-feature Clippy passes, and all **11** native real-client/restart scenarios pass.
 
 ## Repository assessment and local sync — 2026-10-30
 

@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed unchanged transaction guarantees in jobs, Couch revisions and reads against core/Couch/interruption/recovery tests and protocol/consistency/threat-model docs; expanded SQL and control flow only",
+  "reason": "Reviewed blob/replay extraction, current Engine.db authority, shared upload permits/deadlines and unchanged schema/hash/publication semantics against characterization, core, Couch, migration, interruption and recovery tests; updated architecture and consistency docs",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -210,6 +210,10 @@
       "sha256": "c70cd22f26186675ff366082443d3ef80499e12ae38edeecb9d705dae2c97849"
     },
     {
+      "path": "src/blob.rs",
+      "sha256": "99d7ffad15958e2cf7febf9a4da11ebeecec57fdf5c57267096b298fafaf9e03"
+    },
+    {
       "path": "src/config.rs",
       "sha256": "6c72a69e7d17efb597daec8c532d7280c1208f6c2c53bd49bd2f013819aa3c39"
     },
@@ -227,19 +231,19 @@
     },
     {
       "path": "src/couch/mod.rs",
-      "sha256": "5d3c32fd21635a40020888d451321262da1c616d3dd9219d8a2f70de16d120f6"
+      "sha256": "387009baf3d3bf81d1b618cd5b96e7cee7769e48840463a64f508f114a415e45"
     },
     {
       "path": "src/couch/reads.rs",
-      "sha256": "6420123ac1547167a0ee4ce620f9fa646fd2b0863fca1967bb01cde3ba4c0b9a"
+      "sha256": "2c1965fc1942d16b21c06d3c7740383ec3295aed7b6d24c069b83f10d6e07550"
     },
     {
       "path": "src/couch/revisions.rs",
-      "sha256": "f8d5453309a892e25b67ae0c7f826d3c9ff05082807caabd919410641792ff3d"
+      "sha256": "2cc3180ba367aadb88ca28d94651ca4f5f7a2a99ca140d47d4c17e4f1053db9e"
     },
     {
       "path": "src/db.rs",
-      "sha256": "13bfbb0e7ac8732d5a23660b6f8501476d4d2eb23fd31c51dadc3d70d07e662e"
+      "sha256": "8f2132b2a76b7d1943c00781f0cc7cb44f33e6475290e1553ad857b20ad9a6eb"
     },
     {
       "path": "src/error.rs",
@@ -247,15 +251,19 @@
     },
     {
       "path": "src/jobs.rs",
-      "sha256": "8150db05ab420e787b053e6ef69febc4bfa9eaef239aced7e41cbd8dfe74892d"
+      "sha256": "df8f02aa626cecd6eb6694d7e56346a7a72e33940e99ee2695c98369d515f487"
     },
     {
       "path": "src/lib.rs",
-      "sha256": "cd1d9d966513663f78c4cd0777c958515578b83e7e62f918e28442c83c4ce9ca"
+      "sha256": "0046f516cced12b718e1d4a6935cf96e682b3fbd8cbdc357d6bfa634d65abe2e"
     },
     {
       "path": "src/main.rs",
       "sha256": "1e5e964213479f4aae3a3871b6cb5128c7e4107471fea2f5eb404e5a2586f174"
+    },
+    {
+      "path": "src/replay.rs",
+      "sha256": "a7feb38df5f97eaa2d7022850cfba6da3525b87e2eb52e5573baf71e66155b8e"
     },
     {
       "path": "src/storage/cloud.rs",
@@ -275,7 +283,7 @@
     },
     {
       "path": "src/sync.rs",
-      "sha256": "0dd75ed42e7bbfdeeb3751aa964b4a3c71cf2aeb96ec9a416744fabb99c23db5"
+      "sha256": "e06a7d390b1b5e2368d1e45874c3ae65f7ea63040a1d27a5d28cc20114c27b30"
     },
     {
       "path": "src/transport.rs",
@@ -303,7 +311,7 @@
     },
     {
       "path": "tests/core.rs",
-      "sha256": "c334b1022b20c04ae5d1b407a5badd31f34d588d00ed14b053e3f4ee37ae21e7"
+      "sha256": "c0d5ad3407c45a3d8ea17707637760e990e9c7bcc827762dbcde7398b201921c"
     },
     {
       "path": "tests/couch.rs",

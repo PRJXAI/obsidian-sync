@@ -74,7 +74,7 @@ fn plan(c: &Connection, vault: Uuid, id: &str, options: &ReadOptions) -> Result<
         vault,
         object: blob.parse().map_err(|_| Error::Integrity)?,
     };
-    let info = crate::sync::blob_info(c, key)?;
+    let info = crate::blob::blob_info(c, key)?;
     if digest != info.digest {
         return Err(Error::Integrity);
     }
@@ -118,7 +118,7 @@ impl Couch {
         if plan.info.size > self.options.max_document_bytes as u64 {
             return Err(Error::Limit);
         }
-        let (info, reader) = self.engine.read_blob(who, plan.info.key).await?;
+        let (info, reader) = self.blobs.read_blob(&self.db, who, plan.info.key).await?;
         let mut bytes = Vec::with_capacity(info.size as usize);
         reader.take(info.size + 1).read_to_end(&mut bytes).await?;
         let mut doc: Value = super::cpu()?

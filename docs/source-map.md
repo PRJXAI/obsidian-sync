@@ -41,6 +41,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `scripts/test-s3.sh`
 - `scripts/validate-deployments.sh`
 - `src/auth.rs`
+- `src/blob.rs`
 - `src/config.rs`
 - `src/couch/http.rs`
 - `src/couch/json.rs`
@@ -53,6 +54,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `src/jobs.rs`
 - `src/lib.rs`
 - `src/main.rs`
+- `src/replay.rs`
 - `src/storage/cloud.rs`
 - `src/storage/filesystem.rs`
 - `src/storage/mod.rs`

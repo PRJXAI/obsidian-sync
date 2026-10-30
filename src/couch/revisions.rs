@@ -166,7 +166,7 @@ fn existing(c: &Connection, vault: Uuid, id: &str, rev: &str) -> Result<Option<B
         .optional()?;
     match row {
         Some((Some(blob), Some(hash))) => {
-            let info = crate::sync::blob_info(
+            let info = crate::blob::blob_info(
                 c,
                 crate::storage::BlobKey {
                     vault,
@@ -315,13 +315,14 @@ impl Couch {
         let info = if let Some(info) = ready {
             // CouchDB keeps the first immutable body. E2EE replays can legitimately
             // contain fresh ciphertext for this same revision; verify what is stored.
-            let (_, mut reader) = self.engine.read_blob(who, info.key).await?;
+            let (_, mut reader) = self.blobs.read_blob(&self.db, who, info.key).await?;
             crate::storage::copy_verified(&mut reader, &mut tokio::io::sink(), info).await?;
             info
         } else {
             let info = self
-                .engine
+                .blobs
                 .reserve(
+                    &self.db,
                     who,
                     vault,
                     incoming.bytes.len() as u64,
@@ -329,8 +330,9 @@ impl Couch {
                     &key,
                 )
                 .await?;
-            self.engine
+            self.blobs
                 .upload(
+                    &self.db,
                     who,
                     info,
                     Box::pin(std::io::Cursor::new(incoming.bytes.clone())),

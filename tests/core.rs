@@ -152,6 +152,110 @@ async fn upload_capacity_backpressures_bounded_callers_without_false_quota_error
 }
 
 #[tokio::test]
+async fn request_keys_keep_identical_boundaries_and_scoped_replays() {
+    let f = Fixture::new().await;
+    let queue = Queue::new(f.db.clone(), 10, 3).unwrap();
+    let oversized = "x".repeat(129);
+    for key in [
+        "",
+        "has space",
+        "slash/key",
+        "é",
+        "line\n",
+        "null\0",
+        &oversized,
+    ] {
+        assert!(matches!(
+            f.engine.reserve(&f.who, f.vault, 0, [0; 32], key).await,
+            Err(Error::Invalid)
+        ));
+        assert!(matches!(
+            queue.enqueue(&f.who, f.vault, key).await,
+            Err(Error::Invalid)
+        ));
+        assert!(matches!(
+            f.engine
+                .mutate(
+                    &f.who,
+                    f.vault,
+                    key,
+                    Mutation::Delete {
+                        path: "absent".into(),
+                        expected: 0,
+                    }
+                )
+                .await,
+            Err(Error::Invalid)
+        ));
+    }
+    for key in ["a-Z_09".to_owned(), "x".repeat(128)] {
+        let blob = f
+            .engine
+            .reserve(&f.who, f.vault, 0, [0; 32], &key)
+            .await
+            .unwrap();
+        let job = queue.enqueue(&f.who, f.vault, &key).await.unwrap();
+        let mutation = Mutation::Delete {
+            path: key.clone(),
+            expected: 0,
+        };
+        let revision = f
+            .engine
+            .mutate(&f.who, f.vault, &key, mutation.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            f.engine
+                .reserve(&f.who, f.vault, 0, [0; 32], &key)
+                .await
+                .unwrap(),
+            blob
+        );
+        assert_eq!(queue.enqueue(&f.who, f.vault, &key).await.unwrap(), job);
+        assert_eq!(
+            f.engine
+                .mutate(&f.who, f.vault, &key, mutation)
+                .await
+                .unwrap(),
+            revision
+        );
+    }
+}
+
+#[tokio::test]
+async fn engine_blob_operations_use_the_public_database_field() {
+    let f = Fixture::new().await;
+    let other = Fixture::new().await;
+    let mut engine = f.engine.clone();
+    engine.db = other.db.clone();
+    assert!(matches!(
+        engine
+            .reserve(&f.who, f.vault, 4, [0; 32], "wrong-db")
+            .await,
+        Err(Error::Unauthorized)
+    ));
+    let info = engine
+        .reserve(
+            &other.who,
+            other.vault,
+            4,
+            Sha256::digest(b"note").into(),
+            "current-db",
+        )
+        .await
+        .unwrap();
+    engine
+        .upload(&other.who, info, Box::pin(std::io::Cursor::new(b"note")))
+        .await
+        .unwrap();
+    let (saved, mut reader) = engine.read_blob(&other.who, info.key).await.unwrap();
+    assert_eq!(saved, info);
+    obsidian_sync_server::storage::copy_verified(&mut reader, &mut tokio::io::sink(), info)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn concurrent_cas_and_scoped_idempotency() {
     let f = Fixture::new().await;
     let info = f.blob("upload").await;

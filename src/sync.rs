@@ -2,23 +2,21 @@
 use crate::{
     Error, Result,
     auth::{Identity, authorize},
-    db::Database,
+    blob::BlobPublisher,
+    db::{Database, uint},
+    replay::{record, replay, validate_key},
     storage::{BlobInfo, BlobKey, Reader, Store},
 };
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{sync::Arc, time::Duration};
-use tokio::sync::Semaphore;
+use std::time::Duration;
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Engine {
     pub db: Database,
-    store: Store,
-    uploads: Arc<Semaphore>,
-    max: u64,
-    timeout: Duration,
+    blobs: BlobPublisher,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
@@ -67,17 +65,6 @@ pub fn validate_path(path: &str) -> Result<()> {
     }
     Ok(())
 }
-fn validate_key(key: &str) -> Result<()> {
-    if key.is_empty()
-        || key.len() > 128
-        || !key
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-    {
-        return Err(Error::Invalid);
-    }
-    Ok(())
-}
 impl Engine {
     pub fn new(
         db: Database,
@@ -86,15 +73,9 @@ impl Engine {
         max: u64,
         timeout: Duration,
     ) -> Result<Self> {
-        if !(1..=64).contains(&concurrency) || max == 0 || timeout.is_zero() {
-            return Err(Error::Invalid);
-        }
         Ok(Self {
             db,
-            store,
-            uploads: Arc::new(Semaphore::new(concurrency)),
-            max,
-            timeout,
+            blobs: BlobPublisher::new(store, concurrency, max, timeout)?,
         })
     }
     pub async fn reserve(
@@ -105,107 +86,12 @@ impl Engine {
         digest: [u8; 32],
         key: &str,
     ) -> Result<BlobInfo> {
-        validate_key(key)?;
-        if size > self.max || size > i64::MAX as u64 {
-            return Err(Error::Limit);
-        }
-        let hash = Sha256::digest(serde_json::to_vec(&(size, digest))?).to_vec();
-        let who = who.clone();
-        let key = key.to_owned();
-        self.db
-            .run(move |c| {
-                let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
-                authorize(&tx, &who, vault, true)?;
-                if let Some(result) = replay(&tx, &who, vault, "reserve", &key, &hash)? {
-                    return Ok(BlobInfo {
-                        key: BlobKey {
-                            vault,
-                            object: result.parse().map_err(|_| Error::Integrity)?,
-                        },
-                        size,
-                        digest,
-                    });
-                }
-                // Charge a floor to bound zero-byte reservations and their metadata.
-                let charge = size.max(4096);
-                let changed = tx.execute(
-                    "UPDATE vaults SET allocated=allocated+?1 WHERE id=?2 AND ?1<=quota-allocated",
-                    params![charge as i64, vault.to_string()],
-                )?;
-                if changed != 1 {
-                    return Err(Error::Limit);
-                }
-                let info = BlobInfo {
-                    key: BlobKey::new(vault),
-                    size,
-                    digest,
-                };
-                tx.execute(
-                    "INSERT INTO blobs(vault,id,size,digest) VALUES(?1,?2,?3,?4)",
-                    params![
-                        vault.to_string(),
-                        info.key.object.to_string(),
-                        size as i64,
-                        digest.to_vec()
-                    ],
-                )?;
-                record(
-                    &tx,
-                    &who,
-                    vault,
-                    "reserve",
-                    &key,
-                    &hash,
-                    &info.key.object.to_string(),
-                )?;
-                tx.commit()?;
-                Ok(info)
-            })
+        self.blobs
+            .reserve(&self.db, who, vault, size, digest, key)
             .await
     }
     pub async fn upload(&self, who: &Identity, info: BlobInfo, input: Reader) -> Result<()> {
-        // HTTP execution admission bounds waiters; a busy upload is backpressure,
-        // not storage exhaustion. Preserve one deadline across admission and I/O.
-        let deadline = tokio::time::Instant::now() + self.timeout;
-        let _permit = tokio::time::timeout_at(deadline, self.uploads.clone().acquire_owned())
-            .await
-            .map_err(|_| Error::Timeout)?
-            .map_err(|_| Error::Backend)?;
-        let who = who.clone();
-        self.db
-            .run({
-                let who = who.clone();
-                move |c| {
-                    authorize(c, &who, info.key.vault, true)?;
-                    if blob_info(c, info.key)? != info {
-                        return Err(Error::Conflict);
-                    }
-                    Ok(())
-                }
-            })
-            .await?;
-        tokio::time::timeout_at(deadline, async {
-            match self.store.put(info, input).await {
-                Ok(()) | Err(Error::Conflict) => (),
-                Err(e) => return Err(e),
-            }
-            // Also resolves publication-success/response-lost ambiguity safely.
-            self.store.verify(info).await
-        })
-        .await
-        .map_err(|_| Error::Timeout)??;
-        self.db
-            .run(move |c| {
-                let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
-                authorize(&tx, &who, info.key.vault, true)?;
-                tx.execute(
-                    "UPDATE blobs SET ready=1 WHERE vault=?1 AND id=?2",
-                    params![info.key.vault.to_string(), info.key.object.to_string()],
-                )?;
-                tx.commit()?;
-                Ok(())
-            })
-            .await
+        self.blobs.upload(&self.db, who, info, input).await
     }
     pub async fn mutate(
         &self,
@@ -318,51 +204,8 @@ impl Engine {
         }).await
     }
     pub async fn read_blob(&self, who: &Identity, key: BlobKey) -> Result<(BlobInfo, Reader)> {
-        let who = who.clone();
-        let info = self
-            .db
-            .run(move |c| {
-                authorize(c, &who, key.vault, false)?;
-                let ready: bool = c
-                    .query_row(
-                        "SELECT ready FROM blobs WHERE vault=?1 AND id=?2",
-                        params![key.vault.to_string(), key.object.to_string()],
-                        |r| r.get(0),
-                    )
-                    .optional()?
-                    .unwrap_or(false);
-                if !ready {
-                    return Err(Error::Conflict);
-                }
-                blob_info(c, key)
-            })
-            .await?;
-        let reader = tokio::time::timeout(self.timeout, self.store.get(key))
-            .await
-            .map_err(|_| Error::Timeout)??;
-        Ok((info, reader))
+        self.blobs.read_blob(&self.db, who, key).await
     }
-}
-fn uint(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
-    let value: i64 = row.get(index)?;
-    value
-        .try_into()
-        .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(index, value))
-}
-pub(crate) fn blob_info(c: &Connection, key: BlobKey) -> Result<BlobInfo> {
-    let (size, digest): (u64, Vec<u8>) = c
-        .query_row(
-            "SELECT size,digest FROM blobs WHERE vault=?1 AND id=?2",
-            params![key.vault.to_string(), key.object.to_string()],
-            |r| Ok((uint(r, 0)?, r.get(1)?)),
-        )
-        .optional()?
-        .ok_or(Error::Conflict)?;
-    Ok(BlobInfo {
-        key,
-        size,
-        digest: digest.try_into().map_err(|_| Error::Integrity)?,
-    })
 }
 fn check(c: &Connection, vault: Uuid, path: &str, expected: u64) -> Result<Option<Uuid>> {
     let head: Option<(u64, Option<String>)> = c
@@ -399,34 +242,4 @@ fn publish(c: &Connection, vault: Uuid, path: &str, blob: Option<Uuid>) -> Resul
         params![vault.to_string(), revision as i64, path, blob],
     )?;
     Ok(revision)
-}
-pub(crate) fn replay(
-    c: &Connection,
-    who: &Identity,
-    vault: Uuid,
-    operation: &str,
-    key: &str,
-    hash: &[u8],
-) -> Result<Option<String>> {
-    let row:Option<(Vec<u8>,String)>=c.query_row("SELECT hash,result FROM replays WHERE principal=?1 AND vault=?2 AND operation=?3 AND key=?4",params![who.id(),vault.to_string(),operation,key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-    match row {
-        Some((previous, result)) if previous == hash => Ok(Some(result)),
-        Some(_) => Err(Error::Conflict),
-        None => Ok(None),
-    }
-}
-pub(crate) fn record(
-    c: &Connection,
-    who: &Identity,
-    vault: Uuid,
-    operation: &str,
-    key: &str,
-    hash: &[u8],
-    result: &str,
-) -> Result<()> {
-    c.execute(
-        "INSERT INTO replays(principal,vault,operation,key,hash,result) VALUES(?1,?2,?3,?4,?5,?6)",
-        params![who.id(), vault.to_string(), operation, key, hash, result],
-    )?;
-    Ok(())
 }
