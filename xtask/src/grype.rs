@@ -211,8 +211,8 @@ pub fn scan(root: &Path, input: &Path, output: &Path, cache: &Path, name: &str) 
         "--file",
         &format!("/reports/{name}.grype.json"),
     ]);
-    // No severity threshold, --only-fixed, VEX or ignored findings. Rust rejects
-    // every match, including Unknown and Negligible, after a successful scan.
+    // No scanner threshold/filter/VEX: every match remains in the raw report.
+    // Rust separately classifies the exact owner-selected snapshot; errors block.
     util::logged(&mut c, &output.join(format!("{name}.grype.log")), 600)?;
     let bytes = util::read(
         &temporary.path().join(format!("{name}.grype.json")),
@@ -231,13 +231,22 @@ pub fn scan(root: &Path, input: &Path, output: &Path, cache: &Path, name: &str) 
     } else {
         json!({"type":"directory"})
     };
+    let assessment = crate::risk::assess(root, &catalog, &findings, name)?;
     util::write_json(
         &receipt,
-        &json!({"kind":"syft-grype-content-evidence","schema_version":1,"CreatedAt":Utc::now().to_rfc3339(),"cataloger_image":sbom::SYFT,"scanner_image":GRYPE,"Metadata":subject,"sbom":{"path":relative,"digest":util::hash(&saved)?},"report":{"path":format!("{name}.grype.json"),"digest":util::hash(&report)?},"findings":findings.len(),"authorization":"none; trusted unsigned content evidence only"}),
+        &json!({"scope":name,"risk":assessment,"kind":"syft-grype-content-evidence","schema_version":1,"CreatedAt":Utc::now().to_rfc3339(),"cataloger_image":sbom::SYFT,"scanner_image":GRYPE,"Metadata":subject,"sbom":{"path":relative,"digest":util::hash(&saved)?},"report":{"path":format!("{name}.grype.json"),"digest":util::hash(&report)?},"findings":findings.len(),"authorization":"none; trusted unsigned content evidence only"}),
     )?;
     println!(
         "{} {name}: {} Grype matches",
-        if findings.is_empty() { "PASS" } else { "FAIL" },
+        if assessment["blocking"] == 0 {
+            if findings.is_empty() {
+                "PASS"
+            } else {
+                "ACCEPTED-RISK"
+            }
+        } else {
+            "FAIL"
+        },
         findings.len()
     );
     Ok(findings.len())
@@ -285,9 +294,23 @@ pub fn receipt(path: &Path, now: DateTime<Utc>) -> Result<Value> {
         value["Metadata"] == subject && value["findings"] == findings.len(),
         "Changed receipt subject/count",
     )?;
-    // Keep the existing low-level config/layer verifier scanner-independent.
+    let scope = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .and_then(|n| n.strip_suffix(".scan.json"))
+        .filter(|n| !n.is_empty())
+        .ok_or("Invalid receipt scope filename")?;
+    if let Some(recorded) = value.get("scope") {
+        ensure(recorded.as_str() == Some(scope), "Changed receipt scope")?;
+    }
+    let root = crate::root();
+    let assessment = crate::risk::assess(&root, &catalog, &findings, scope)?;
+    if let Some(recorded) = value.get("risk") {
+        ensure(*recorded == assessment, "Changed risk assessment")?;
+    }
+    // Keep every raw match for the existing low-level runtime content verifier.
     Ok(
-        json!({"CreatedAt":value["CreatedAt"],"Metadata":subject,"Results":[{"Vulnerabilities":findings}],"raw_matches":findings}),
+        json!({"CreatedAt":value["CreatedAt"],"Metadata":subject,"Results":[{"Vulnerabilities":findings}],"raw_matches":findings,"risk":assessment}),
     )
 }
 pub fn scan_generated(root: &Path, directory: &Path) -> Result {
@@ -328,7 +351,11 @@ pub fn scan_generated(root: &Path, directory: &Path) -> Result {
                 "SBOM/image material mismatch",
             )?;
         }
-        count += scan(root, &input, &directory, &cache, name)?;
+        scan(root, &input, &directory, &cache, name)?;
+        let assessment = receipt(&directory.join(format!("{name}.scan.json")), Utc::now())?;
+        count += assessment["risk"]["blocking"]
+            .as_u64()
+            .ok_or("Missing blocking accounting")?;
     }
-    ensure(count == 0, "Grype findings remain blocking")
+    ensure(count == 0, "Unaccepted Grype findings remain blocking")
 }

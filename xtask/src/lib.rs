@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod ci;
 pub mod clients;
 pub mod dependency_baseline;
 pub mod deployment;
@@ -8,6 +9,8 @@ pub mod evidence;
 pub mod grype;
 pub mod images;
 pub mod policy;
+pub mod publication;
+pub mod risk;
 pub mod sbom;
 pub mod security;
 pub mod supply_sbom;

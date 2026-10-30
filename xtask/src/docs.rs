@@ -3,7 +3,7 @@ use regex::Regex;
 use rustix::fs::{Mode, OFlags};
 use serde_json::json;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     ffi::OsString,
     fs,
     io::Write,
@@ -195,6 +195,52 @@ pub fn delete(root: &Path, relative: &Path, reason: &str, yes: bool) -> Result {
     rustix::fs::unlinkat(fd, name, rustix::fs::AtFlags::empty())?;
     Ok(())
 }
+/// Retire mutually linked, committed pages as one validated set. Validation is
+/// all-before-unlink, not a filesystem transaction or same-UID race boundary.
+pub fn delete_batch(root: &Path, relatives: &[PathBuf], reason: &str, yes: bool) -> Result {
+    ensure(
+        yes && !reason.trim().is_empty() && !relatives.is_empty() && relatives.len() <= 16,
+        "Batch deletion requires explicit bounded scope, confirmation and reason",
+    )?;
+    let mut targets = BTreeSet::new();
+    let mut handles = Vec::new();
+    for relative in relatives {
+        let handle = parent(root, relative, false)?;
+        let target = root.join(relative);
+        ensure(
+            targets.insert(target.clone()),
+            "Duplicate document deletion",
+        )?;
+        let metadata = target.symlink_metadata()?;
+        ensure(
+            metadata.is_file() && metadata.nlink() == 1,
+            "Deletion target must be an unlinked regular document",
+        )?;
+        let name = relative.to_str().ok_or("Invalid document path")?;
+        util::quiet(
+            &mut util::cmd("git", &["cat-file", "-e", &format!("HEAD:{name}")], root),
+            30,
+        )?;
+        util::quiet(
+            &mut util::cmd("git", &["diff", "--quiet", "HEAD", "--", name], root),
+            30,
+        )?;
+        handles.push(handle);
+    }
+    for doc in markdown(root)? {
+        if !targets.contains(&doc) {
+            ensure(
+                !links(&doc)?.iter().any(|link| targets.contains(link)),
+                "Remove external inbound links before batch deletion",
+            )?;
+        }
+    }
+    for (fd, name) in handles {
+        rustix::fs::unlinkat(fd, name, rustix::fs::AtFlags::empty())?;
+    }
+    Ok(())
+}
+
 pub fn review(root: &Path, reason: &str) -> Result {
     ensure(
         !reason.trim().is_empty(),

@@ -35,6 +35,7 @@ xtask/**
 !xtask/src
 xtask/src/**
 !xtask/src/*.rs
+!xtask/src/accepted-risks.json
 !xtask/tests
 xtask/tests/**
 !xtask/tests/*.rs

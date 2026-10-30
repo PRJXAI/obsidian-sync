@@ -22,6 +22,16 @@ enum Task {
         action: Doc,
     },
     VerifyImage,
+    BuildCiImages,
+    LoadCiImages {
+        #[arg(long)]
+        runtime_only: bool,
+    },
+    InstallDeploymentTools,
+    PublishImage {
+        #[arg(long)]
+        source_revision: String,
+    },
     /// Content binding only: requires a trusted scan, not release authorization.
     VerifyRelease {
         #[arg(long)]
@@ -108,6 +118,14 @@ enum Doc {
         #[arg(long)]
         yes: bool,
     },
+    DeleteBatch {
+        #[arg(required = true)]
+        paths: Vec<PathBuf>,
+        #[arg(long)]
+        reason: String,
+        #[arg(long)]
+        yes: bool,
+    },
 }
 fn execute(command: Task) -> Result {
     xtask::util::install_cancellation()?;
@@ -122,8 +140,17 @@ fn execute(command: Task) -> Result {
             Doc::Create { path, title } => docs::create(&root, &path, &title),
             Doc::Update { path, from_file } => docs::update(&root, &path, &from_file),
             Doc::Delete { path, reason, yes } => docs::delete(&root, &path, &reason, yes),
+            Doc::DeleteBatch { paths, reason, yes } => {
+                docs::delete_batch(&root, &paths, &reason, yes)
+            }
         },
         Task::VerifyImage => images::verify_image(&root),
+        Task::BuildCiImages => xtask::ci::build(&root),
+        Task::LoadCiImages { runtime_only } => xtask::ci::load(&root, runtime_only),
+        Task::InstallDeploymentTools => xtask::ci::install_deployment_tools(&root),
+        Task::PublishImage { source_revision } => {
+            xtask::publication::publish(&root, &source_revision)
+        }
         Task::VerifyRelease { image, scan_report } => {
             images::verify_release(&root, &image, &scan_report)
         }

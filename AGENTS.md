@@ -28,6 +28,7 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 3. Use bounded blocking pools for SQLite/fs sync work, streaming I/O for attachments. Do not spawn unbounded tasks.
 4. Run scripts/check.sh, scripts/check-features.sh, scripts/test-s3.sh, scripts/validate-deployments.sh; then image scan and disposable deployment smoke tests. Record exact results and blocked checks in docs/results.md.
 5. Run cargo audit and cargo deny check with fresh advisory data. Never ignore advisories merely to make CI green. Dependency license approvals in deny.toml are policy, not advisory exceptions.
+   The owner's exact 2026-10-30 current-stack image-risk snapshot is enforced in xtask/src/risk.rs and accepted-risks.json. Retain all findings/accepted/blocking counts; no automatic approval, runtime/source exceptions, missing-inventory acceptance or scanner-error waiver. Cargo audit/deny policy remains unchanged.
 6. Follow .agents/skills/maintain-docs/SKILL.md. Update authored docs with behavior changes; regenerate copies/source map with `cargo xtask sync-generated`. Review source drift via `cargo xtask docs check`; acknowledge only after reading affected docs.
 7. Commit Cargo.lock. Keep toolchain, Docker builder and CI toolchain in sync; pin external images/actions by digest/commit.
 

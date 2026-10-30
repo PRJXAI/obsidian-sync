@@ -5,11 +5,20 @@ on:
   schedule:
     - cron: '23 6 * * 1'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested Linux amd64 application after all Required CI gates
+        type: boolean
+        default: false
+      redistribution_reviewed:
+        description: Confirm application-specific notices and source arrangements for this revision
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && inputs.publish && github.run_id || 'checks' }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' || !inputs.publish }}
 jobs:
   rust:
     name: Rust / ${{ matrix.features || 'filesystem' }}
@@ -38,23 +47,15 @@ jobs:
         with: {persist-credentials: false}
       - name: Test build-context privacy with synthetic excluded-file canaries
         run: cargo xtask test-build-context
-      - name: Test the Linux musl build stage
-        run: docker build --target tests .
-      - name: Build the shared builder and runtime
-        run: |
-          docker build --target build -t obsidian-sync:builder .
-          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" -t obsidian-sync:local .
-          cargo xtask verify-image
-      - name: Export the exact images for every downstream gate
-        run: |
-          mkdir -p .work/ci-images
-          docker save obsidian-sync:local -o .work/ci-images/runtime.tar
-          docker save obsidian-sync:builder -o .work/ci-images/builder.tar
-          (cd .work/ci-images && sha256sum runtime.tar builder.tar > SHA256SUMS)
+      - name: Test Linux musl and build/export the exact runtime and builder
+        run: cargo xtask build-ci-images
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: build-images
-          path: .work/ci-images/
+          path: |
+            .work/ci-images/runtime.tar
+            .work/ci-images/builder.tar
+            .work/ci-images/SHA256SUMS
           retention-days: 1
           compression-level: 1
           if-no-files-found: error
@@ -70,17 +71,16 @@ jobs:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load shared images; never rebuild scanned artifacts
-        run: |
-          (cd .work/ci-images && sha256sum -c SHA256SUMS)
-          docker load -i .work/ci-images/runtime.tar
-          docker load -i .work/ci-images/builder.tar
+        run: cargo xtask load-ci-images
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: sbom-materials, path: .work/sbom}
       - run: cargo install cargo-audit --version 0.22.2 --locked
       - run: cargo install cargo-deny --version 0.20.2 --locked
-      - run: cargo audit && cargo deny check
+      - run: cargo audit
+      - run: cargo deny check
       - run: cargo test --locked -p xtask
-      - run: cargo xtask sync-generated --check && cargo xtask docs check
+      - run: cargo xtask sync-generated --check
+      - run: cargo xtask docs check
       - name: Audit Rust and scan minimized source/history inputs
         run: cargo xtask scan-sources
       - name: Grype scans the exact source/runtime/builder Syft SBOMs offline
@@ -91,7 +91,7 @@ jobs:
       - name: Syft catalogs every declared image; Grype scans each SBOM offline
         if: always()
         run: cargo xtask scan-supply-chain --platform linux/amd64
-      - name: Build artifact-specific findings ledger without waivers
+      - name: Retain every finding and exact owner-acceptance accounting
         if: always()
         run: cargo xtask findings-ledger --platform linux/amd64 --source-revision "$GITHUB_SHA"
       - name: Assemble private dependency baseline from bound image/build reports
@@ -122,13 +122,8 @@ jobs:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load the tested runtime
-        run: |
-          (cd .work/ci-images && sha256sum -c SHA256SUMS)
-          docker load -i .work/ci-images/runtime.tar
-      - run: |
-          go install sigs.k8s.io/kustomize/kustomize/v5@v5.8.3
-          go install -ldflags '-X github.com/k3d-io/k3d/v5/version.Version=v5.9.0' github.com/k3d-io/k3d/v5@v5.9.0
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+        run: cargo xtask load-ci-images --runtime-only
+      - run: cargo xtask install-deployment-tools
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '26.13.0'
@@ -153,10 +148,7 @@ jobs:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load exactly the scanned/tested images
-        run: |
-          (cd .work/ci-images && sha256sum -c SHA256SUMS)
-          docker load -i .work/ci-images/runtime.tar
-          docker load -i .work/ci-images/builder.tar
+        run: cargo xtask load-ci-images
       - name: Generate inventories and bound materials offline
         run: cargo xtask generate-sbom --runtime-archive "$PWD/.work/ci-images/runtime.tar" --builder-archive "$PWD/.work/ci-images/builder.tar"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -191,3 +183,46 @@ jobs:
         env:
           REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
         run: cargo xtask ci-gate
+
+  publish:
+    name: Publish exact tested application / provenance
+    needs: [required-ci, build, sbom]
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish && inputs.redistribution_reviewed && needs['required-ci'].result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with: {name: build-images, path: .work/ci-images}
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with: {name: sbom-materials, path: .work/sbom}
+      - run: cargo xtask load-ci-images
+      - name: Fresh bound analysis before registry credentials; no raw-report artifact transfer
+        run: cargo xtask scan-sbom --sbom-dir .work/sbom
+      - run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote exact tested bytes without rebuilding
+        env:
+          PUBLISH_REQUIRED_CI_RESULT: ${{ needs['required-ci'].result }}
+          PUBLISH_REDISTRIBUTION_APPROVED_SHA: ${{ github.sha }}
+        run: cargo xtask publish-image --source-revision "$GITHUB_SHA"
+      - uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
+        with:
+          subject-checksums: .work/published-application/subjects.checksums
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: published-application
+          path: |
+            .work/published-application/release.json
+            .work/published-application/subjects.checksums
+          if-no-files-found: error

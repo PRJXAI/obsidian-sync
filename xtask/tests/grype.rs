@@ -157,7 +157,17 @@ fn receipt_binds_exact_sbom_report_subject_count_and_time() -> Result {
     let receipt = root.join("runtime.scan.json");
     util::write_json(&receipt, &value)?;
     grype::receipt(&receipt, Utc::now())?;
-    for kind in ["sbom", "report", "subject", "count", "time", "escape"] {
+    for kind in [
+        "sbom",
+        "report",
+        "subject",
+        "count",
+        "time",
+        "escape",
+        "scope",
+        "scope-type",
+        "risk",
+    ] {
         let mut bad = value.clone();
         match kind {
             "sbom" => bad["sbom"]["digest"] = json!(format!("sha256:{}", "d".repeat(64))),
@@ -166,6 +176,9 @@ fn receipt_binds_exact_sbom_report_subject_count_and_time() -> Result {
             "count" => bad["findings"] = json!(1),
             "time" => bad["CreatedAt"] = json!((Utc::now() - Duration::days(2)).to_rfc3339()),
             "escape" => bad["report"]["path"] = json!("../outside.json"),
+            "scope" => bad["scope"] = json!("builder"),
+            "scope-type" => bad["scope"] = json!([]),
+            "risk" => bad["risk"] = json!({"accepted":99,"blocking":0}),
             _ => unreachable!(),
         }
         util::write_json(&receipt, &bad)?;

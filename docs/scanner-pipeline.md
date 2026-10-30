@@ -1,10 +1,10 @@
 # SBOM-first scanning: Syft → Grype
 
-All orchestration and validation are Rust (`xtask/`). Syft **generates** the inventory; Grype scans that inventory for vulnerabilities. Neither replaces Cargo audit/deny, npm audit, source/history secret scanning or native patch/reachability review.
+Syft **catalogs**; Grype matches the native inventory offline. Rust (`xtask/`) orchestrates/validates them. Neither replaces fresh Cargo audit/deny, npm audit, source/history secret checks or native/source applicability work. There is no Trivy fallback or second image-scanner requirement.
 
 ## Run
 
-Build the public-source runtime/builder images first, then:
+Build public-source runtime/builder images first; see [releases](releases.md).
 
 ```sh
 cargo xtask generate-sbom
@@ -12,47 +12,51 @@ cargo xtask scan-sbom --sbom-dir .work/sbom
 cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
 cargo xtask scan-supply-chain --platform linux/amd64
 cargo xtask findings-ledger --platform linux/amd64 --source-revision "$(git rev-parse HEAD)"
+cargo xtask dependency-baseline --platform linux/amd64
 ```
 
-`generate-sbom` produces native Syft JSON, CycloneDX and SPDX for source/runtime/builder: **nine inventories**, native-toolchain identity and bound materials. CI supplies the original checksum-verified runtime/builder archives; catalog configuration/layers must match those archives. Both CycloneDX and native Syft source inventories must include the entire Cargo/workspace/npm development lock graphs. The source input mount contains only explicit public dependency manifests.
+`generate-sbom` emits native JSON, CycloneDX and SPDX for source/runtime/builder: **nine inventories**, native-toolchain identity and bound materials. CI supplies original checksum-verified archives; catalogs must match their configuration/layers. Native/CDX source inventories include the full Cargo/workspace/npm **development** lock graphs. The source mount contains only explicit public manifests, not a workspace/credential dump.
 
-`scan-sbom` refreshes the Grype database in a separate bounded retrieval container, then scans each native Syft SBOM **offline**, without reparsing images. Syft 1.55.0 and Grype 0.121.0 are digest-pinned. Each process has a read-only root, caller UID/GID, dropped capabilities, no-new-privileges, 128 PIDs, two CPUs, 3 GiB memory and a 1536 MiB bounded tmpfs. There is no Docker socket. Analysis gets one read-only SBOM and a read-only DB, plus a separate empty per-invocation output directory: no writable alias to its input or previously published evidence. Host Rust code validates/copies only the expected bounded regular JSON outputs.
+## Retrieval and containment
 
-DB retrieval must succeed; DB schema/validity/time are checked, with a 72-hour maximum built age and a five-minute future tolerance. Scan/receipt timestamps expire after 24 hours. No automatic DB retrieval is permitted during offline analysis. A fresh retrieval does not prove every upstream advisory feed is current.
+A separate bounded container refreshes Grype's DB. Analysis has no network or automatic updates and reads one exact native SBOM and a read-only DB. Supported tool/schema versions remain explicit; changing an image pin does not permit arbitrary schema changes.
 
-Every Grype match blocks, including **Unknown and Negligible**. Matcher-suppression accounting is explicitly enabled; any reported ignored/suppressed match is counted too, not silently dropped by a default ignore rule. No `--only-fixed`, severity threshold, VEX exception or advisory allowlist is used. Missing/empty/unsupported SBOMs, malformed reports, foreign package IDs, stale evidence, tool/schema changes and substituted source/config/layers/hashes fail closed.
+Each scanner uses read-only root, caller UID/GID, dropped capabilities, no-new-privileges, 128 PIDs, two CPUs, 3 GiB memory and 1536 MiB tmpfs. No socket/operator HOME. Output is a distinct empty per-invocation directory, not a writable alias of input/prior evidence. Host Rust validates/copies only bounded regular expected JSON. Captures/deadlines/cancellation and checked owned-container cleanup remain mandatory.
 
-## Applicability investigation, not a second image gate
+DB retrieval must succeed. Validate schema/status/time: **72 hours** maximum built age, five-minute future tolerance; receipts/reports expire after **24 hours**. A successful retrieval is not proof every upstream feed is current. The cold database occupied about **3.1 GiB** in trials; report/archive caps are not whole-host/cache quotas.
 
-The [2026-10-30 review](security-exploitability.md) records prerequisite analysis and a fixed-input ignored Rust diagnostic for original Go binaries using govulncheck 1.9.0. This is additive binary metadata/symbol investigation, not a scanner fallback, call graph, automatic VEX or finding suppression. Seven of nine subjects lack usable symbols and the overall diagnostic fails; partial presence results cannot clear them. Public advisory retrieval is separate from offline analysis and preserves bounded failed attempts. Grype remains the sole image vulnerability gate, with every finding/error blocking.
+## Findings and exact acceptance
 
-## Private dependency baseline
+Enable matcher-suppression accounting. Count every effective and ignored match, including Unknown/Negligible; retain raw fields and diagnostics. No `--only-fixed`, severity filter, generic VEX or automatic ignore.
 
-`cargo xtask dependency-baseline --platform linux/amd64` validates existing fresh registry and source/runtime/populated-builder receipts, native SBOMs/reports and the ten bound generated-material files. CI invokes it even when vulnerability scans report findings. It creates only `.work/security/dependency-baseline.json` (0600); existing/symlinked destinations fail. Compact aggregate accounting and streamed pre-write pretty output are capped at 64 MiB, with at most 64 assets; overflow leaves no published partial baseline. These are report bounds, not host-disk quotas.
+The owner accepted a fixed investigated stack snapshot on **2026-10-30**, including known fixable findings. After catalog/report validation, `risk.rs` compares exact subject/platform or builder recipe, package/version/type/location, advisory/namespace/severity/fix/related identities and occurrence limits against `accepted-risks.json`. Receipts record the policy and total/accepted/blocking counts; verification recomputes them instead of trusting a claimed acceptance. Status is **accepted-risk**, not fixed or clean.
 
-Each asset retains config/layers, receipt/SBOM/report digests, DB identity/time, severities and suppressed records. Package/advisory grouping preserves every report occurrence/location and never deduplicates away affected assets. Registry and build architectures remain separate; source/build revision/tree/dirty state come from the original materials, not caller-supplied current HEAD. Build archive hashes are retained assertions, not independently rehashed archive bytes. Classification is only `published-fix-needs-review` or `no-published-fix-in-report-needs-review`; all findings stay under investigation with no invented owner, applicability ruling or risk acceptance. Missing/stale/changed/contradictory/foreign evidence fails closed.
+**Unaccepted/new matches still fail. Runtime/source findings cannot inherit registry/builder acceptance.** Missing/empty/unsupported inventories, scan errors, unknown diagnostics, malformed reports, foreign packages, stale/substituted source/config/layers/hashes and extra occurrences remain failures. Do not regenerate acceptance from a failing scan; [security](security.md) defines the owner decision and residual risks.
 
-The baseline remains private and is not added to public artifact uploads. Its underlying raw evidence still needs an approved durable private archive; a runner-local file is not that archive. No new scan, complete-native-coverage claim, signature or release authorization follows. See the [implementation plan](dependency-image-plan.md) and [results](results.md).
+## Declared assets and coverage
 
-## Supplier rebuild experiment (retired)
+The inventory explicitly includes scanner images, static runtime/build base, Dockerfile frontend, RustFS, K3s, k3d-tools and pause. Disabled add-ons/load balancers are not silently pulled. A vacuous pause catalog is an **inventory error**, not zero findings; no Grype run over empty input. Registry cataloging is not native functional qualification.
 
-The unused local-only `rebuild-tool` command, compiler/test framework and exclusive Go/Git bases are removed. No candidate was adopted by CI; normal pinned Syft/Grype/Gitleaks scans and their containment/verification remain unchanged, including noexec scanner scratch. Historical source/lock/binary/image materials and findings remain private in `.work/tool-rebuild/`; see [results](results.md). Retirement is not advisory remediation, independent acceptance or elimination of Go-based supplier tools.
+Use our [DevSecOps tools](https://github.com/PRJXAI/devsecops) only after actual publish/provenance/access verification, then adopt literal digests without changing schemas, containment or seeded detection controls. Keep compiler/daemon/node/service identities and host Cargo audit/deny separate.
 
-## Evidence and privacy
+Retired kind/helper/reference-CouchDB/experimental rebuild/comparison assets and their failed findings remain historical evidence, not remediated code. Helper source visibility/context-canary/UID-scoped cleanup duties still run using the pinned build base. In-process real-router fixtures are not independent Apache CouchDB certification.
 
-- `.work/sbom/NAME.syft.json`, `.cdx.json`, `.spdx.json`: the inventories.
-- `.work/sbom/NAME.grype.json`: private raw scanner result.
-- `.work/sbom/NAME.scan.json`: unsigned content receipt binding the native SBOM, raw report, tool pins, time, count and image subject.
-- `.work/security/sbom-chain/ARCH/`: per-declared-image inventories/reports/receipts, summary and findings ledger.
+## Private baseline and trusted evidence
 
-The content verifier requires the receipt **and adjacent bound native SBOM/raw Grype report** through an approved trusted channel. A replaced report, SBOM or subject fails verification. Its immutable image ID is content binding, not signature verification, builder authenticity, whole-chain approval or permission to deploy.
+`dependency-baseline` validates fresh registry and source/runtime/populated-builder receipts, native inventories/reports and ten bound generated-material files. It creates only `.work/security/dependency-baseline.json` (0600), refuses existing/symlink destinations and enforces **64 MiB / 64 assets** with streamed pre-write bounds and no partial publication on overflow.
 
-Only explicitly public source/images and synthetic data may enter these tools. Public CI security artifacts contain allowlisted count/status summaries; raw reports/logs stay local pending an approved protected durable archive. Public SBOM artifacts are separately allowlisted inventories/materials, never arbitrary report directories. Output validation is not general DLP.
+Retain every occurrence/location, suppression, DB/time/config/layer/report/SBOM/receipt identity and accepted-risk decision. Preserve original source/tree/dirty/platform attribution; do not substitute caller HEAD or merge registry/native-build architectures. Archive hashes retained in materials are assertions unless original bytes are independently rehashed. Published-fix/no-fix grouping is not an applicability ruling. Missing/stale/contradictory/foreign input fails; a narrower partial diagnostic cannot complete a failed baseline.
 
-## Trivy retired by owner request
+Evidence layout:
 
-Syft → native SBOM → offline Grype is the sole image-scanning path. Trivy's executable pin, special resource profile, legacy report reader/ledger/publication code, comparison commands and `.github/scanner-transition.json` gate are removed. There is no fallback or parallel scanner requirement. The current declared-image inventory has **ten active images**, including Grype itself. The owner replaced kind/kindest-node with k3d; K3s, mandatory k3d-tools and the pause sandbox are explicitly pinned and included. Disabled add-ons/load balancers are not silently pulled. Missing/empty payload catalogs and any findings still fail, never become clean results. Historical kind findings remain retained. The standalone Alpine helper is retired: its daemon-visible source proof, build-context canaries and UID-scoped synthetic cleanup remain, using the already required pinned Rust build base. This does not remove BusyBox/native findings from the builder or turn build/test tooling into a distroless runtime. The two unused experiment-only Go/Git bases are retired, not patched. The owner also retired external reference CouchDB and reused the existing in-process Rust HTTP fixtures instead of introducing another mock server; historical CouchDB image findings are not claimed remediated.
+- `.work/sbom/NAME.{syft,cdx,spdx}.json`: inventories; `materials.json` and `native-toolchain.txt`: bindings.
+- `.work/sbom/NAME.grype.json`: private raw matches; `NAME.scan.json`: unsigned content receipt.
+- `.work/security/sbom-chain/ARCH/`: per-image inventories/reports/receipts, summary and ledger.
 
-The earlier comparison's **27 baseline-only asset/advisory pairs** remain historical investigation evidence. Retiring the comparison policy is an explicit owner decision, not a claim of scanner equivalence, independent review or advisory remediation. Existing ignored raw baseline/comparison files and historical measurements are not deleted or relabeled clean. Current Grype findings, every reported suppressed match, malformed/missing/stale evidence and scan errors still fail security and Required CI. Initial source/runtime/builder results were **0 / 0 / 19**; see [results](results.md) for exact measured scope.
+Content verification requires the receipt **and adjacent bound native SBOM/raw report** through an approved trusted channel. Its immutable image ID establishes content binding, not signature/builder authenticity, whole-chain approval or deployment permission. Runtime verification still receives **all raw matches** and refuses any runtime finding.
 
-Grype's cold database occupied about 3.1 GiB on disk in the trial; no tiny-database or general speedup claim is made. Java packages remain cataloged/scanned through the native SBOM without the retired scanner's separate Java DB. Egress sandbox support remains deferred.
+Only public/synthetic inputs. Public artifacts are allowlisted summaries or separately allowlisted inventories/materials, never raw report directories. Raw evidence needs an approved durable private archive; runner-local files do not provide one. Output validation is not DLP.
+
+## Additive binary investigation
+
+The fixed-input ignored `go_symbols` Rust diagnostic uses govulncheck 1.9.0 to inspect original Linux arm64 binaries without running them. Separate bounded public advisory retrieval precedes offline analysis. Seven of nine subjects lack usable symbols; the overall result intentionally fails. The two partial symbol outputs compute no call graph and prove neither exploit reachability nor absence. No scanner fallback, automatic VEX, filtering or approval follows. See [security](security.md) and [verification](results.md).

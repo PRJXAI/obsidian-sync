@@ -66,6 +66,50 @@ fn saved(path: &Path, config_name: &str, config: &[u8]) -> Result {
 }
 
 #[test]
+fn docs_batch_retirement_validates_the_whole_set_and_preserves_boundaries() -> Result {
+    let temp = fixture()?;
+    let root = temp.path();
+    put(root, "docs/a.md", "[B](b.md)\n")?;
+    put(root, "docs/b.md", "[A](a.md)\n")?;
+    put(root, "README.md", "[A](docs/a.md)\n")?;
+    commit(root)?;
+    let paths = vec!["docs/a.md".into(), "docs/b.md".into()];
+    assert!(docs::delete_batch(root, &[], "retired", true).is_err());
+    assert!(docs::delete_batch(root, &paths, "", true).is_err());
+    assert!(docs::delete_batch(root, &vec![paths[0].clone(); 17], "retired", true).is_err());
+    assert!(docs::delete_batch(root, &paths, "retired", false).is_err());
+    assert!(docs::delete_batch(root, &paths, "retired", true).is_err());
+    put(root, "README.md", "# Durable overview\n")?;
+    put(root, "docs/b.md", "dirty\n")?;
+    assert!(docs::delete_batch(root, &paths, "retired", true).is_err());
+    assert!(root.join("docs/a.md").exists());
+    put(root, "docs/b.md", "[A](a.md)\n")?;
+    for bad in [
+        vec!["docs/a.md".into(), "docs/a.md".into()],
+        vec!["docs/a.md".into(), "docs/missing.md".into()],
+        vec!["docs/a.md".into(), "../outside.md".into()],
+    ] {
+        assert!(docs::delete_batch(root, &bad, "retired", true).is_err());
+        assert!(root.join("docs/a.md").exists());
+    }
+    put(root, "outside.md", "private synthetic fixture\n")?;
+    fs::remove_file(root.join("docs/b.md"))?;
+    symlink(root.join("outside.md"), root.join("docs/b.md"))?;
+    assert!(docs::delete_batch(root, &paths, "retired", true).is_err());
+    assert!(root.join("docs/a.md").exists());
+    assert!(root.join("outside.md").exists());
+    fs::remove_file(root.join("docs/b.md"))?;
+    fs::hard_link(root.join("outside.md"), root.join("docs/b.md"))?;
+    assert!(docs::delete_batch(root, &paths, "retired", true).is_err());
+    assert!(root.join("docs/a.md").exists());
+    fs::remove_file(root.join("docs/b.md"))?;
+    put(root, "docs/b.md", "[A](a.md)\n")?;
+    docs::delete_batch(root, &paths, "superseded by durable operator docs", true)?;
+    assert!(!root.join("docs/a.md").exists() && !root.join("docs/b.md").exists());
+    assert!(root.join("outside.md").exists());
+    Ok(())
+}
+#[test]
 fn docs_create_update_drift_and_review() -> Result {
     let temp = fixture()?;
     let root = temp.path();

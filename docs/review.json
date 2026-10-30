@@ -1,13 +1,13 @@
 {
-  "reason": "Reviewed fixed Go metadata/symbol diagnostic and regular-tool/cleanup guards, negative cases, partial two-subject results, seven missing inventories, retained cap/invocation failures and advisory/host prerequisites; authored docs preserve no-waiver/no-release limits",
+  "reason": "Reviewed exact owner risk snapshot/occurrence and receipt-scope tests, Rust CI archive/publication code and allowlists, committed-page batch retirement boundaries, actual published scanner provenance and failed anonymous controls; consolidated SRE runbooks without transferring old evidence or marking deployment controls verified",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
-      "sha256": "10108eca1e4d67d05761f043fab8084061677437aeea71c5c7b4fb6945eb978e"
+      "sha256": "51bdc3dba71695d2e355c7b7d6167383bd755f7e4d2868b07e6de29de7b8c638"
     },
     {
       "path": ".agents/skills/security-release/SKILL.md",
-      "sha256": "40f0265255a4d9e3825d572c31fc389c43a49199f49752dd7d5fdce08431edda"
+      "sha256": "8678a8d8d6598edf0e29f2e4e45eca2f8cc2bad7764f180efcb6929806a8f250"
     },
     {
       "path": ".cargo/config.toml",
@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "1f64b741efeebdc0d80d92a682db649a6e0c6457b3156e0948234dc8a826b993"
+      "sha256": "560512d825b283d39441b887c1481162fc69e597c5a29afc360e1060bff7cb39"
     },
     {
       "path": ".env.example",
@@ -27,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "b6ee2f0ebdaee09630dc7e0e884a81c6911338ff712c1d45c86937618fa6d25d"
+      "sha256": "4555a683370c24781a3ed36c93e28b127c5eabb4c7e8ed150fa5c8950c0f619d"
     },
     {
       "path": ".gitignore",
@@ -35,7 +35,7 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "67cfe780276366cf39c06f857b72666f9430353518b14655fdf19ee43446e9d6"
+      "sha256": "6b1c74dcd0de0cecc0ef4b934458ae6354248dd085607abd2120606f89a816fd"
     },
     {
       "path": "Cargo.lock",
@@ -334,20 +334,28 @@
       "sha256": "f31cd445d1cf2ecdd0ae01ccf5da76c01993190e7b6de58e4b6f2e915eb11dd6"
     },
     {
+      "path": "xtask/src/accepted-risks.json",
+      "sha256": "bcd211ba6e1b7bf002751f362092a70f80de3cb22398361874b23771dd9c36dd"
+    },
+    {
+      "path": "xtask/src/ci.rs",
+      "sha256": "e0a56425356bd0de1b6a20cd58857553f67305c0528936db0f2890cbedc5a50d"
+    },
+    {
       "path": "xtask/src/clients.rs",
       "sha256": "afa96418ba537dc3e2bdd9e8f6e0670aed4a7662e2bd70a6d5551fdfe3c101e2"
     },
     {
       "path": "xtask/src/dependency_baseline.rs",
-      "sha256": "0f06e7e0ec2450e443948cec11c38c01c30f433689e97d65ce2a3af20db46098"
+      "sha256": "bd70c28978abbc5cbf97d66ab23f8a3471316fe564e377d95d36a32fc53a0ab8"
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "e5e6e3d92682d1b9899140ae1a7f5b05ed694a51f8a4240504fbed3149b42fdc"
+      "sha256": "4e65f5c8c22b6220e2511186c669f9462db74823c2ca4868bf645fe88265f0c0"
     },
     {
       "path": "xtask/src/docs.rs",
-      "sha256": "371b0ded301ef089996851caf1173c3d7a5fa4f611655ca237dd27231676db15"
+      "sha256": "724bdcb9e75fe2d87c2e6b78b77590ab451bd5e0f1f35469650d879805cc74c4"
     },
     {
       "path": "xtask/src/evidence.rs",
@@ -355,7 +363,7 @@
     },
     {
       "path": "xtask/src/grype.rs",
-      "sha256": "fbbf5613a5d25b917ba252dba0cabd31580d84946b0f1a13ed4f095241fe3bb4"
+      "sha256": "602594f3dadf016e4596fab2c79892496a1c9ea9e39e311541ca57d590160be8"
     },
     {
       "path": "xtask/src/images.rs",
@@ -363,15 +371,23 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "702b9f5feffb79654a762caa582479daadc4e6ce210c10e803bc3e3a3445838e"
+      "sha256": "26e29e8761de0284a43a91cb9f300c9f2b4ef8fc3a5ecaa522c675de3fe5d8aa"
     },
     {
       "path": "xtask/src/main.rs",
-      "sha256": "b9f3e895cc003d8642ec24cc6c62d5cb746b5610a335f3e758df5a43ce7a5141"
+      "sha256": "1a68ae799a631ebffac4b07817ab3cefe15c798a3cee4f9d7bdd4f219aa29738"
     },
     {
       "path": "xtask/src/policy.rs",
       "sha256": "b141f6529ddf744fa7c3282ffd317f612ef564fe3bbc0e11b951e4c32059969e"
+    },
+    {
+      "path": "xtask/src/publication.rs",
+      "sha256": "5e5cfdac6c2526c82a309304aabd448d42a5254b41e343c0cf322e9ad0800d65"
+    },
+    {
+      "path": "xtask/src/risk.rs",
+      "sha256": "2b999914b60e4539cbc1531c807c20790ae446801ce5dd85b9a4d40a248a8d25"
     },
     {
       "path": "xtask/src/sbom.rs",
@@ -383,7 +399,7 @@
     },
     {
       "path": "xtask/src/supply_sbom.rs",
-      "sha256": "d0d8672263abd3b6b3c1eb7f454903b7dea24b685491a5cc15b885828fc5f6f3"
+      "sha256": "446a818cfbd1a1d1128a2e754d1955e332bb214c044a40d82717efa82c446d0b"
     },
     {
       "path": "xtask/src/util.rs",
@@ -419,11 +435,15 @@
     },
     {
       "path": "xtask/tests/grype.rs",
-      "sha256": "6a121bdc7ba1b16843fa7f5c0401c74516aeecb82a2fa7c7867b7b1d1c3fd041"
+      "sha256": "224601bc79abe8611916accffeb7e1551572748260001b890aad57e8fd3eca4b"
     },
     {
       "path": "xtask/tests/k3d.rs",
       "sha256": "2040818b5ce9e2ab5892e30a012c337b056fe2cb62986995d0c9b22f4ce3d9ad"
+    },
+    {
+      "path": "xtask/tests/publication.rs",
+      "sha256": "a4844cc18e5128a9de3649c1814b23ab7c6da4aa2cd8821239976bac32ebc800"
     },
     {
       "path": "xtask/tests/rustfs_candidate.rs",
@@ -434,8 +454,12 @@
       "sha256": "0273f13a3f0b061d0debd40d85f4affaf35ae0bb77fb03e65253885f28d4b705"
     },
     {
+      "path": "xtask/tests/tool_delivery.rs",
+      "sha256": "e2fdf312473afc5dd21a6ade8310f5a91250ec705481162aeb8d28c6880ec390"
+    },
+    {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "3dd6e7d59f4646cb5c62724489fb6d1fed6e6622411db209cf2ed3c68ec08b13"
+      "sha256": "035a5fe304bf35fcfdee7e35d1143973d67cd661b77eab4d5fa5d684d2ac4955"
     }
   ]
 }

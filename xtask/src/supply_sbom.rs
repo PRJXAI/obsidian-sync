@@ -44,14 +44,30 @@ pub fn scan(root: &Path, platform: &str) -> Result {
                 &name,
             )
         });
-        let (status, count) = match result {
-            Ok(n) => (if n == 0 { "pass" } else { "findings" }, Some(n)),
-            Err(_) => ("error", None),
+        let result = result
+            .and_then(|n| grype::receipt(&receipt, Utc::now()).map(|v| (n, v["risk"].clone())));
+        let (status, count, risk) = match result {
+            Ok((n, risk)) => (
+                if risk["blocking"] != 0 {
+                    "findings"
+                } else if n == 0 {
+                    "pass"
+                } else {
+                    "accepted-risk"
+                },
+                Some(n),
+                risk,
+            ),
+            Err(_) => ("error", None, Value::Null),
         };
-        entries.push(json!({"image":image,"sources":sources,"status":status,"findings":count,"receipt":format!("{name}.scan.json")}));
+        entries.push(json!({"image":image,"sources":sources,"status":status,"findings":count,"risk":risk,"receipt":format!("{name}.scan.json")}));
         println!(
             "{} image index {index}",
-            if status == "pass" { "PASS" } else { "FAIL" }
+            if status == "pass" || status == "accepted-risk" {
+                "PASS"
+            } else {
+                "FAIL"
+            }
         );
     }
     util::write_json(
@@ -59,7 +75,9 @@ pub fn scan(root: &Path, platform: &str) -> Result {
         &json!({"schema_version":1,"created_at":Utc::now().to_rfc3339(),"platform":platform,"cataloger_image":sbom::SYFT,"scanner_image":grype::GRYPE,"images":entries}),
     )?;
     ensure(
-        entries.iter().all(|v| v["status"] == "pass"),
+        entries
+            .iter()
+            .all(|v| v["status"] == "pass" || v["status"] == "accepted-risk"),
         "SBOM vulnerability findings/errors remain blocking",
     )
 }
@@ -108,6 +126,8 @@ pub fn ledger(root: &Path, platform: &str, revision: &str) -> Result {
                 && entry["status"]
                     == if matches.is_empty() {
                         "pass"
+                    } else if evidence["risk"]["blocking"] == 0 {
+                        "accepted-risk"
                     } else {
                         "findings"
                     },
@@ -115,9 +135,9 @@ pub fn ledger(root: &Path, platform: &str, revision: &str) -> Result {
         )?;
         let findings=matches.iter().map(|v| {
             let key=json!([platform,image,evidence["Metadata"]["ImageID"],v["artifact"]["id"],v["vulnerability"]["id"]]);
-            json!({"id":util::digest(key.to_string().as_bytes()),"advisory":v["vulnerability"]["id"],"severity":v["vulnerability"]["severity"],"package":v["artifact"]["name"],"installed_version":v["artifact"]["version"],"locations":v["artifact"]["locations"],"fix":v["vulnerability"]["fix"],"status":"under_investigation","owner":null,"applicability_evidence":null})
+            json!({"id":util::digest(key.to_string().as_bytes()),"advisory":v["vulnerability"]["id"],"severity":v["vulnerability"]["severity"],"package":v["artifact"]["name"],"installed_version":v["artifact"]["version"],"locations":v["artifact"]["locations"],"fix":v["vulnerability"]["fix"],"status":if evidence["risk"]["blocking"] == 0 {"accepted-risk"} else {"under_investigation"},"owner":null,"applicability_evidence":null})
         }).collect::<Vec<_>>();
-        records.push(json!({"image":image,"subject":evidence["Metadata"],"findings":findings}));
+        records.push(json!({"image":image,"subject":evidence["Metadata"],"findings":findings,"risk":evidence["risk"]}));
     }
     util::write_json(
         &destination,
@@ -140,7 +160,7 @@ pub fn public_summary(root: &Path, revision: &str) -> Result {
                     .as_array()
                     .map(Vec::len)
                     .ok_or("Missing finding count")?;
-                json!({"status":if n==0 {"pass"} else {"fail"},"findings":n})
+                json!({"status":if v["risk"]["blocking"] != 0 {"fail"} else if n==0 {"pass"} else {"accepted-risk"},"findings":n,"accepted":v["risk"]["accepted"],"blocking":v["risk"]["blocking"]})
             }
             Err(_) => json!({"status":"error"}),
         };
@@ -166,9 +186,16 @@ pub fn public_summary(root: &Path, revision: &str) -> Result {
                 .map(|v| v.iter().filter(|v| v["status"] == "error").count())
                 .unwrap_or(inventory.len());
             let failed = entries
-                .map(|v| v.iter().filter(|v| v["status"] != "pass").count())
+                .map(|v| {
+                    v.iter()
+                        .filter(|v| v["status"] != "pass" && v["status"] != "accepted-risk")
+                        .count()
+                })
                 .unwrap_or(inventory.len());
-            json!({"status":if !complete || errors>0 {"error"} else if failed>0 {"fail"} else {"pass"},"images":inventory.len(),"failed_images":failed,"scan_errors":errors})
+            let accepted = entries
+                .map(|v| v.iter().filter(|v| v["status"] == "accepted-risk").count())
+                .unwrap_or(0);
+            json!({"status":if !complete || errors>0 {"error"} else if failed>0 {"fail"} else if accepted>0 {"accepted-risk"} else {"pass"},"images":inventory.len(),"failed_images":failed,"accepted_risk_images":accepted,"scan_errors":errors})
         }
         Err(_) => json!({"status":"error"}),
     };

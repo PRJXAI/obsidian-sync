@@ -104,7 +104,7 @@ fn asset(directory: &Path, name: &str, label: &str) -> Result<Value> {
         group["occurrences"].as_array_mut().ok_or("Invalid occurrences")?.push(json!({"report_match_index":index,"artifact_id":finding["artifact"]["id"],"locations":finding["artifact"]["locations"],"suppressed":index >= normal}));
     }
     Ok(
-        json!({"asset":label,"subject":validated["Metadata"],"created_at":validated["CreatedAt"],"receipt_digest":util::hash(&path)?,"sbom":receipt["sbom"],"report":receipt["report"],"db":report["descriptor"]["db"]["status"],"findings":matches.len(),"suppressed":suppressed,"counts":counts,"groups":groups.into_values().collect::<Vec<_>>(),"native_inventory_review":"pending","authorization":"none"}),
+        json!({"asset":label,"subject":validated["Metadata"],"created_at":validated["CreatedAt"],"receipt_digest":util::hash(&path)?,"sbom":receipt["sbom"],"report":receipt["report"],"db":report["descriptor"]["db"]["status"],"findings":matches.len(),"suppressed":suppressed,"counts":counts,"groups":groups.into_values().collect::<Vec<_>>(),"risk":validated["risk"],"native_inventory_review":"pending","authorization":"none"}),
     )
 }
 fn build_materials(root: &Path) -> Result<Value> {
@@ -207,6 +207,8 @@ pub fn generate(root: &Path, platform: &str) -> Result {
                 && entry["status"]
                     == if record["findings"] == 0 {
                         "pass"
+                    } else if record["risk"]["blocking"] == 0 {
+                        "accepted-risk"
                     } else {
                         "findings"
                     },

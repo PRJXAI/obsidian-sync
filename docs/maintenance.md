@@ -1,80 +1,66 @@
 # Repository maintenance
 
-Read [LLM context](llm.md) and [AGENTS.md](../AGENTS.md). All first-party implementation, tests and automation are Rust in `xtask/`. Shell scripts are four-line launchers. No Python. Node/npm are confined to the pinned upstream Commonlib/PouchDB compatibility bridge and never ship in the runtime.
-
-The incremental cleanup backlog and execution rules are in the [simplification checklist](simplification.md).
+All first-party code, infrastructure/security/release tooling and tests are Rust in `xtask/`. Shell scripts launch Rust; Node/npm only exercise the pinned upstream compatibility bridge. No Python or first-party unsafe Rust. Read [architecture context](llm.md) and [repository instructions](../AGENTS.md).
 
 ## Documentation lifecycle
+
+Maintain durable operator guidance, not parallel implementation diaries. Transfer useful limits/evidence before retiring pages; Git retains their history. Never erase private failure captures or rewrite historical findings as fixed.
 
 ```sh
 cargo xtask docs check
 cargo xtask docs create docs/topic.md --title 'Topic'
 cargo xtask docs update docs/topic.md --from-file /path/to/reviewed-content.md
-# Preserve useful prose and remove inbound links first; committed history is required.
 cargo xtask docs delete docs/obsolete.md --reason 'Superseded by topic.md' --yes
+# Mutually linked committed pages may be retired together; external links still block:
+cargo xtask docs delete-batch docs/old-a.md docs/old-b.md --reason 'Consolidated operator guide' --yes
 cargo xtask sync-generated
-# ONLY after reviewing implementation, tests and affected authored pages:
-cargo xtask docs review --reason 'Describe reviewed behavior and evidence'
+cargo xtask docs review --reason 'Describe implementation, tests and authored pages actually reviewed'
+cargo xtask sync-generated --check
 cargo xtask docs check
-cargo test --locked -p xtask
 ```
 
-The review manifest records fingerprints, not proof that prose is correct. Writes use descriptor-relative no-follow traversal; escaping/symlink parents/targets, hardlinked updates, untracked/dirty deletion, missing confirmation and inbound links are rejected. No network/LLM calls or unattended deletion occur. Git retains authored history.
+Deletion requires committed clean targets, explicit confirmation/reason and no outside inbound links. Batch retirement validates the entire bounded set before unlinking; it is not a filesystem transaction. Descriptor-relative no-follow parents and regular-file checks remain. Escapes, symlinks, dirty/untracked targets and duplicates fail. Source review fingerprints acknowledge review, not correctness certification.
 
-`config/` is canonical. Generated Kustomize copies/source map are deterministic and never rewrite authored runbooks. Link checks include [llms.txt](../llms.txt). Fingerprints/maps include public tracked/non-ignored candidates, including `xtask/` and `.cargo/`, not ignored operator overrides. Ignore rules do not scrub Git history. Operational receipts and machine profiles stay outside authored docs.
+`config/` is canonical. Regenerate Kustomize copies/source maps; never hand-edit them. Maps/fingerprints exclude ignored operator files and root scheduler state. Keep actual deployment settings, credentials, operational receipts and machine profiles outside authored docs. Ignore rules do not scrub history.
 
-## CI and evidence
-
-[CI](../.github/workflows/ci.yml) runs eight Rust feature cells, one shared Linux/musl build/test, SBOM generation, security and integration, plus **Required CI**. Every producer must succeed; missing/skipped/canceled/failed results reject the aggregate. Source/release protections and actual reviewer teams remain owner-side work. Checkouts do not persist credentials, Actions are commit-pinned and tokens read-only. No image publication or real deployment occurs.
-
-The build job exports checksum-verified runtime/builder archives. SBOM generation consumes those exact archive bytes, checks config/layers and emits **native Syft JSON + SPDX + CycloneDX** for source/runtime/builder, native libc identity and bound materials. Both native and CycloneDX source inventories must include Cargo/workspace/npm development lock graphs. The security job consumes those native SBOMs with Grype offline; it does not rebuild/re-catalog them. Declared image scanning uses Syft registry retrieval followed by offline Grype. Full details, command order, suppression accounting and receipt validation: [scanner pipeline](scanner-pipeline.md).
+## Required checks
 
 ```sh
 scripts/check.sh
 scripts/check-features.sh
+cargo test --locked -p xtask
 cargo xtask test-livesync
 scripts/test-s3.sh
 cargo test --locked --test couch
 scripts/validate-deployments.sh
 cargo xtask test-build-context
 docker build --target tests .
-docker build --target build -t obsidian-sync:builder .
-docker build -t obsidian-sync:local .
 cargo xtask verify-image
 cargo xtask test-livesync --image obsidian-sync:local
 cargo xtask scan-sources
 cargo xtask generate-sbom
 cargo xtask scan-sbom --sbom-dir .work/sbom
-cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json
 cargo xtask scan-supply-chain --platform linux/amd64
-# After all registry/generated scan receipts exist; raw baseline remains private:
-cargo xtask dependency-baseline --platform linux/amd64
 scripts/smoke-compose.sh
 scripts/smoke-kubernetes.sh
-scripts/benchmark.sh
-cargo xtask test-livesync --benchmark
 ```
 
-CI pins cargo-audit 0.22.2, cargo-deny 0.20.2, Kustomize 5.8.3, k3d 5.9.0, Go 1.27.3 for Go installs and Node 26.13.0 (latest stable LTS) for the unchanged genuine-client fixtures. Build stages may retain compilers/OS utilities; the final server still adds only `/server` to distroless static/nonroot. Version refreshes do not waive image findings, native evidence or publication requirements.
+Build runtime/builder images before image/SBOM checks; [release engineering](releases.md) gives the order. Use current advisory data for Cargo audit/deny/npm. Benchmark on an idle machine when behavior/performance changes; record hardware/workload/sample count and avoid unmeasured speed claims.
 
-`scripts/scan-security.sh` is the Rust source/secret → Syft generation → Grype scan convenience path. CI separates generation and consumption through original bound artifacts. Grype is the sole image vulnerability scanner. The owner retired Trivy, its comparison commands/image pin and the transition gate. The inventory has ten active images after replacing kindest/node with the explicit K3s/tools/pause closure; build/test utility invocations reuse the already required pinned Rust compiler base, not a standalone Alpine helper; unused experimental Go/Git compiler bases and the external CouchDB image are retired. Historical baseline reports remain evidence, not a reviewed advisory closure; current Grype findings/errors still fail the security job and Required CI.
+CI keeps eight feature cells, Linux/musl tests, real Commonlib/PouchDB/S3/runtime clients, inventories, security and disposable deployments. `Required CI` rejects failed/missing/skipped/canceled producers. Source/release protections and independent operational approval remain distinct from a workflow result.
 
-The local-only `rebuild-tool` experiment/framework is retired; normal CI uses unchanged pinned supplier tools. Preserve historical private candidate/compiler evidence and unresolved findings; retirement is not remediation or independent acceptance. See [scanner pipeline](scanner-pipeline.md).
+## Supply-chain maintenance
 
-`tests/couch.rs` already exercises the real Rust router with synthetic in-process requests and temporary SQLite/filesystem storage. The eight-cell Rust matrix runs it through the normal workspace test command; no extra mock server, wrapper command or duplicate CI step is needed. Full Commonlib/PouchDB tests against native Rust, S3-backed Rust and the runtime image remain required. Historical reference-CouchDB measurements are not current independent oracle coverage.
+Syft generates native JSON/SPDX/CycloneDX; Grype matches the exact native inventories offline after a separate DB refresh. Preserve complete Cargo/npm development locks, original archives/config/layers/source/dirty/native identity and all severity/suppressed counts. No matching filter or automatic advisory waiver.
 
-## Isolation and failure behavior
+`risk.rs` applies only the owner's exact current-stack snapshot; new findings and missing/error evidence still fail. Review that policy explicitly when recipes, package versions, advisory/fix identities or occurrence limits change. Do not regenerate approval automatically from failing scans. [Security](security.md) defines scope; [scanner contract](scanner-pipeline.md) defines schemas/freshness.
 
-Fixtures require a local Unix-socket Docker daemon. Kubernetes tests must enter through `scripts/smoke-kubernetes.sh`. Rust creates/deletes a disposable k3d 5.9.0 / K3s 1.37.1 cluster, binds the checked local Docker endpoint and fences every control-plane command with private HOME/kubeconfig. Default-context updates are disabled, API exposure is loopback-only and pre-existing names are rejected before cleanup is armed. The K3s, k3d-tools and pause images are digest-pinned/inventoried; unused add-ons/load balancers are disabled. A fresh owned Docker volume backs a static test PV for the unchanged app PVC; no provisioner/helper pods or production manifests are introduced. Wait for pod **Ready**, not just phase Running, before execution and after replacement. Verify private readiness, classified second-writer denial and authenticated persistent server identity after PVC/pod restart. Synthetic offline admin pods use the same server image/security context to mint fixture-only credentials, whose output is withheld from logs. Teardown remains cancellation-ignoring and checks owned containers/networks/volumes; failures retain private diagnostics. This is not CNI enforcement or a provider DR drill.
+The producer's independent CLI images are adopted only after successful publish/provenance/package-access verification. Keep host Cargo audit/deny until a qualified replacement preserves coverage. Compilers, Engine/BuildKit, K3s/tools/pause and RustFS are separate assets.
 
-Scanner roots/inputs are read-only, resources/time/tmpfs bounded, capabilities dropped, no-new-privileges enabled and no Docker socket mounted. Grype analysis is offline; only separate DB retrieval and Syft registry cataloging have networking. Each invocation receives an isolated output scratch directory, never a writable alias to inputs/earlier evidence. Host Rust validates and copies only expected bounded regular JSON files. Tool JSON is limited to 64 MiB and two million structural tokens; server HTTP JSON limits are unchanged.
+## Isolation and evidence
 
-SIGINT/SIGTERM latch cancellation: owned work fails while bounded cleanup remains runnable. Subprocess outputs are bounded; owned process groups and named containers are fenced on timeout. Native-only fixtures have inert Docker guards. Raw provider/tool errors are private, not printed into public CI logs. Source/history Gitleaks retain redaction and minimized mounts: Git-eligible source candidates, independent bare mirror, no local hardlinks/alternates/origin configuration, detached/all-ref coverage and ignored-file canaries.
+Only public inputs and synthetic fixtures. Source scanning excludes ignored configuration/data; history uses an independent bare mirror with detached/all-ref coverage. Scanner inputs/root are read-only, output isolated, resources/deadlines bounded and sockets absent. Networking disabled does not prevent output disclosure.
 
-Public security artifacts are count/status summaries only. Raw matches/logs and local triage/comparison ledgers require an approved durable private archive, still pending. Public inventory/materials uploads have explicit file allowlists. All inputs remain public source/images or synthetic fixtures: these controls are not general DLP or proof that suppliers are benign.
+Kubernetes checks enter through `scripts/smoke-kubernetes.sh`: private HOME/kubeconfig, checked Unix endpoint, loopback API, no default-config updates, pre-existing-name refusal and owned-resource/data cleanup even after cancellation. Verify authenticated persistent identity and writer denial; do not claim CNI enforcement or provider recovery from that smoke.
 
-## Acceptance remains blocked
-
-All reported severities, Unknown/Negligible, suppressed matches, incomplete/stale/substituted reports and scanner errors remain failures. No severity threshold, `--only-fixed`, advisory ignore or automatic VEX waiver. Runtime content receipts bind hashes/config/layers through a trusted channel; they are not signatures, builder trust or release authorization.
-
-Current Grype matches remain blocking. The historical 27 baseline-only asset/advisory pairs are not declared fixed; the retired scanner's comparison policy is no longer a CI dependency. General egress-sandbox support is deferred. Actual protection/reviewer configuration, private raw-evidence archival, audit schema/sink, framework/data class, provider IAM, crypto/retention and independent operational acceptance remain open. See [results](results.md), [assessment](regulated-security-assessment.md) and [remediation plan](security-remediation-plan.md). Never suppress findings or remove checks merely to complete this migration.
+Public CI outputs are allowlisted summaries/inventories/materials. Raw reports/logs stay private pending an approved durable archive. Caps are not whole-host/provider quotas. Record exact passed/failed/unexecuted checks in [results](results.md); do not infer production, regulatory, native-provider or GUI acceptance.
