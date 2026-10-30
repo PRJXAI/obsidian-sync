@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed Kubernetes execution and dependency retirement, public-only scanner transport, fixed public publisher contract and preserved application tests; reviewed bounded S3 readiness correction (503 must not trigger bucket creation) and its real/synthetic regression evidence.",
+  "reason": "Reviewed one bounded fixed-GHCR config-blob HTTPS CDN redirect with no Authorization forwarding, no signed URL logs and unchanged metadata/digest limits; reviewed negative redirect tests, anonymous four-native-binding/provenance success and both seven-image accepted-risk scans after owner visibility changes.",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -439,7 +439,7 @@
     },
     {
       "path": "xtask/tests/tool_delivery.rs",
-      "sha256": "8462d2bd4138dcee5e5a14fb6228d9ad9174acfc16f281f371fbd930c61361af"
+      "sha256": "01f039bea9a93019df421dfb426a317b85887792fa1bd217f06dbee37043ecd4"
     },
     {
       "path": "xtask/tests/tooling.rs",

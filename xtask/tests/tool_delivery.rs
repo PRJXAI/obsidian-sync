@@ -13,6 +13,46 @@ const SOURCE: &str = "13edb5277101befe100a435f5ade8da6ea3d40af";
 const SYFT: &str = "sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c";
 const GRYPE: &str = "sha256:3079a040326484d0b50ac28c7fc2fb25894a22170e81445ab90c400d091378e0";
 
+fn blob_redirect(source: &str, location: &str) -> Result<reqwest::Url> {
+    ensure(location.len() <= 8192, "Blob redirect location bound")?;
+    let source = reqwest::Url::parse(source).map_err(|_| "Invalid registry source")?;
+    let path = source.path();
+    let blob = path.rsplit_once("/blobs/");
+    ensure(
+        source.scheme() == "https"
+            && source.host_str() == Some("ghcr.io")
+            && source.port_or_known_default() == Some(443)
+            && source.username().is_empty()
+            && source.password().is_none()
+            && source.query().is_none()
+            && source.fragment().is_none()
+            && blob.is_some_and(|(prefix, id)| {
+                ["/v2/prjxai/devsecops/syft", "/v2/prjxai/devsecops/grype"].contains(&prefix)
+                    && images::is_digest(id)
+            }),
+        "Redirect only permitted for fixed registry config blobs",
+    )?;
+    let target = reqwest::Url::parse(location).map_err(|_| "Invalid blob redirect")?;
+    ensure(
+        target.scheme() == "https"
+            && target.host_str() == Some("pkg-containers.githubusercontent.com")
+            && target.port_or_known_default() == Some(443)
+            && target.username().is_empty()
+            && target.password().is_none()
+            && target.fragment().is_none(),
+        "Unapproved blob redirect target",
+    )?;
+    Ok(target)
+}
+fn blob_request(
+    client: &reqwest::blocking::Client,
+    target: reqwest::Url,
+) -> reqwest::blocking::RequestBuilder {
+    // Never forward the registry bearer token to the signed CDN URL.
+    client
+        .get(target)
+        .header("User-Agent", "obsidian-sync-delivery-verifier/1")
+}
 fn get(client: &reqwest::blocking::Client, url: &str, token: Option<&str>) -> Result<Vec<u8>> {
     util::check_cancelled()?;
     let accept = if url.contains("/token?") {
@@ -27,9 +67,21 @@ fn get(client: &reqwest::blocking::Client, url: &str, token: Option<&str>) -> Re
     if let Some(token) = token {
         request = request.bearer_auth(token);
     }
-    let response = request
+    let mut response = request
         .send()
         .map_err(|_| "Registry metadata request failed")?;
+    if response.status() == reqwest::StatusCode::TEMPORARY_REDIRECT {
+        let location = response
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+            .ok_or("Missing blob redirect")?;
+        let target = blob_redirect(url, location)?;
+        response = blob_request(client, target)
+            .send()
+            .map_err(|_| "Blob CDN request failed")?;
+    }
+    // Client redirect policy is none: at most the single checked CDN hop above.
     if !response.status().is_success() {
         let phase = if url.contains("/token?") {
             "token"
@@ -558,6 +610,48 @@ fn production_scanners_are_the_exact_qualified_devsecops_images() {
     );
 }
 
+#[test]
+fn config_blob_redirect_is_bounded_https_allowlisted_and_credential_free() {
+    let source = format!(
+        "https://ghcr.io/v2/prjxai/devsecops/syft/blobs/sha256:{}",
+        "a".repeat(64)
+    );
+    let good =
+        "https://pkg-containers.githubusercontent.com/ghcr1/blobs/config?synthetic-signature=test";
+    let target = blob_redirect(&source, good).unwrap();
+    let client = reqwest::blocking::Client::builder()
+        .https_only(true)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+    let request = blob_request(&client, target).build().unwrap();
+    assert!(
+        !request
+            .headers()
+            .contains_key(reqwest::header::AUTHORIZATION)
+    );
+    for bad in [
+        "http://pkg-containers.githubusercontent.com/blob",
+        "https://127.0.0.1/blob",
+        "https://pkg-containers.githubusercontent.com.evil.invalid/blob",
+        "https://pkg-containers.githubusercontent.com:8443/blob",
+        "https://user:password@pkg-containers.githubusercontent.com/blob",
+        "https://pkg-containers.githubusercontent.com/blob#fragment",
+        "//pkg-containers.githubusercontent.com/blob",
+    ] {
+        assert!(blob_redirect(&source, bad).is_err());
+    }
+    assert!(blob_redirect(&source, &"x".repeat(8193)).is_err());
+    for bad in [
+        source.replace("ghcr.io/", "other.invalid/"),
+        source.replace("/blobs/", "/manifests/"),
+        source.replace("/syft/", "/other/"),
+        source.replace("https:", "http:"),
+    ] {
+        assert!(blob_redirect(&bad, good).is_err());
+    }
+}
 #[test]
 fn metadata_digest_validation_rejects_substitution_and_wrong_identity_types() {
     let bytes = b"public synthetic manifest";
