@@ -160,30 +160,18 @@ pub fn install_deployment_tools(root: &Path) -> Result {
     let bin = root.join(".work/ci-tools/bin");
     fs::create_dir_all(bin.parent().ok_or("Missing tool directory")?)?;
     fs::DirBuilder::new().mode(0o700).create(&bin)?;
-    for (phase, args) in [
-        (
-            "kustomize",
-            vec!["install", "sigs.k8s.io/kustomize/kustomize/v5@v5.8.3"],
-        ),
-        (
-            "k3d",
-            vec![
-                "install",
-                "-ldflags",
-                "-X github.com/k3d-io/k3d/v5/version.Version=v5.9.0",
-                "github.com/k3d-io/k3d/v5@v5.9.0",
-            ],
-        ),
-    ] {
-        util::logged(
-            util::cmd("go", &args, root)
-                .env("GOBIN", &bin)
-                .env("GOTOOLCHAIN", "go1.27.3")
-                .env("GOWORK", "off"),
-            &bin.parent().unwrap().join(format!("{phase}.private.log")),
-            900,
-        )?;
-    }
+    util::logged(
+        util::cmd(
+            "go",
+            &["install", "sigs.k8s.io/kustomize/kustomize/v5@v5.8.3"],
+            root,
+        )
+        .env("GOBIN", &bin)
+        .env("GOTOOLCHAIN", "go1.27.3")
+        .env("GOWORK", "off"),
+        &bin.parent().unwrap().join("kustomize.private.log"),
+        900,
+    )?;
     use std::os::unix::fs::OpenOptionsExt;
     let path = std::env::var("GITHUB_PATH")?;
     let mut file = fs::OpenOptions::new()

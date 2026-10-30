@@ -20,7 +20,7 @@ flowchart LR
 | Native executable | An existing reviewed binary, or Rust/C build prerequisites for a source build | Continue below |
 | Container without Compose | Docker and the source-built static/nonroot image | Adapt the reviewed runtime mounts/security settings to your approved container runner |
 | Compose example | Docker plus the Compose plugin | [Optional Compose deployment](operations.md#compose-example-provision-before-starting) |
-| Kubernetes example | An explicitly approved cluster/storage/TLS plan and manifest tooling | [Optional Kubernetes deployment](operations.md#kubernetes-example) |
+| Kubernetes example | Your own explicitly approved cluster/storage/TLS plan; repository validation is render-only | [Optional Kubernetes deployment](operations.md#kubernetes-example) |
 
 Do not install a deployment tool just to follow an example. There is no verified public application image or downloadable binary advertised here: use a reviewed build, not a guessed image tag or install URL. Node is only needed for repository compatibility tests, not to run the Rust server.
 

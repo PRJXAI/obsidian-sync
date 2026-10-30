@@ -212,11 +212,6 @@ pub struct Captured {
 pub fn capture(c: &mut Command, seconds: u64) -> Result<Captured> {
     capture_mode(c, seconds, true)
 }
-pub(crate) fn cleanup_output(c: &mut Command, seconds: u64) -> Result<Vec<u8>> {
-    let captured = capture_mode(c, seconds, false)?;
-    ensure(captured.success, "Cleanup inspection failed")?;
-    Ok(captured.stdout)
-}
 fn capture_mode(c: &mut Command, seconds: u64, interruptible: bool) -> Result<Captured> {
     let mut stdout = tempfile::tempfile()?;
     let mut stderr = tempfile::tempfile()?;

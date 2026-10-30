@@ -17,13 +17,13 @@ CI transfers checksum-verified archives rather than rebuilding images in downstr
 
 ## Our DevSecOps tools
 
-[PRJXAI/devsecops](https://github.com/PRJXAI/devsecops) packages explicit CLI containers. Start adoption with qualified published Syft/Grype digests; keep other host tools until their replacement contracts and inventories pass. Do not substitute those images for the Rust builder, BuildKit/Engine, K3s node/tools/pause or RustFS service.
+[PRJXAI/devsecops](https://github.com/PRJXAI/devsecops) packages explicit CLI containers. Start adoption with qualified published Syft/Grype digests; keep other host tools until their replacement contracts and inventories pass. Do not substitute those images for the Rust builder, BuildKit/Engine or RustFS service. Live Kubernetes tests and their K3s/k3d/pause assets are retired, not release dependencies.
 
 Adoption requires:
 
 1. A completed tool-specific publish **and provenance** job, not just a successful sibling or a source push.
 2. Verified multiarch manifest/platform/config identities and source/workflow-bound provenance.
-3. Verified anonymous access for public packages, or separately authorized private package access.
+3. Verified anonymous access: tools are required to be public, without consumer package credentials.
 4. Literal digest changes in the actual tool constants, unchanged schema/flags/mount/resource behavior and real seeded detection/inventory controls.
 5. Consumer correctness, client, storage and disposable deployment validation. Keep host Cargo audit/deny and npm/source/history checks.
 
@@ -42,13 +42,13 @@ Credentialed qualification verified exact index/native manifest/config identitie
 
 **Anonymous token access still returns 401 for both**, while the known-public control passes. Operator-authenticated access passed; hosted CI access is a separate gate, not inferred from that success. `xtask/tests/tool_delivery.rs` contains separate ignored anonymous and explicitly authorized private qualification tests, plus ordinary pin/substitution/risk-migration negatives. Historical applicability subjects retain their original upstream image identities and binary paths.
 
-### Configure package read access
+### Public package access
 
-Prefer granting this repository read access under each package's **Settings → Manage Actions access**, or make the packages public if the owner approves. Repository visibility alone does neither. The `security` and `sbom` jobs request only `contents: read` / `packages: read` and authenticate using `GITHUB_TOKEN` by default.
+Existing packages: [Syft](https://github.com/orgs/PRJXAI/packages/container/package/devsecops%2Fsyft) and [Grype](https://github.com/orgs/PRJXAI/packages/container/package/devsecops%2Fgrype).
 
-If the cross-repository grant is unavailable, an owner can explicitly configure repository secret `DEVSECOPS_PACKAGES_READ_TOKEN` and variable `DEVSECOPS_PACKAGES_USER` for a dedicated least-privilege package reader. Do not use a publication/admin token. Authentication stays in the host Docker credential store, never scanner mounts, build layers, public artifacts or stdout. Fork workflows without access fail closed; no automatic upstream fallback or pin override exists.
+The owner requires the DevSecOps repository and generated images to be public. The repository is already **PUBLIC**; GHCR package visibility must be changed separately. For each existing package, an owner must use **Package settings → Change visibility → Public**. The available GitHub OAuth token lacks package-management scopes and the package API returns 403; no visibility change is inferred or claimed.
 
-The application publication job deliberately withholds its write token until fresh analysis finishes. If the tools remain private, that job therefore needs the separately configured **read-only** token for its pre-publication scan. With public tools it needs no pre-scan login. Missing access blocks the scan/publication; never move the write login earlier to get around it.
+Security/SBOM jobs now use public pulls, with no package-reader secret/login or private archive workaround. Application publication still logs in for writing only after fresh analysis. Private/missing packages fail rather than silently falling back to upstream tools. The producer checks anonymous index/native/config access after provenance and before delivery-artifact upload. New package names require the same one-time owner visibility setting; later versions inherit it.
 
 ## Build and validate locally
 
@@ -73,13 +73,13 @@ Registry scans for another architecture are not native execution. Use `linux/arm
 
 Image publication is explicitly authorized work, not automatic deployment. The workflow now provides a **manual main-only Linux amd64** publish path, downstream of successful Required CI. Dispatch inputs `publish` and `redistribution_reviewed` default false; the latter confirms application-specific notices/source arrangements, not merely scanner-tool approval.
 
-Rust `build-ci-images` and `load-ci-images` replace inline orchestration: Linux tests, one runtime/builder build, checksum-verified archives, strict tag/config/layer checks and exact public artifact allowlists. `install-deployment-tools` preserves the pinned host Kustomize/k3d gates; it does not substitute incomplete container replacements.
+Rust `build-ci-images` and `load-ci-images` replace inline orchestration: Linux tests, one runtime/builder build, checksum-verified archives, strict tag/config/layer checks and exact public artifact allowlists. `install-deployment-tools` installs only pinned Kustomize to render optional manifest examples. No k3d/kubectl/cluster is required or tested.
 
-Only the publish job receives registry-write/OIDC authority. It loads original archives, performs fresh bound analysis **before write-credential registry login** (optionally using a distinct read-only tool token), then `publish-image` revalidates checkout/source/clean materials/archive/runtime evidence and promotes immutable native bytes without rebuilding. Native manifests are fetched back by digest and config-checked before provenance and the allowlisted result upload. Raw reports/private logs never cross public artifacts.
+Only the publish job receives registry-write/OIDC authority. It loads original archives, performs fresh bound analysis **before registry login**, using anonymously available tool images, then `publish-image` revalidates checkout/source/clean materials/archive/runtime evidence and promotes immutable native bytes without rebuilding. Native manifests are fetched back by digest and config-checked before provenance and the allowlisted result upload. Raw reports/private logs never cross public artifacts.
 
 Application tags include the source SHA, run ID/attempt and `amd64`; consumers must pin the resulting digest. No arm64 application release is claimed. Existing output directories refuse reuse. Interrupted/partial registry pushes can leave bytes/tags: absence of a completed provenance/result handoff means **not delivered**, not guaranteed no registry mutation.
 
-Missing/canceled/skipped/failed producers, scanner errors, missing inventories, unaccepted findings and stale/substituted evidence must prevent publication. The owner's current-stack acceptance is not a temporary green bypass for those failures. The pause inventory error remains a distinct unresolved gate until valid coverage exists.
+Missing/canceled/skipped/failed producers, scanner errors, missing inventories, unaccepted findings and stale/substituted evidence must prevent publication. The owner's current-stack acceptance is not a temporary green bypass for those failures. The retired pause/K3s/k3d assets are absent from the active seven-image graph. Their historical inventory errors/findings are preserved, not waived or called fixed.
 
 Until the publication job and verified digest are recorded in [results](results.md), do not advertise a published application image. A local tag, uploaded build archive or runtime-only clean report is not that result. Real infrastructure deployment requires separate authorization and the [operations runbook](operations.md).
 

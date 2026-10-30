@@ -3,11 +3,13 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeSet, fs, io::Read, os::unix::fs::PermissionsExt, path::Path, time::Duration,
 };
-use xtask::{Result, deployment, ensure, security, util};
+use xtask::{Result, ensure, security, util};
 // Historical subjects are immutable; production scanner adoption cannot relabel
 // the earlier applicability evidence or silently change these binary paths.
 const ORIGINAL_GRYPE: &str = "anchore/grype:v0.121.0@sha256:621d56d1d68106b787022c81546f7e0a36202a25d1239f0c20195fab8c16f7ea";
 const ORIGINAL_SYFT: &str = "anchore/syft:v1.55.0-nonroot@sha256:ec5bdbc745485920c6f444239f0c09ed87b3c4c165ff9433f95bc66b3500fbf9";
+const ORIGINAL_K3D_TOOLS: &str = "ghcr.io/k3d-io/k3d-tools:5.9.0@sha256:c57abce697e66feeb826922718738fe186b47779312d49d4e51e6fb9b8a6f34d";
+const ORIGINAL_K3S: &str = "rancher/k3s:v1.37.1-k3s1@sha256:ca7f37d993d82ef0dcdcfecb2e0e2618ea541dbaffc620c8cedebe01a82acd0d";
 
 fn messages(bytes: &[u8]) -> Result<Vec<Value>> {
     Ok(serde_json::Deserializer::from_slice(bytes)
@@ -157,11 +159,11 @@ fn inspect_fixed_go_binaries_offline() -> Result {
             "/bin/dockerfile-frontend",
         ),
         (4, security::GITLEAKS, "/usr/bin/gitleaks"),
-        (5, deployment::K3D_TOOLS, "/app/k3d-tools"),
-        (6, deployment::K3S, "/bin/k3s"),
-        (6, deployment::K3S, "/bin/runc"),
-        (6, deployment::K3S, "/bin/cni"),
-        (6, deployment::K3S, "/bin/containerd-shim-runc-v2"),
+        (5, ORIGINAL_K3D_TOOLS, "/app/k3d-tools"),
+        (6, ORIGINAL_K3S, "/bin/k3s"),
+        (6, ORIGINAL_K3S, "/bin/runc"),
+        (6, ORIGINAL_K3S, "/bin/cni"),
+        (6, ORIGINAL_K3S, "/bin/containerd-shim-runc-v2"),
     ];
     for image in targets
         .iter()

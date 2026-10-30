@@ -6,7 +6,7 @@ For a first installation, use [getting started](getting-started.md), the [config
 
 ## Build and checks
 
-Rustup installs pinned stable 1.99.1; a C compiler is needed for bundled SQLite. Repository tooling and infrastructure tests use the Rust `xtask` workspace crate. Node 26.13.0 LTS/npm are only for real upstream JavaScript client fixtures; Docker/Compose are needed for container tests; Kustomize, kubectl and k3d 5.9.0 for disposable deployments.
+Rustup installs pinned stable 1.99.1; a C compiler is needed for bundled SQLite. Repository tooling and infrastructure tests use the Rust `xtask` workspace crate. Node 26.13.0 LTS/npm are only for real upstream JavaScript client fixtures; Docker/Compose are needed for container tests; Kustomize only for local rendering of optional deployment examples. No live Kubernetes tests or cluster tooling are required.
 
 ```sh
 cargo build --locked
@@ -194,10 +194,9 @@ kustomize build deploy/kustomize/overlays/s3
 kustomize build deploy/kustomize/overlays/gcs
 kustomize build deploy/kustomize/overlays/azure
 scripts/smoke-compose.sh
-scripts/smoke-kubernetes.sh
 ```
 
-Smoke tests use disposable k3d/K3s resources and an explicit private HOME/kubeconfig, never the current context. Enter only through `scripts/smoke-kubernetes.sh`: it disables default kubeconfig updates, binds loopback API exposure, server-dry-runs overlays, and verifies authenticated persistent identity across PVC/pod restart, readiness and writer exclusion. It checks owned-resource teardown and does not certify NetworkPolicy enforcement. Run policy-aware CNI tests before production acceptance.
+Only local manifest rendering is maintained. Live Kubernetes tests, their CLI entrypoint and k3d/K3s/pause dependencies are retired by owner request. No kubectl, kubeconfig, test cluster or server-side dry run is part of CI/release validation. These examples do not certify scheduling, PVC behavior, CNI policy or an actual cluster deployment. Real use needs a separate explicitly approved deployment/verification plan; never use an operator context implicitly.
 
 Before authorized real use: choose a local POSIX CSI class, replace the image with your immutable private digest, configure/provider-test storage, provision Secrets and narrow cloud egress. Secret keys: `sync-s3-credentials` (`access-key`, `secret-key`), `sync-gcs-credentials` (`service-account.json`), `sync-azure-credentials` (`sas-token`). 0440 secret files are readable via fsGroup. Pre-provision users/database through one isolated admin pod while the controller is stopped, then remove it before starting the server. Private remote access still needs HTTPS termination and matching ingress policy; ClusterIP is not itself a TLS proxy.
 

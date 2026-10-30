@@ -28,7 +28,9 @@ Self-hosted LiveSync authenticates with a principal UUID and random 256-bit key 
 
 Only public supplier/source artifacts and synthetic data enter tools. Source/history scans minimize inputs; bare mirrors exclude ignored operator files. Scanner roots/inputs are read-only with bounded resources, finite captures/deadlines, separate retrieval/offline analysis, isolated output and no Docker socket. Output validation is not DLP; a compromised tool can encode input in reports.
 
-K3d/K3s and their Docker-access helpers are privileged **test infrastructure**, not the application runtime. Tests enter only through `scripts/smoke-kubernetes.sh`: checked Unix endpoint, private HOME/config/kubeconfig, loopback API, no default-context merging, pre-existing-resource refusal, fresh owned data and cancellation-safe checked cleanup. Persistent authenticated identity, pod/PVC replacement and writer exclusion are tested. Real contexts/data are prohibited; policy-CNI enforcement is not certified by this smoke.
+Live Kubernetes testing is retired by owner request. No Kubernetes cluster, k3d/K3s/tools/pause image, kubeconfig, kubectl probe or server-side manifest validation belongs to the active release path. Kustomize files remain optional rendered examples, not a tested cluster deployment. Historical cluster evidence remains historical; application race/restart/cancellation/writer-fencing coverage remains in Rust, genuine-client, storage and Compose tests. Never use the operator context or real data.
+
+DevSecOps tools must be anonymously consumable public packages. Public repository visibility does not make GHCR packages public. Publication must verify anonymous access after provenance and before advertising delivered artifacts; no private-reader token or credential mount is a public-access substitute.
 
 Runner root/same-UID processes and the local daemon are trusted. Hashes/nofollow/private leaves are not race-free protection against those actors or an authorized malicious producer. Host archive/cache/Docker accumulation lacks a hard filesystem quota.
 

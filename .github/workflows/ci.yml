@@ -65,18 +65,9 @@ jobs:
     needs: [build, sbom]
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    permissions:
-      contents: read
-      packages: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with: {fetch-depth: 0, persist-credentials: false}
-      - name: Authenticate qualified DevSecOps tool pulls (host only)
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ vars.DEVSECOPS_PACKAGES_USER || github.actor }}
-          password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN || github.token }}
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load shared images; never rebuild scanned artifacts
@@ -144,25 +135,15 @@ jobs:
       - run: npm audit --prefix tests/compat --audit-level=low
       - run: scripts/smoke-compose.sh
       - run: cargo xtask test-livesync --image obsidian-sync:local
-      - run: scripts/smoke-kubernetes.sh
 
   sbom:
     name: SPDX / CycloneDX / source and image materials
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    permissions:
-      contents: read
-      packages: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with: {persist-credentials: false}
-      - name: Authenticate qualified DevSecOps tool pulls (host only)
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ vars.DEVSECOPS_PACKAGES_USER || github.actor }}
-          password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN || github.token }}
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: build-images, path: .work/ci-images}
       - name: Verify and load exactly the scanned/tested images
@@ -208,8 +189,6 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.publish && inputs.redistribution_reviewed && needs['required-ci'].result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
-    env:
-      DEVSECOPS_READ_TOKEN_AVAILABLE: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN != '' }}
     permissions:
       contents: read
       packages: write
@@ -223,13 +202,6 @@ jobs:
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with: {name: sbom-materials, path: .work/sbom}
       - run: cargo xtask load-ci-images
-      - name: Optional read-only tool authentication (never the publication token)
-        if: env.DEVSECOPS_READ_TOKEN_AVAILABLE == 'true'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
-        with:
-          registry: ghcr.io
-          username: ${{ vars.DEVSECOPS_PACKAGES_USER || github.actor }}
-          password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN }}
       - name: Fresh DevSecOps analysis before publication credentials; no raw-report artifact transfer
         run: cargo xtask scan-sbom --sbom-dir .work/sbom
       - run: cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json

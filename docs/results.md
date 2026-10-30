@@ -19,7 +19,7 @@ Before acceptance, the retained current inventory measured:
 | Static runtime base | **0** |
 | Pause | **ERROR: empty payload catalog**; no finding count assigned |
 
-Per architecture: **ten declared images, eight finding-bearing, one catalog error, one passing**. Registry measurements are separately attributed amd64/arm64, not native execution qualification. Acceptance changes exact known-match disposition, not these raw counts or inventory-error status. A newly complete dependency baseline cannot be produced while pause coverage is missing.
+Per architecture: **ten declared images, eight finding-bearing, one catalog error, one passing**. Registry measurements are separately attributed amd64/arm64, not native execution qualification. Acceptance changes exact known-match disposition, not these raw counts or inventory-error status. That ten-image baseline could not complete with missing pause coverage. The owner's later retirement of live Kubernetes testing removes its three assets from the active graph, without relabeling these historical findings/errors.
 
 ## Verified application behavior
 
@@ -63,7 +63,25 @@ The active consumer Syft/Grype pins now use these exact source-bound DevSecOps d
 
 Security/SBOM jobs request package-read authority and authenticate on the host. Private asset cataloging uses digest-bound native pulls and verified offline archives without mounting credentials into scanners; daemon/manifest/config identities remain distinct. Publication still withholds its write login until fresh scans finish, using a separately supplied read-only tool token if needed. Package visibility/Actions grants remain owner settings. The application publication path has not delivered an image; pause coverage and all Required CI gates still apply. [Release engineering](releases.md) gives the access contract.
 
-## Current integration validation — 2026-10-30
+## Current release scope — Kubernetes retired, public tools required
+
+The owner explicitly removed live Kubernetes testing. Its CLI/launcher, cluster implementation and dedicated safety/diagnostic fixtures are retired together; K3s/k3d-tools/pause are no longer executed or scanned as release dependencies. Kustomize examples remain locally rendered. The active image graph has **seven** entries; missing active inventories still block. Application authorization/race/cancellation/restart/writer-fencing, genuine-client, storage and Compose coverage remains.
+
+The owner also requires public DevSecOps source and packages. GitHub confirms `PRJXAI/devsecops` is **PUBLIC** with repository ADMIN access, but package administration is separately unavailable: the existing OAuth token lacks package scopes and listing returns HTTP 403. Fresh credential-free checks still receive **401 for both scanner token endpoints**, with the known-public control passing. No package visibility change is claimed. Consumer read-token/login and private archive-export paths are removed; images must work publicly. Thus the old local arm64 private-export failure is historical, not a current transport requirement.
+
+Producer publication now requires anonymous index/native-manifest/config verification after provenance and before delivery-artifact upload. It uses a private credential-free config with an explicit empty GHCR auth entry (disabling native keychain auto-discovery) and fixed system buildx discovery paths and strips inherited credentials/proxies. First package visibility still needs one-time owner UI action; repository visibility or a successful private push does not establish public availability.
+
+Validation of this scope:
+
+- **PASS:** pinned fresh audit/deny, debug/release, all **eight** feature cells, **65 ordinary xtask tests / six ignored diagnostics**, strict workspace/all-target/all-feature Clippy, actionlint **1.7.12**, generated/link/review checks and local manifest rendering.
+- **PASS:** Linux/musl tests and rebuilt runtime/builder, build-context privacy, minimized source/history secret checks, native and runtime Commonlib/PouchDB/restart fixtures, disposable S3 contracts/clients and Compose writer-fencing/restart smoke. No Kubernetes operation or host-context probe was run.
+- **PASS:** fresh bound source/runtime matching **0/0**, native builder **19 accepted / 0 blocking**, runtime content verification; source attribution is `b026257` plus a dirty tree, not a clean release.
+- **FAIL, retained then corrected:** the first disposable S3 contract saw startup **503** during bucket setup. The existing read-only readiness probe had accepted any HTTP status. It now waits for unauthenticated **403** within the same bound; a bounded synthetic **503→403** test and the unchanged real S3/client contracts pass. No write retry, authorization bypass or contract removal was introduced. Initial strict Clippy failures (unused retired helper, singleton installer loop, synthetic read length) remain retained.
+- **BLOCKED:** both seven-image registry attempts fail on the local container resolver before cataloging (DNS failure). No Docker/host DNS settings were changed and no catalog is called clean; ledger/baseline remain incomplete. Separately, host-side public controls succeed while both scanner token endpoints still return **401**. Removing obsolete Kubernetes dependencies does not waive these active failures.
+
+Producer checks pass **133 ordinary tests / 39 ignored diagnostics**, strict Clippy and fresh dependency audit. Its explicit anonymous positive control verifies a public index, native manifest and parsed config; the new publisher gate has not completed a real publication. The previous consumer hosted run [41123422579](https://github.com/PRJXAI/obsidian-sync/actions/runs/41123422579) failed its SBOM job and Required CI; publication did not run. Until packages are public and fresh Required CI passes, no application image release is claimed. Previous measurements remain attributed to their older scope.
+
+## Previous scanner integration validation — b026257
 
 - **PASS:** `scripts/check.sh` with pinned Cargo audit **0.22.2** and fresh audit/deny data; all **eight** feature cells; **71 ordinary xtask tests / seven ignored explicit diagnostics**; strict workspace/all-target/all-feature Clippy; actionlint **1.7.12**; generated/link/source-review checks. An earlier check also passed with host audit 0.22.1 before the pinned rerun; it is not the pinned result.
 - **PASS:** actual Linux/musl `tests` target and fresh runtime/builder builds; build-context privacy canaries; deployment rendering and minimized source/history secret scans.
@@ -80,7 +98,7 @@ New [native-first onboarding](getting-started.md), [configuration](configuration
 
 ## Remaining operational qualifications
 
-- Pause source/native payload inventory; fresh full scan/baseline/Required CI after actual tool adoption.
+- Public scanner-package visibility and fresh seven-image scan/baseline/Required CI. Pause/K3s/k3d are retired scope, not active blockers or missing-inventory exemptions.
 - Protected source/release authority, accountable approval and verified publication/package visibility.
 - Durable private raw-evidence archive and hard host/provider-staging quotas; finite report/archive caps are not those quotas.
 - Provider-native IAM/conditional-write/lifecycle, private TLS/CNI egress enforcement, matched encrypted restore/revocation drills and managed credential custody.

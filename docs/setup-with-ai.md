@@ -52,7 +52,7 @@ Read [getting started](getting-started.md), [configuration](configuration.md), [
 
 Check only necessary prerequisite/version/space metadata for the selected runtime. Docker-endpoint metadata is relevant only if a container route is selected. Do not read ignored operator settings, credential stores, existing backend data, personal Obsidian folders or scheduler/session state. If an existing path/service is found, stop and request a scoped plan; do not assume it belongs to this task.
 
-Do not install tools, grant Docker-group membership, run a privileged daemon, switch kube-contexts, open firewall ports or turn on a proxy during inspection. Do not probe the operator's `kubectl`, even with `--client`: host dispatchers can consult current-context credentials before reporting a version. Repository Kubernetes validation enters only through `scripts/smoke-kubernetes.sh` with its disposable configuration, never through an operator context. A checked local Unix Docker endpoint is not permission to operate every object on that daemon.
+Do not install tools, grant Docker-group membership, run a privileged daemon, switch kube-contexts, open firewall ports or turn on a proxy during inspection. Do not probe the operator's `kubectl`, even with `--client`: host dispatchers can consult current-context credentials before reporting a version. Live Kubernetes testing is retired; do not install cluster tools, create test clusters or use an operator context. Kustomize examples are only rendered locally. A checked local Unix Docker endpoint is not permission to operate every object on that daemon.
 
 ### 2. Present a small plan and obtain approval
 

@@ -95,7 +95,7 @@ See [operations](docs/operations.md), [storage](docs/storage.md) and [security](
 
 ## Development, tests and release
 
-The commands below are repository verification, not a list of services/tools every server installation must run. Compose/Kubernetes checks exercise the optional deployment examples.
+The commands below are repository verification, not a list of services/tools every server installation must run. Compose smoke and local manifest rendering exercise optional deployment examples; no live Kubernetes tests run.
 
 All first-party code and automation are Rust in the workspace and `xtask`. Shell files are thin launchers. Node/npm only exercise pinned upstream Commonlib/PouchDB clients; they do not ship in the runtime.
 
@@ -106,14 +106,13 @@ cargo xtask test-livesync
 scripts/test-s3.sh
 scripts/validate-deployments.sh
 scripts/smoke-compose.sh
-scripts/smoke-kubernetes.sh
 ```
 
-CI tests eight feature combinations, the actual Linux/musl runtime, genuine clients, S3, persistent restart and writer exclusion. Kubernetes tests always create their own private kubeconfig/cluster; never use the operator context.
+CI tests eight feature combinations, the actual Linux/musl runtime, genuine clients, S3, persistent restart and writer exclusion. Live Kubernetes testing is retired. Kustomize remains a rendered deployment example only; never use the operator context.
 
 Supply-chain checks use **Syft → native SBOM → offline Grype**, fresh RustSec/deny/npm checks and minimized source/history secret scans. The owner accepted a specific investigated stack-risk snapshot on **2026-10-30**; accepted findings remain visible. New findings, missing inventories and scanner failures still block. This is not a vulnerability-free or regulated-production claim.
 
-CI uses our published [DevSecOps Syft/Grype images](https://github.com/PRJXAI/devsecops) by source-bound manifest digest. Private pulls use explicit GHCR authentication; package access failures remain blocking, not a reason to fall back to another scanner. Compiler/daemon/service images remain separate. See [build and release engineering](docs/releases.md) for artifact reuse, provenance, package access and publication requirements, and [verification status](docs/results.md) for actual outcomes.
+CI uses our published [DevSecOps Syft/Grype images](https://github.com/PRJXAI/devsecops) by source-bound manifest digest. Public package access is required, without a consumer registry token. A public source repository does not make its GHCR packages public; visibility failures block rather than triggering a scanner fallback. Compiler/daemon/service images remain separate. See [build and release engineering](docs/releases.md) for artifact reuse, provenance, package access and publication requirements, and [verification status](docs/results.md) for actual outcomes.
 
 ## Documentation
 

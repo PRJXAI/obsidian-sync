@@ -42,7 +42,6 @@ cargo xtask generate-sbom
 cargo xtask scan-sbom --sbom-dir .work/sbom
 cargo xtask scan-supply-chain --platform linux/amd64
 scripts/smoke-compose.sh
-scripts/smoke-kubernetes.sh
 ```
 
 Build runtime/builder images before image/SBOM checks; [release engineering](releases.md) gives the order. Use current advisory data for Cargo audit/deny/npm. Benchmark on an idle machine when behavior/performance changes; record hardware/workload/sample count and avoid unmeasured speed claims.
@@ -55,12 +54,12 @@ Syft generates native JSON/SPDX/CycloneDX; Grype matches the exact native invent
 
 `risk.rs` applies only the owner's exact current-stack snapshot; new findings and missing/error evidence still fail. Review that policy explicitly when recipes, package versions, advisory/fix identities or occurrence limits change. Do not regenerate approval automatically from failing scans. [Security](security.md) defines scope; [scanner contract](scanner-pipeline.md) defines schemas/freshness.
 
-The producer's independent CLI images are adopted only after successful publish/provenance/package-access verification. Keep host Cargo audit/deny until a qualified replacement preserves coverage. Compilers, Engine/BuildKit, K3s/tools/pause and RustFS are separate assets.
+The producer's independent CLI images are adopted only after successful publish/provenance/package-access verification. Keep host Cargo audit/deny until a qualified replacement preserves coverage. Compilers, Engine/BuildKit and RustFS remain separate assets. Live Kubernetes tests and their K3s/k3d/pause assets are retired; retain their history, not active release requirements.
 
 ## Isolation and evidence
 
 Only public inputs and synthetic fixtures. Source scanning excludes ignored configuration/data; history uses an independent bare mirror with detached/all-ref coverage. Scanner inputs/root are read-only, output isolated, resources/deadlines bounded and sockets absent. Networking disabled does not prevent output disclosure.
 
-Kubernetes checks enter through `scripts/smoke-kubernetes.sh`: private HOME/kubeconfig, checked Unix endpoint, loopback API, no default-config updates, pre-existing-name refusal and owned-resource/data cleanup even after cancellation. Verify authenticated persistent identity and writer denial; do not claim CNI enforcement or provider recovery from that smoke.
+No live Kubernetes checks remain. Kustomize examples are only rendered locally; never install cluster tools, create a cluster or probe/use an operator context as a prerequisite. Keep application authorization, race, cancellation, restart and writer-fencing tests. Public DevSecOps packages need anonymous verification; do not restore a consumer-reader token/private-export workaround.
 
 Public CI outputs are allowlisted summaries/inventories/materials. Raw reports/logs stay private pending an approved durable archive. Caps are not whole-host/provider quotas. Record exact passed/failed/unexecuted checks in [results](results.md); do not infer production, regulatory, native-provider or GUI acceptance.

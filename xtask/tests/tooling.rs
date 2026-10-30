@@ -426,7 +426,7 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
 #[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 10);
+    assert_eq!(images.len(), 7);
     assert!(images.keys().all(|image| {
         !image.contains("trivy")
             && !image.starts_with("couchdb:")
@@ -434,6 +434,9 @@ fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Re
             && !image.starts_with("kindest/node:")
             && !image.starts_with("golang:")
             && !image.starts_with("cgr.dev/chainguard/git:")
+            && !image.starts_with("rancher/k3s:")
+            && !image.starts_with("ghcr.io/k3d-io/k3d-tools:")
+            && !image.starts_with("registry.k8s.io/pause:")
     }));
     assert!(images.contains_key(xtask::grype::GRYPE));
     assert!(
@@ -441,16 +444,33 @@ fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Re
             .lines()
             .any(|line| line == format!("FROM {} AS build", security::BUILD_IMAGE))
     );
-    for pin in [
-        security::GITLEAKS,
-        security::BUILD_IMAGE,
-        sbom::SYFT,
-        deployment::K3S,
-        deployment::K3D_TOOLS,
-        deployment::PAUSE,
-    ] {
+    for pin in [security::GITLEAKS, security::BUILD_IMAGE, sbom::SYFT] {
         assert!(images.contains_key(pin), "{pin}");
     }
+    Ok(())
+}
+#[test]
+fn retired_kubernetes_is_not_a_command_dependency_or_release_gate() -> Result {
+    let root = xtask::root();
+    let executable = env!("CARGO_BIN_EXE_xtask");
+    let help = util::text(&mut util::cmd(executable, &["--help"], &root), 30)?;
+    assert!(!help.contains("smoke-kubernetes"));
+    assert!(!util::capture(&mut util::cmd(executable, &["smoke-kubernetes"], &root), 30)?.success);
+    assert!(!root.join("scripts/smoke-kubernetes.sh").exists());
+    let workflow = fs::read_to_string(root.join(".github/workflows/ci.yml"))?;
+    for removed in ["smoke-kubernetes", "k3d", "kubectl"] {
+        assert!(!workflow.contains(removed));
+    }
+    for retained in [
+        "cargo xtask test-livesync",
+        "scripts/test-s3.sh",
+        "scripts/smoke-compose.sh",
+    ] {
+        assert!(workflow.contains(retained));
+    }
+    let installer = fs::read_to_string(root.join("xtask/src/ci.rs"))?;
+    assert!(installer.contains("sigs.k8s.io/kustomize"));
+    assert!(!installer.contains("k3d") && !installer.contains("kubectl"));
     Ok(())
 }
 #[test]
@@ -620,40 +640,47 @@ fn writer_fencing_requires_failure_and_classified_error_on_either_stream() {
     }));
 }
 #[test]
-fn kube_commands_always_use_disposable_config_without_touching_sentinel() -> Result {
-    let temp = tempfile::tempdir()?;
-    let sentinel = temp.path().join("operator-config");
-    fs::write(&sentinel, "synthetic sentinel")?;
-    let disposable = temp.path().join("disposable-kubeconfig");
-    for program in ["k3d", "kubectl"] {
-        let c = deployment::fenced_command(temp.path(), &disposable, program, &["version"]);
-        assert!(
-            c.get_envs()
-                .any(|(key, value)| key == "KUBECONFIG" && value == Some(disposable.as_os_str()))
-        );
-        let args = security::recorded_command(&c);
-        if program == "kubectl" {
-            assert_eq!(&args[..2], &["--kubeconfig", disposable.to_str().unwrap()]);
+fn s3_readiness_waits_past_503_for_unauthenticated_403() -> Result {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        time::{Duration, Instant},
+    };
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let address = listener.local_addr()?;
+    let server = std::thread::spawn(move || -> std::io::Result<()> {
+        for status in ["503 Service Unavailable", "403 Forbidden"] {
+            let end = Instant::now() + Duration::from_secs(5);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(e)
+                        if e.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < end =>
+                    {
+                        std::thread::sleep(Duration::from_millis(5))
+                    }
+                    Err(e) => return Err(e),
+                }
+            };
+            stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+            let mut request = [0; 1024];
+            if stream.read(&mut request)? == 0 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "Missing synthetic request",
+                ));
+            }
+            write!(
+                stream,
+                "HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )?;
         }
-    }
-    assert_eq!(fs::read_to_string(sentinel)?, "synthetic sentinel");
-    Ok(())
-}
-#[test]
-fn restart_waits_for_ready_container_not_merely_running_pod() -> Result {
-    let temp = tempfile::tempdir()?;
-    let config = temp.path().join("kubeconfig");
-    let command = deployment::pod_ready_command(temp.path(), &config);
-    let args = security::recorded_command(&command);
-    assert!(args.contains(&"--for=condition=Ready".into()));
-    assert!(
-        !args
-            .iter()
-            .any(|arg| arg.contains("phase") || arg.contains("Running"))
-    );
-    assert_eq!(args[0], "--kubeconfig");
-    assert_eq!(args[1], config.to_str().unwrap());
-    Ok(())
+        Ok(())
+    });
+    let result = clients::wait_http(&format!("http://{address}/"), Some(403), 3);
+    server.join().expect("bounded synthetic HTTP worker")?;
+    result
 }
 #[test]
 fn client_fixture_rejects_non_loopback_s3_and_relocates_state() -> Result {

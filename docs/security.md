@@ -13,7 +13,7 @@ Changing the snapshot requires a new reviewed owner decision. Do not generate ac
 ## Exposure assessment
 
 - Windows-only `os.Root` behavior does not match Linux subjects. The cited 32-bit OpenSSL/Perl triggers differ from reviewed 64-bit conditions; native builder Perl reports 8-byte pointers/integers. These observations do not dismiss other advisories.
-- K3s actually runs a private API service. HTTP/2 flow-control/SETTINGS/HPACK and container-runtime gRPC availability issues remain conditional risks. Loopback exposure and short-lived fixtures reduce exposure, not the bugs.
+- Historical K3s testing ran a private API service with conditional HTTP/2/gRPC availability risks. The owner retired live Kubernetes testing and its three image dependencies; those findings are not fixed, but those services are no longer active release/test assets.
 - The active host builder was observed at BuildKit **0.27.1**, below the **0.31.1** custom-frontend Seccomp/AppArmor fix. A pinned frontend limits substitution; it does not authenticate benign behavior or patch the host daemon. No bypass, privileged tracing or host upgrade was performed.
 - Docker compressed-upload execution requires an explicitly compressed archive sent through the archive API; ordinary `docker cp` is excluded by upstream. Destination-escaping extraction is a different vulnerability and requires review of actual extractors.
 - Gitleaks defaults to archive traversal disabled; the repository enables neither it nor HTTP diagnostics and selects JSON output. Other parser/decoder/native paths remain relevant. Offline scanners can still consume malicious files or poison reports.
@@ -28,7 +28,9 @@ No end-to-end exploit was attempted or demonstrated. Retained source/runtime sca
 - **Resource control:** bounded sockets/admission/body/response/JSON complexity/CPU/blocking/storage/job queues and finite operation/drain deadlines. Authenticate before spending authenticated rate budgets. Limits are capacity policies, not DoS immunity.
 - **Private access:** exact CORS, no public ingress/Funnel, remote Basic/Bearer only through private HTTPS. Tailscale is not authorization.
 - **CI inputs/outputs:** public/synthetic data only; minimized read-only source inputs and independent bare history. No scanner socket, operator HOME/kubeconfig or writable input/output alias. Fresh separately retrieved advisory data, bounded captures and cancellation-safe cleanup.
-- **Evidence:** immutable archive/config/layer/source bindings, complete inventories, all severities/suppressions, explicit accepted/blocking counts and failure on malformed/stale/substituted/missing evidence. An empty pause catalog remains an error, not zero findings.
+- **Evidence:** immutable archive/config/layer/source bindings, complete inventories, all severities/suppressions, explicit accepted/blocking counts and failure on malformed/stale/substituted/missing evidence. An empty active catalog remains an error, not zero findings. The former pause inventory gap is preserved historically; its entire test dependency was retired, not waived.
+
+DevSecOps source and released packages must be public. A private token, authenticated host cache or public source repository alone is not anonymous package availability; no consumer reader-token/private-export workaround remains. The producer gates delivery artifacts on anonymous index/native/config access after provenance. Existing package visibility requires owner UI action with appropriate package authority.
 
 The producer's accepted risks do not automatically authorize consumer matches; the consumer applies its own explicit snapshot. A tool container does not replace a compiler, daemon, privileged node or S3 service. Keep the full host cargo-deny gate until its container replacement proves equivalent coverage.
 

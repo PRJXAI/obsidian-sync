@@ -74,33 +74,10 @@ fn publication_keeps_required_ci_fresh_validation_and_private_artifact_boundarie
     let login = publish
         .find("name: Registry login for application publication (after fresh analysis)")
         .expect("write-credential registry login");
-    let read_login = publish
-        .find("name: Optional read-only tool authentication")
-        .expect("private tool pull authentication");
-    assert!(read_login < scan);
-    let read_section = &publish[read_login..scan];
-    assert!(read_section.contains("if: env.DEVSECOPS_READ_TOKEN_AVAILABLE == 'true'"));
-    assert!(read_section.contains("password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN }}"));
-    assert!(
-        !read_section.contains("secrets.GITHUB_TOKEN") && !read_section.contains("github.token")
-    );
-    for job in ["security", "sbom"] {
-        let start = checks
-            .find(&format!("\n  {job}:\n"))
-            .expect("image-consuming job");
-        let section = checks[start..]
-            .split("\n  integration:\n")
-            .next()
-            .unwrap()
-            .split("\n  required-ci:\n")
-            .next()
-            .unwrap();
-        assert!(section.contains("packages: read"));
-        assert!(
-            section
-                .contains("password: ${{ secrets.DEVSECOPS_PACKAGES_READ_TOKEN || github.token }}")
-        );
-    }
+    assert!(!checks.contains("docker/login-action") && !checks.contains("packages: read"));
+    assert!(!text.contains("DEVSECOPS_PACKAGES_READ_TOKEN"));
+    assert!(!text.contains("smoke-kubernetes") && !text.contains("k3d"));
+    assert!(!publish[..scan].contains("docker/login-action"));
     let promote = publish
         .find("run: cargo xtask publish-image")
         .expect("verified promotion");

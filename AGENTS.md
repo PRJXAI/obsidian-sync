@@ -19,7 +19,7 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 - SQLite transactions implement CAS and replay. Never replace persistent checks with a mutex. Preserve the process lock through canceled blocking work. No multi-writer deployments, NFS, HPA, public ingress, or Tailscale Funnel.
 - No GC of final blobs/revisions/tombstones/replay records. Design and test a protocol-aware retention policy before adding deletion. Do not edit internal storage by hand.
 - Keep the runtime image Distroless static/nonroot with only the Rust executable added; configuration/secrets/data are mounts, not image layers.
-- Never touch real vaults, clusters, buckets, or publish images without explicit permission. Kubernetes tests MUST use scripts/smoke-kubernetes.sh and its disposable kubeconfig, never the current context.
+- Never touch real vaults, clusters, buckets, or publish images without explicit permission. Live Kubernetes testing is retired by owner request. Keep Kustomize as optional rendered deployment examples; never create a test cluster or use/probe an operator kubecontext.
 
 ## Workflow
 
