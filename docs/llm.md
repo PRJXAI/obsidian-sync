@@ -25,7 +25,7 @@ No note paths/bodies, keys, passphrases, signed URLs or raw provider errors in l
 
 ## Verification and delivery
 
-Use `scripts/check.sh`, all eight feature cells, genuine `cargo xtask test-livesync`, `scripts/test-s3.sh`, Linux Docker `tests` target, image verification and disposable Compose/Kubernetes smokes. `tests/couch.rs` exercises the real router; it is not an independent Apache CouchDB oracle. GUI/mobile and real cloud/CNI/DR checks remain separate.
+Use `scripts/check.sh`, all eight feature cells, genuine `cargo xtask test-livesync`, `scripts/test-s3.sh`, Linux Docker `tests` target, image verification, disposable Compose smoke and local Kustomize rendering. `tests/couch.rs` exercises the real router; it is not an independent Apache CouchDB oracle. GUI/mobile and real cloud/CNI/DR checks remain separate.
 
 Live Kubernetes tests and their k3d/K3s/pause dependencies are retired by owner request. Kustomize examples remain locally rendered, without kubectl, kubeconfig, server validation or cluster certification. Never create a test cluster or use/probe the operator context or real data/accounts.
 

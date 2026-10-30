@@ -2,6 +2,12 @@
 
 Assessment: **2026-10-30**, source `e240ab9`. This is a proposed sequence of behavior-preserving changes, not an implemented refactor. The assessment adds documentation only. Executed checks and exclusions are recorded in [results](results.md#repository-assessment-and-local-sync--2026-10-30).
 
+## Execution contract
+
+Implementation branch: `refactor/behavior-preserving-cleanup`. Before changing transaction code or shared publication ownership, the intended consistency/security guarantees are **unchanged**: immediate SQLite CAS/replay, body durability before references, reauthorization at publication/replay, first-body-wins imported revisions, retained branches/tombstones, generation fencing, shared bounded upload permits/deadlines and writer-lock lifetime through canceled blocking tasks. Public APIs, CLI/configuration, schema, stored hashes and error classifications remain stable. Only fixture lifecycle error reporting may become stricter: cleanup failures must not report success.
+
+The numbered phases below describe the approved scope. Conditional CI deduplication, dependency upgrades and disk cleanup require evidence/approval and are not automatic parts of the refactor. Desktop acceptance remains a separate manual/UI test.
+
 ## What has been built
 
 This is a working private Rust **Self-hosted LiveSync backend**, not an Obsidian plugin, generic file synchronizer or complete Apache CouchDB replacement. Its minimal runtime is one executable, TOML configuration, local SQLite and filesystem blobs. Node, Docker, scanners and deployment tooling are development/optional deployment dependencies, not requirements for that native runtime.

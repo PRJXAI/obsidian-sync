@@ -21,7 +21,7 @@ All data routes require credentials. Root health probes are availability-only an
 
 | Route | Implemented subset |
 |---|---|
-| `/`, `/_session`, `/_uuids` | Authenticated server identity, session description and bounded generated UUIDs; no cookie/JWT login/admin shortcut |
+| `/`, `/_session` | Authenticated server identity and session description; no cookie/JWT login/admin shortcut |
 | `/DATABASE` | GET/HEAD info; scoped bootstrap DELETE/archive and PUT/reactivate an already provisioned alias |
 | `/DATABASE/DOCUMENT`, `/DATABASE/_local/ID` | GET/HEAD, PUT/DELETE, revision reads, conflicts, ancestry, open revisions, ETag/parent-CAS; local checkpoints |
 | `/_bulk_docs` (database-relative) | Bounded ordinary edits or explicit-revision imports; per-document failures, CouchDB omission of successful duplicate-import rows |
@@ -30,7 +30,7 @@ All data routes require credentials. Root health probes are availability-only an
 | `/_changes` | GET/POST, normal/longpoll/continuous, since/now, include_docs/revs/conflicts/style/limits; `_doc_ids` and upstream `type` equality/inequality selectors |
 | `/_ensure_full_commit`, `/_revs_limit` | Full-commit acknowledgement (already FULL durability), read-only ancestry limit |
 
-API limits are explicit, not silently ignored flags. No arbitrary JavaScript filters, general Mango/views, `_security`/`_users`/`_node` administration, purge, native CouchDB attachments or arbitrary database creation. LiveSync's own chunked binary attachments are documents and are exercised. Select **CouchDB** in the client regardless of server filesystem/S3/GCS/Azure mode.
+API limits are explicit, not silently ignored flags. No root `/_uuids` endpoint, arbitrary JavaScript filters, general Mango/views, `_security`/`_users`/`_node` administration, purge, native CouchDB attachments or arbitrary database creation. LiveSync's own chunked binary attachments are documents and are exercised. Select **CouchDB** in the client regardless of server filesystem/S3/GCS/Azure mode.
 
 HTTP bytes alone do not bound JSON DOM allocation. Input has a 65,536 structural-token preflight before serde parsing; quoted/escaped punctuation does not count. A separate conservative 16 MiB JSON working-set charge bounds request/response trees and aggregate bulk/open-revision construction; transfer bytes remain independently bounded. Changes paginate by either budget; keyed reads fail explicitly rather than omit requested rows. Parsing/serialization/hashing run on a two-slot blocking CPU pool. Normal admission bounds executing AND queued work (default 8 active, 16 admitted total, 1-second queue); 32 bounded feeds wait separately; uploads backpressure within their operation deadline. Permits remain attached through response streaming/canceled blocking tasks.
 
