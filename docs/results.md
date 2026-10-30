@@ -21,6 +21,38 @@ Branch `refactor/behavior-preserving-cleanup`; scope and unchanged guarantees ar
 
 - Retained late rerun failure: the pinned-audit `check.sh` rerun stopped in the existing `s3_readiness_waits_past_503_for_unauthenticated_403` test with `WouldBlock` on its synthetic socket. An accepted BSD/macOS socket can inherit the nonblocking listener flag; the fixture now explicitly restores blocking reads while retaining its two-second read timeout, bounded accept loop and 503-before-403 assertion. Targeted readiness, all **121** workspace tests and strict all-feature Clippy pass after this test-only portability correction; no production readiness policy changed.
 
+### Final gate rerun
+
+Final implementation source **`cdd8fc7`**, clean tree at SBOM generation; the subsequent handoff commit changes documentation only. Host: Apple M4 Pro (14 CPUs, 24 GiB), macOS **26.6.2 / arm64**, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1**. No application/tooling dependency, lockfile, schema, CI feature cell or accepted-risk policy was changed.
+
+| Executed command | Result |
+|---|---|
+| `scripts/check.sh` with the existing local pinned-tool directory on PATH | PASS: debug/release, formatting, strict Clippy, **47 application + 74 xtask tests**; **3 provider + 6 explicit diagnostics ignored**; fresh audit **0.22.2** / deny **0.20.2** and generated/docs checks |
+| `scripts/check-features.sh` | PASS: all **eight** storage-feature cells, including filesystem-only, with debug/release/Clippy/tests |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --locked --workspace --no-deps --all-features` | PASS: runtime and tooling documentation, including public intra-doc links |
+| `docker build --target tests .` | PASS: actual Linux/musl tests, **121 passed / 9 ignored** |
+| Builder/runtime Docker builds; `cargo xtask verify-image` | PASS: static/nonroot runtime, only `/server` executable, no shell/package manager |
+| `cargo xtask test-build-context` | PASS: nested HTTP modules included; private/nested canaries excluded |
+| `cargo xtask test-livesync`; `scripts/test-s3.sh`; `cargo xtask test-livesync --image obsidian-sync:local` | PASS: **11** genuine Commonlib/PouchDB scenarios per backend, including encrypted/compressed notes, 3 MiB attachment, conflicts, checkpoints and serving restart; separate S3 storage contract passes |
+| `scripts/smoke-compose.sh`; `scripts/validate-deployments.sh` | PASS: private probes, second-writer rejection, graceful stop and persisted administration; optional examples render, no Kubernetes API operation |
+| `cargo xtask generate-sbom`; `cargo xtask scan-sbom --sbom-dir .work/sbom` | PASS: nine inventories; source/runtime **0/0** matches, builder **19 accepted / 0 blocking**; fresh valid Grype DB built **2026-10-30T06:23:28Z** |
+| `cargo xtask verify-release --image obsidian-sync:local --scan-report .work/sbom/runtime.scan.json` | PASS: content identity **`sha256:8a0089b6cd8df7cfdfbd50229408e952a44b8896796b5286c0d927df36d8c0da`**; not publication authorization |
+| `cargo xtask scan-sources` with pinned audit | PASS: fresh audit/deny, minimized-source and independent history secret scans, source-mount privacy |
+| `cargo xtask scan-supply-chain --platform linux/arm64` (at `7cb73c6`, unchanged pins/policy) | PASS: seven active registry images; runtime base **0**, frontend **23**, Gitleaks **225**, Grype **23**, Syft **18**, Rust base **16**, RustFS **15** findings, all nonzero findings explicitly accepted and **0 blocking**; not vulnerability-free |
+
+**Benchmark:** `scripts/benchmark.sh` at `7cb73c6` (same runtime source as `cdd8fc7`), local release/filesystem persistence-core workload with four workers and synthetic data. Other repository builds/scans/fixtures had finished; host one-minute load was **3.60**, so this is not controlled-idle or comparative performance evidence. Maximum RSS **11,419,648 bytes**; no network/plugin throughput claim.
+
+| Workload | Operations | Ops/s | p50 / p95 / p99 ms |
+|---|---:|---:|---|
+| 1 KiB full commit | 200 | 95.48 | 10.287 / 11.547 / 13.309 |
+| 64 MiB streamed attachment | 3 | 10.08 | 100.048 / 104.128 / 104.128 |
+| 203-event feed, page 100 | 100 | 11,531.64 | 0.079 / 0.134 / 0.188 |
+| Eight-client CAS metadata | 800 | 8,222.06 | 0.370 / 0.569 / 0.804 |
+
+Final post-run checks found no matching server process, owned fixture container or `livesync-*`/`s3-*`/`compose-*` fixture directory. No real vault/provider/cluster was accessed, no image published and no cache/evidence archive was bulk-deleted. Logs: `.work/cleanup-*.log`; final post-correction gates use `.work/cleanup-verified-*.log`. Private SBOM/security evidence remains under `.work/sbom/` and `.work/security/`; SBOM materials bind clean source `cdd8fc7` and tree digest `sha256:e05720c910ec8949857f2b21aefe9c5ceb57b7eec1b5b4145435179db73e76dd`.
+
+Still unqualified: actual Obsidian desktop/mobile UI, native AWS/GCS/Azure/MinIO, private TLS/CNI, provider disaster recovery, hosted Required CI/publication and amd64 registry rescanning in this cleanup run. Desktop two-vault acceptance remains manual/pending; pinned client success is not UI certification. Kubernetes testing is retired, not pending. Duplicate-dependency and upstream fixture deprecation warnings remain; no failing check was waived or removed.
+
 ## Repository assessment and local sync — 2026-10-30
 
 Reviewed source `e240ab9`; runtime/tooling source and lockfiles were unchanged at that assessment. The [cleanup plan](cleanup-plan.md) was then proposed work; its subsequent implementation is recorded above. Host: Darwin arm64, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1** (host Node differs from CI's pin).
