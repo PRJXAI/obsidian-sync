@@ -211,3 +211,94 @@ fn native_minimal_rustfs_preserves_s3_and_real_clients() -> Result {
     payload?;
     ensure(findings == Some(0), "Prototype findings remain blocking")
 }
+
+#[test]
+#[ignore = "fixed source-auditable arm64 prototype; actual S3/client/inventory qualification only, no adoption"]
+fn native_source_auditable_rustfs_preserves_all_s3_and_client_controls() -> Result {
+    let root = crate::root();
+    util::install_cancellation()?;
+    util::local_docker(&root)?;
+    let image = "sha256:509f9a64f93da2a32bb3c2fd3bb8bfe18ea874363fe5649d1b4b2f5c1b170f47";
+    let inspected = images::inspect(&root, image)?;
+    let native = util::text(
+        &mut util::cmd(
+            "docker",
+            &["version", "--format", "{{.Server.Arch}}"],
+            &root,
+        ),
+        30,
+    )?;
+    ensure(
+        inspected["Architecture"] == native && inspected["Os"] == "linux",
+        "Source prototype is not native Linux",
+    )?;
+    ensure(
+        inspected["Config"]["User"] == "65532:65532"
+            && inspected["Config"]["Entrypoint"] == json!(["/rustfs"]),
+        "Source prototype configuration drift",
+    )?;
+    let output = root.join(".work/security/rustfs-source-evaluation");
+    ensure(!output.exists(), "Refusing stale source prototype evidence")?;
+    fs::create_dir_all(&output)?;
+    fs::set_permissions(&output, fs::Permissions::from_mode(0o700))?;
+    let materials = images::export(&root, image, &output.join("image.tar"))?;
+    sbom::scan(
+        &root,
+        "docker-archive:/input/image.tar",
+        &output.join("image.tar"),
+        "/input/image.tar",
+        &output,
+        "candidate",
+    )?;
+    let catalog = util::json(&output.join("candidate.syft.json"))?;
+    ensure(
+        grype::image_subject(&catalog)?["ImageID"] == materials["config_digest"],
+        "Source prototype catalog substitution",
+    )?;
+    ensure(
+        catalog["artifacts"].as_array().is_some_and(|packages| {
+            packages.iter().any(|package| {
+                package["name"] == "rustfs"
+                    && package["version"] == "1.0.5"
+                    && package["type"] == "rust-crate"
+                    && package["locations"].as_array().is_some_and(|locations| {
+                        locations
+                            .iter()
+                            .any(|location| location["path"] == "/rustfs")
+                    })
+            })
+        }),
+        "Source prototype omitted actual auditable RustFS payload",
+    )?;
+    let cache = root.join(".work/grype-cache");
+    grype::database(&root, &cache, &output)?;
+    let findings = grype::scan(
+        &root,
+        &output.join("candidate.syft.json"),
+        &output,
+        &cache,
+        "candidate",
+    )?;
+    ensure(findings == 0, "Source prototype has blocking findings")?;
+    let source = fs::read_to_string(root.join("docker-compose.test-s3.yml"))?;
+    let line = source
+        .lines()
+        .find(|line| line.trim_start().starts_with("image:"))
+        .ok_or("Missing service image")?;
+    let compose = output.join("compose.yml");
+    fs::write(
+        &compose,
+        source.replacen(line, &format!("    image: {image}"), 1),
+    )?;
+    let functional = s3_fixture(&root, compose);
+    util::write_json(
+        &output.join("summary.json"),
+        &json!({
+            "schema":1,"status":"source-prototype-not-release","image":image,"materials":materials,
+            "upstream_source":"34e6449ed90e3d3a106f6655342e0b3127f33082","archive_sha256":"10e764074ddec7a47efea0a8ec1bb811cb73b62a0c8c26382e7dfcf30b02cb5d",
+            "inventory":"native cargo-auditable metadata, not injected package versions","sbom_sha256":util::hash(&output.join("candidate.syft.json"))?,
+            "findings":findings,"functional":if functional.is_ok() {"pass"} else {"error"},"adoption_authorized":false
+        }),
+    )?;
+    functional
+}

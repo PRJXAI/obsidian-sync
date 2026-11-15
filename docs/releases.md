@@ -33,14 +33,14 @@ Never put a guessed or placeholder digest in an active pin. Known supplier risks
 
 ### Active scanner images
 
-Source **`13edb5277101befe100a435f5ade8da6ea3d40af`** passed both native architectures, independent publication and provenance:
+Source **`7d20ea6ba4956a65db1640ec3752534d9dc4b727`** passed fresh exact-source native qualification, separate manual-main publication, provenance and anonymous verification:
 
 | Tool | Published index digest | Release |
 |---|---|---|
-| Syft | `sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c` | [41099233895](https://github.com/PRJXAI/devsecops/actions/runs/41099233895) |
-| Grype | `sha256:3079a040326484d0b50ac28c7fc2fb25894a22170e81445ab90c400d091378e0` | [41099238680](https://github.com/PRJXAI/devsecops/actions/runs/41099238680) |
+| Syft | `sha256:5375dc13c75626a7dfec919e11fe075241abd0b0ab3c4cd8d4a13890d73b428a` | [43749937129](https://github.com/PRJXAI/devsecops/actions/runs/43749937129) |
+| Grype | `sha256:e9d7ab082648d53929f90761b0e6f70e306814a8711afa85aa6de9c361347d4b` | [43749940786](https://github.com/PRJXAI/devsecops/actions/runs/43749940786) |
 
-Credentialed qualification verified exact index/native manifest/config identities, published native catalog bindings, producer source/risk counts and GitHub provenance for both subjects. The active `sbom::SYFT` / `grype::GRYPE` constants use these published digests with the `sha-13edb5277101befe100a435f5ade8da6ea3d40af` source tag. The consumer retains the same investigated scanner findings and budgets, allowing only the verified binary relocation to `/usr/local/bin/{tool}`; changed advisories, versions, locations or excess occurrences still fail. This is explicit consumer reconciliation, not inheritance of producer acceptance.
+Both architectures of each source derivative have **0 findings / 0 ignored / 0 accepted / 0 blocking**. Independent consumer checks verify anonymous index/member/config access, exact native catalog bindings and GitHub provenance restricted to the source SHA, manual-main ref, hosted runners and the tool workflow. Active constants use the published digests and `sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727` tag. CLI flags, mounts and scanner containment remain unchanged. Raw native reports are not normalized or rewritten: validators explicitly admit Syft **1.57.1 / schema 16.1.13** and Grype **0.121.3**, while retaining the exact historical format pair for old evidence. Mixed/unknown version-schema pairs still fail. An initial new-format rejection is retained. Historical rules for the older source remain untouched and do not approve new artifacts; source/runtime/builder and full registry qualification remain consumer gates.
 
 **Anonymous access now passes for both packages**, after the owner changed their visibility. Index/member/config digests, both native platforms, nonroot/source metadata, producer catalog bindings and exact source/workflow provenance all verify. Earlier HTTP 401/403 failures remain historical; this is not an application-release or hosted Required CI result. `xtask/tests/tool_delivery.rs` contains separate ignored anonymous and explicitly authorized private qualification tests, plus ordinary pin/substitution/risk-migration negatives. Historical applicability subjects retain their original upstream image identities and binary paths.
 

@@ -2,7 +2,7 @@ use crate::{Result, ensure, images, security, util};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fs, path::Path};
 
-pub const SYFT: &str = "ghcr.io/prjxai/devsecops/syft:sha-13edb5277101befe100a435f5ade8da6ea3d40af@sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c";
+pub const SYFT: &str = "ghcr.io/prjxai/devsecops/syft:sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727@sha256:5375dc13c75626a7dfec919e11fe075241abd0b0ab3c4cd8d4a13890d73b428a";
 pub const SOURCE_FILES: &[&str] = &[
     "Cargo.toml",
     "Cargo.lock",

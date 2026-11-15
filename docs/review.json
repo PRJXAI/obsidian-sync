@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed built-in frontend retirement, fixed GNU-host/native-musl adapter and identity, frozen historical approval with current-recipe rejection, full builder catalog scratch within unchanged RAM/containment, and measured Linux/client/privacy evidence; supplier delivery and service qualification remain pending",
+  "reason": "Reviewed exact manual-main published Syft/Grype pins with independent anonymous/native/provenance receipts; exact native schema pairs and mixed/unknown rejection; retained historical scanner formats/rules; reviewed source-auditable RustFS opt-in diagnostic and its unchanged S3/client controls, not active service adoption",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -399,7 +399,7 @@
     },
     {
       "path": "xtask/src/grype.rs",
-      "sha256": "068e1d9bd91c5a07024396f7387575e177b1e10ee147a96cdb5383624585f8a2"
+      "sha256": "29ce6df7f2b0470d3eca81f518a5e93696b532203a88d1d807de56e1a2a9973c"
     },
     {
       "path": "xtask/src/images.rs",
@@ -431,7 +431,7 @@
     },
     {
       "path": "xtask/src/sbom.rs",
-      "sha256": "ee7a09cd87a51fe5ce790f8207c24dac6c3a9b99f73b6dac859da6862af1408f"
+      "sha256": "a5e1de1a7d3694febc6ebcba20f299d0fb977a97718258eb000e4011eaf4e77f"
     },
     {
       "path": "xtask/src/security.rs",
@@ -463,7 +463,7 @@
     },
     {
       "path": "xtask/tests/fixtures/rustfs/native.rs",
-      "sha256": "2eac50b71f41b1d950fbad7eb53bc9537abb3dd3b87855bf58c5a0be82fa5c78"
+      "sha256": "53002d8bc755866a56d7da3f1ac86c56bd1556c34917f22b36ba57ea507c36e2"
     },
     {
       "path": "xtask/tests/go_symbols.rs",
@@ -471,7 +471,7 @@
     },
     {
       "path": "xtask/tests/grype.rs",
-      "sha256": "224601bc79abe8611916accffeb7e1551572748260001b890aad57e8fd3eca4b"
+      "sha256": "d4e5fc9c44604cfffd97f0466e72937380d1361eda28a162fd05de0fa541942d"
     },
     {
       "path": "xtask/tests/publication.rs",
@@ -487,7 +487,7 @@
     },
     {
       "path": "xtask/tests/tool_delivery.rs",
-      "sha256": "01f039bea9a93019df421dfb426a317b85887792fa1bd217f06dbee37043ecd4"
+      "sha256": "fb515ec43c11bef8c4e9adcdb4e1db5fdf543888225aede24f6cb080160c4946"
     },
     {
       "path": "xtask/tests/tooling.rs",
