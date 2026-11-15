@@ -2,6 +2,15 @@
 
 This is the measured delivery/operations status, not an implementation diary or release certificate. Earlier audits, retired tools and failed experiments remain in Git and private evidence. Consolidating documentation does not relabel them successful.
 
+## Supplier remediation qualification — 2026-11-15
+
+The candidate removes the unnecessary remote Dockerfile frontend and uses a pinned GNU SDK to produce the same native static-musl runtime. Rust 1.99.1 remains fixed; the build-only adapter retains ARM erratum mitigation and undefined-behavior traps. Historical builder approval is tested against frozen original recipe bytes, with explicit rejection of the changed current recipe. The acceptance JSON is unchanged.
+
+- Actual Linux/arm64 Docker tests: **128 passed / 9 explicitly ignored**, formatting and strict Clippy pass. A fresh target/C cache proves the native build needs no Perl; its newly detected unfixable finding is removed by retiring the unused dependency, not filtering the scan.
+- The real nine-catalog `generate-sbom` and offline `scan-sbom` pipeline passes: **source, runtime and populated builder each have zero matches**. Only builder cataloging reallocates tmpfs to 2304 MiB within the unchanged total **3 GiB RAM**, with CPU/PIDs/deadlines/isolation unchanged. Earlier SDK scratch overflow and an incompatible mixed-LLVM compiler/std experiment remain failed evidence.
+- Actual runtime Commonlib/PouchDB scenarios and persistent restart/E2EE/compression pass with the exact CI Node **26.13.0**. An initial unsupported local Node 18 failure remains retained; no client scenario was skipped. Runtime content verification and private build-context canaries pass.
+- These are dirty-source native arm64 observations, not hosted Required CI or deployment. New scanner pins still require completed producer publication/provenance/anonymous verification. Gitleaks and RustFS replacement qualification, fresh complete registry scans and the remaining feature/S3/deployment checks are not inferred from source/runtime/builder cleanliness. No application image or production data was replaced.
+
 ## Dependency security repair — 2026-11-15
 
 Local changes are based on main `2b4bef2`; this is not a successful hosted Required CI, published application or production upgrade. No schema, authorization, replication, retention, risk-acceptance rule or CI threshold was changed.

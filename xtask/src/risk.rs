@@ -136,9 +136,11 @@ mod tests {
         );
         let finding = json!({"artifact":artifact,"vulnerability":rule["identity"]["vulnerability"],"relatedVulnerabilities":rule["identity"]["related"]});
         let root = tempfile::tempdir()?;
-        let dockerfile = util::read(&crate::root().join("Dockerfile"), 1024 * 1024)?;
-        std::fs::write(root.path().join("Dockerfile"), &dockerfile)?;
-        assert_eq!(profile["dockerfile_sha256"], util::digest(&dockerfile));
+        // Historical approval is tested against its original immutable bytes,
+        // never rebound to a repaired production recipe.
+        let dockerfile = include_bytes!("../tests/fixtures/approved-builder-recipe.txt").as_slice();
+        std::fs::write(root.path().join("Dockerfile"), dockerfile)?;
+        assert_eq!(profile["dockerfile_sha256"], util::digest(dockerfile));
         for arch in ["amd64", "arm64"] {
             let catalog = json!({"source":{"type":"image","metadata":{"imageID":format!("sha256:{}", "f".repeat(64)),"os":"linux","architecture":arch}}});
             assert_eq!(
@@ -168,6 +170,18 @@ mod tests {
                 1
             );
         }
+        let current = util::read(&crate::root().join("Dockerfile"), 1024 * 1024)?;
+        assert_ne!(profile["dockerfile_sha256"], util::digest(&current));
+        std::fs::write(root.path().join("Dockerfile"), current)?;
+        let current_catalog = json!({"source":{"type":"image","metadata":{"imageID":"foreign","os":"linux","architecture":"arm64"}}});
+        let decision = assess(
+            root.path(),
+            &current_catalog,
+            std::slice::from_ref(&finding),
+            "builder",
+        )?;
+        assert_eq!(decision["accepted"], 0);
+        assert_eq!(decision["blocking"], 1);
         std::fs::write(root.path().join("Dockerfile"), b"changed recipe")?;
         let catalog = json!({"source":{"type":"image","metadata":{"imageID":"foreign","os":"linux","architecture":"arm64"}}});
         assert_eq!(

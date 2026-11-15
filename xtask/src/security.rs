@@ -9,7 +9,7 @@ use std::{
 
 pub const GITLEAKS: &str = "ghcr.io/gitleaks/gitleaks:latest@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f";
 // Build/test-only utilities reuse the required compiler base; no separate OS helper.
-pub const BUILD_IMAGE: &str = "rust:1.99.1-alpine3.24@sha256:7e9e2d068a107a2adafd19930011178d14a78326053cd4c3a9f7ad3fd049557d";
+pub const BUILD_IMAGE: &str = "cgr.dev/chainguard/wolfi-base:latest@sha256:833c48f1faf32c90e6f9501a2410a9aa28ceb2c594102edd4470053c30efa089";
 pub fn image_regex() -> Result<Regex> {
     Ok(Regex::new(
         r"(?:[a-z0-9.-]+/)*[a-z0-9_-]+:[A-Za-z0-9_.-]+@sha256:[a-f0-9]{64}",
@@ -244,8 +244,10 @@ pub fn native_identity(root: &Path, builder: &str) -> Result<Vec<u8>> {
             .args(args);
         util::output(&mut c, 60)
     };
-    let mut result = execute("rustc", &["--version"])?;
-    let directory = String::from_utf8(execute("rustc", &["--print", "target-libdir"])?)?;
+    // Query the actual native musl target, not the GNU SDK's host libc.
+    let mut result = execute("native-musl-info", &["--version"])?;
+    result.extend(execute("native-musl-info", &["-vV"])?);
+    let directory = String::from_utf8(execute("native-musl-info", &["--print", "target-libdir"])?)?;
     let libc = format!("{}/self-contained/libc.a", directory.trim());
     ensure(
         libc.starts_with('/') && !libc.contains('\n'),

@@ -1,16 +1,29 @@
-# syntax=docker/dockerfile:1.28.0@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
-FROM rust:1.99.1-alpine3.24@sha256:7e9e2d068a107a2adafd19930011178d14a78326053cd4c3a9f7ad3fd049557d AS build
-RUN apk add --no-cache musl-dev cmake make perl clang lld binutils git
+# Use BuildKit's built-in Dockerfile frontend; no remote custom frontend is needed.
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:833c48f1faf32c90e6f9501a2410a9aa28ceb2c594102edd4470053c30efa089 AS build
+USER 0
+ENV CARGO_HOME=/usr/local/cargo RUSTUP_HOME=/usr/local/rustup ZIG_GLOBAL_CACHE_DIR=/build/zig-cache
+RUN ["apk", "add", "--no-cache", "rustup=1.29.3-r1", "build-base", "zig=0.17.1-r1", "cmake", "git"]
+RUN ["rustup", "toolchain", "install", "1.99.1", "--profile", "minimal", "--component", "clippy", "--component", "rustfmt"]
 WORKDIR /build
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY src ./src
 COPY xtask ./xtask
-# Alpine's host target is musl. Fail if the resulting executable has an interpreter.
+# GNU SDK, native static-musl output; preserve undefined-behavior and ARM erratum checks.
+RUN ["rustup", "run", "1.99.1", "rustc", "--edition=2024", "-Dwarnings", "xtask/src/native_musl.rs", "-o", "/usr/local/bin/native-musl-cargo"]
+RUN ["rustup", "run", "1.99.1", "rustc", "--edition=2024", "--test", "-Dwarnings", "xtask/src/native_musl.rs", "-o", "/tmp/native-musl-tests"]
+RUN ["/tmp/native-musl-tests"]
+RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl-cc"]
+RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl-cxx"]
+RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl-info"]
+RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl-install-target"]
+RUN ["native-musl-install-target"]
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/build/target \
-    cargo build --release --locked -p obsidian-sync-server && \
-    ! readelf -l target/release/obsidian-sync-server | grep -q INTERP && \
-    cp target/release/obsidian-sync-server /server
+    --mount=type=cache,id=obsidian-sync-native-musl-target-v2,target=/build/target \
+    --mount=type=cache,target=/build/zig-cache \
+    native-musl-cargo build --release --locked -p obsidian-sync-server && \
+    readelf -l target/*-unknown-linux-musl/release/obsidian-sync-server > /tmp/server-program-headers && \
+    ! grep -q INTERP /tmp/server-program-headers && \
+    cp target/*-unknown-linux-musl/release/obsidian-sync-server /server
 
 # Explicit test target; never inherited by the final runtime image.
 FROM build AS tests
@@ -22,12 +35,13 @@ COPY .github ./.github
 COPY .cargo ./.cargo
 COPY Dockerfile .gitignore docker-compose*.yml ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/build/target \
-    cargo build --locked && cargo fmt --all -- --check && \
-    cargo clippy --workspace --all-targets --locked -- -D warnings && \
-    cargo test --workspace --locked
+    --mount=type=cache,id=obsidian-sync-native-musl-target-v2,target=/build/target \
+    --mount=type=cache,target=/build/zig-cache \
+    native-musl-cargo build --locked && native-musl-cargo fmt --all -- --check && \
+    native-musl-cargo clippy --workspace --all-targets --locked -- -D warnings && \
+    native-musl-cargo test --workspace --locked
 
-# Chainguard's static image is distroless (no shell/package manager), with current CA roots.
+# Distroless static/nonroot runtime: only the verified musl executable is added.
 FROM cgr.dev/chainguard/static:latest@sha256:fc42af33e643f20d08baf03cddcc1c02ba57052dfb02edb0d79f3fc47bcea8d9
 ARG SOURCE_REVISION=unknown
 LABEL org.opencontainers.image.revision=$SOURCE_REVISION

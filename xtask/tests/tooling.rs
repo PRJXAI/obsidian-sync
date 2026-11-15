@@ -396,6 +396,7 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
     let root = temp.path();
     for text in [
         "FROM alpine:latest\n".into(),
+        "FROM scratch:latest\n".into(),
         "  from alpine:latest\n".into(),
         "FROM --platform=linux/amd64 alpine:latest\n".into(),
         format!("# syntax=docker/dockerfile:latest\nFROM {}\n", pin()),
@@ -426,9 +427,10 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
 #[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
-    assert_eq!(images.len(), 7);
+    assert_eq!(images.len(), 6);
     assert!(images.keys().all(|image| {
-        !image.contains("trivy")
+        !image.starts_with("docker/dockerfile:")
+            && !image.contains("trivy")
             && !image.starts_with("couchdb:")
             && !image.starts_with("alpine:")
             && !image.starts_with("kindest/node:")
@@ -447,6 +449,13 @@ fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Re
     for pin in [security::GITLEAKS, security::BUILD_IMAGE, sbom::SYFT] {
         assert!(images.contains_key(pin), "{pin}");
     }
+    let dockerfile = fs::read_to_string(xtask::root().join("Dockerfile"))?;
+    assert!(
+        !dockerfile
+            .lines()
+            .any(|line| line.trim_start().starts_with("# syntax="))
+    );
+    assert!(dockerfile.contains("RUN --mount=type=cache"));
     Ok(())
 }
 #[test]

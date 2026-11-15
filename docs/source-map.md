@@ -92,6 +92,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/images.rs`
 - `xtask/src/lib.rs`
 - `xtask/src/main.rs`
+- `xtask/src/native_musl.rs`
 - `xtask/src/policy.rs`
 - `xtask/src/publication.rs`
 - `xtask/src/risk.rs`
@@ -101,6 +102,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `xtask/src/util.rs`
 - `xtask/tests/cancellation.rs`
 - `xtask/tests/dependency_baseline.rs`
+- `xtask/tests/fixtures/approved-builder-recipe.txt`
 - `xtask/tests/fixtures/rustfs/Dockerfile`
 - `xtask/tests/fixtures/rustfs/native.rs`
 - `xtask/tests/go_symbols.rs`

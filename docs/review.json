@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed dependency security fixes, unchanged LiveSync protocol and risk policy, three regressions, generic documentation/privacy rule, native and Linux/musl tests, real-client/S3/restart/Compose evidence and current external-image release blockers",
+  "reason": "Reviewed built-in frontend retirement, fixed GNU-host/native-musl adapter and identity, frozen historical approval with current-recipe rejection, full builder catalog scratch within unchanged RAM/containment, and measured Linux/client/privacy evidence; supplier delivery and service qualification remain pending",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "2449c02763374838d5ffde77a41711c1f4c19d3023e5828d074410d1d095d477"
+      "sha256": "55a0d8109136499dcfdccfed425ac651888e28973f451128d5fbf21020b388ad"
     },
     {
       "path": ".env.example",
@@ -47,7 +47,7 @@
     },
     {
       "path": "Dockerfile",
-      "sha256": "f582d915a3e2326764e1887cbfc58f423f3aa0bb85e9305f2a54d0f983d2ddec"
+      "sha256": "0f18036fa69259a05f35e873ba1e84d81dfc7b3a43d642614b602448be12ae79"
     },
     {
       "path": "LICENSE",
@@ -407,11 +407,15 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "057ecea3433534681128c3b59f0b2f99676483dbbe94dcc4f589cf62c39619e2"
+      "sha256": "751d1f85e3d39601b921726f1ef86390161942463a99aa8bef1d11ee22995135"
     },
     {
       "path": "xtask/src/main.rs",
       "sha256": "afd3b473f86d17bd47d476ec17032c801de8b31813ce2b04e3455c076e325625"
+    },
+    {
+      "path": "xtask/src/native_musl.rs",
+      "sha256": "e3640ced46c0c8a3390e3d2d208e3c0e63d67e7acf72a642388f623dc027126f"
     },
     {
       "path": "xtask/src/policy.rs",
@@ -423,15 +427,15 @@
     },
     {
       "path": "xtask/src/risk.rs",
-      "sha256": "c87a1be64ce70a4c39d1d0d83096c63c3d7973d85b1bc4bbb1cdb2ed402398cd"
+      "sha256": "0ace822c05c6e6f50580b13b8bb3bd1c713cf0eca402956fe6c4e0e62446cb29"
     },
     {
       "path": "xtask/src/sbom.rs",
-      "sha256": "193ec5f2bad4d5dfe4177c9152d6a289061aae7156d9be8596646b9ab6753143"
+      "sha256": "ee7a09cd87a51fe5ce790f8207c24dac6c3a9b99f73b6dac859da6862af1408f"
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "7427e89a7a3572c06587b8890db8a8764b22d6cb632de87554ceac018da6b79e"
+      "sha256": "7bb3575e78664bfba7a52ecbb3169b13c04f567f21849b884cc8019fc1c1abcb"
     },
     {
       "path": "xtask/src/supply_sbom.rs",
@@ -448,6 +452,10 @@
     {
       "path": "xtask/tests/dependency_baseline.rs",
       "sha256": "9a4f91e6000d6e67fae64479d3575e28823a23d0b8c9ecf6cf6488e5342c69e0"
+    },
+    {
+      "path": "xtask/tests/fixtures/approved-builder-recipe.txt",
+      "sha256": "f582d915a3e2326764e1887cbfc58f423f3aa0bb85e9305f2a54d0f983d2ddec"
     },
     {
       "path": "xtask/tests/fixtures/rustfs/Dockerfile",
@@ -483,7 +491,7 @@
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "8c15fe4c412f0c0555cbb752fb74dfd829dc1f98bc764145cdcaa55a0b60bd95"
+      "sha256": "c56cdf7c7aeaab4f4e9dc99427b6453aded55b777bbbea63e8e94ad69c227b6a"
     }
   ]
 }

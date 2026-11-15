@@ -9,6 +9,8 @@ pub mod evidence;
 mod fixture;
 pub mod grype;
 pub mod images;
+#[cfg(test)]
+mod native_musl;
 pub mod policy;
 pub mod publication;
 pub mod risk;

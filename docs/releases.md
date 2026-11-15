@@ -11,7 +11,9 @@ reviewed source → Linux build/tests → immutable runtime + builder archives
                                             Required CI / release approval
 ```
 
-Build/test stages may contain Rust and OS/compiler utilities. The final runtime remains digest-pinned static/distroless/nonroot and adds only `/server`; configuration, credentials and data are mounts.
+Build/test stages may contain Rust and OS/compiler utilities. The Dockerfile uses BuildKit's built-in frontend, which supports its cache mounts; no separately downloaded custom frontend is required. The daemon remains a trusted external build dependency, not a claimed patched or inventoried application layer. Every declared external image and the populated builder remain subject to their existing gates. The final runtime remains digest-pinned static/distroless/nonroot and adds only `/server`; configuration, credentials and data are mounts.
+
+The candidate builder uses a digest-pinned GNU SDK with a separately fixed Rust 1.99.1 toolchain and Zig 0.17.1-r1 C/C++ compiler. This is not a GNU runtime migration: the build-only Rust adapter forces the native musl Cargo/linker target, rejects conflicting C/C++ targets, and retains the ELF interpreter rejection. Unsupported architectures fail; a registry catalog or clean SDK-base scan does not establish static linkage, DNS behavior, client compatibility or populated-builder cleanliness. Full native qualification is still required before adoption.
 
 CI transfers checksum-verified archives rather than rebuilding images in downstream jobs. Syft inventories and Grype reports bind the original configuration/layers, source/tree/dirty state, platforms and artifact hashes. A source label or unsigned checksum does not establish builder authenticity.
 
@@ -81,7 +83,7 @@ Only the publish job receives registry-write/OIDC authority. It loads original a
 
 Application tags include the source SHA, run ID/attempt and `amd64`; consumers must pin the resulting digest. No arm64 application release is claimed. Existing output directories refuse reuse. Interrupted/partial registry pushes can leave bytes/tags: absence of a completed provenance/result handoff means **not delivered**, not guaranteed no registry mutation.
 
-Missing/canceled/skipped/failed producers, scanner errors, missing inventories, unaccepted findings and stale/substituted evidence must prevent publication. The owner's current-stack acceptance is not a temporary green bypass for those failures. The retired pause/K3s/k3d assets are absent from the active seven-image graph. Their historical inventory errors/findings are preserved, not waived or called fixed.
+Missing/canceled/skipped/failed producers, scanner errors, missing inventories, unaccepted findings and stale/substituted evidence must prevent publication. The owner's current-stack acceptance is not a temporary green bypass for those failures. The retired pause/K3s/k3d assets are absent from the active graph. The unnecessary remote Dockerfile frontend is also retired rather than downloaded; it is not silently exempted while still in use. Their historical inventory errors/findings are preserved, not waived or called fixed.
 
 Until the publication job and verified digest are recorded in [results](results.md), do not advertise a published application image. A local tag, uploaded build archive or runtime-only clean report is not that result. Real infrastructure deployment requires separate authorization and the [operations runbook](operations.md).
 

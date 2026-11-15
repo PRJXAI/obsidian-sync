@@ -47,6 +47,7 @@ xtask/tests/support/**
 !xtask/tests/support/mod.rs
 !xtask/tests/fixtures
 xtask/tests/fixtures/**
+!xtask/tests/fixtures/approved-builder-recipe.txt
 !xtask/tests/fixtures/rustfs
 xtask/tests/fixtures/rustfs/**
 !xtask/tests/fixtures/rustfs/native.rs
