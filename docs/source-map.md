@@ -77,6 +77,7 @@ Run `cargo xtask sync-generated` after moving source files.
 - `tests/couch_migration.rs`
 - `tests/interruption.rs`
 - `tests/recovery.rs`
+- `tests/security_dependencies.rs`
 - `tests/storage_contract.rs`
 - `xtask/Cargo.toml`
 - `xtask/src/accepted-risks.json`

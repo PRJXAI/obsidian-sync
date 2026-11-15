@@ -1,5 +1,5 @@
 {
-  "reason": "Removed owner-requested internal cleanup plan and implementation diary; reviewed maintenance, consistency, architecture, protocol/threat contracts and retained results/failure evidence and desktop acceptance guidance; docs/xtask/deployment checks pass without source changes",
+  "reason": "Reviewed dependency security fixes, unchanged LiveSync protocol and risk policy, three regressions, generic documentation/privacy rule, native and Linux/musl tests, real-client/S3/restart/Compose evidence and current external-image release blockers",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -35,15 +35,15 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "d01258a0a7d0b5dfa0b50507281f5f3e3f5f350a12b67f0adf8e15d1c9dc3ef3"
+      "sha256": "36ad775dd4a50e735a1a96932fb0f076d79c99e4ef8fc4c7ac194a9f028900bb"
     },
     {
       "path": "Cargo.lock",
-      "sha256": "0c692adda37af9891d8894f247d2b7a7e66cd3cac59e024f725f0add138e5abf"
+      "sha256": "77b1dff602ae259a92dfe96691d70c3f9b24cb324c97a7760cc3127eea4ea6dc"
     },
     {
       "path": "Cargo.toml",
-      "sha256": "fa8ea57f202d265ba7a60f39149ab08768797a369e363c3b9e5a4ef9dc5bcf29"
+      "sha256": "c826a3bd0ecee69b5ad2b8e8226ed2db6f8c3233375644dc30723b787b4b8d7b"
     },
     {
       "path": "Dockerfile",
@@ -323,11 +323,11 @@
     },
     {
       "path": "tests/compat/package-lock.json",
-      "sha256": "6388c5cba51e7566496f8bde54a55f356c2e54e613a4b19e7b679ed1ef27b671"
+      "sha256": "8ba93495cbebcf30e21f12ff7250bd0c506fdc3605a4c3047d9a33b9ee35868b"
     },
     {
       "path": "tests/compat/package.json",
-      "sha256": "1aa6202523c61660e9d53617066a7ba75458acf4f3612222e0909d7454f56971"
+      "sha256": "916429183ad2fedf2c9cc119bf339a32eea34d155552d19146f6eb4a0c9f7d2f"
     },
     {
       "path": "tests/config_transport.rs",
@@ -352,6 +352,10 @@
     {
       "path": "tests/recovery.rs",
       "sha256": "660702eb71876ebd723cb230c47ed898898d0dc9c70eb00bcea66aecded23e58"
+    },
+    {
+      "path": "tests/security_dependencies.rs",
+      "sha256": "579efc9240e65f4d56b3715ec7653365602c8951cb8efe141abff074ccb4c6ad"
     },
     {
       "path": "tests/storage_contract.rs",

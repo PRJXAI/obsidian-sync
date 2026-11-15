@@ -2,6 +2,32 @@
 
 This is the measured delivery/operations status, not an implementation diary or release certificate. Earlier audits, retired tools and failed experiments remain in Git and private evidence. Consolidating documentation does not relabel them successful.
 
+## Dependency security repair — 2026-11-15
+
+Local changes are based on main `2b4bef2`; this is not a successful hosted Required CI, published application or production upgrade. No schema, authorization, replication, retention, risk-acceptance rule or CI threshold was changed.
+
+- `rusqlite` **0.41.1** / bundled `libsqlite3-sys` **0.39.1** replace 0.40.2/0.38.2, addressing **RUSTSEC-2026-0459 / CVE-2026-119375**. A regression test checks the SQLite library actually linked into each feature-cell test binary is at least **3.54.0**, rather than trusting a manifest string.
+- `rustix` **1.1.6** removes the **RUSTSEC-2026-0486** unsound-xattr warning. The lockfile floor is covered by a regression test.
+- The test-only Commonlib dependency remains pinned to **0.1.44**; an exact **minimatch 11.0.1** override fixes **GHSA-g3hv-75wg-m249** without silently switching the replication-client contract to Commonlib 0.5. The manifest and installed lock graph are checked together.
+- Fresh local Cargo audit: **zero vulnerabilities and zero advisory warnings**; Cargo deny passes all four gates, retaining ordinary duplicate-dependency warnings. Clean npm install with lifecycle scripts disabled and fresh audit: **zero vulnerabilities**; upstream deprecation notices remain.
+- Default workspace tests: **124 passed / 9 explicitly ignored**, including three new dependency regressions. All **eight storage-feature cells** pass debug/release builds, strict workspace/all-target Clippy, tests and formatting.
+- The real **Linux/arm64 musl Docker `tests` target** passes **124 / 9 ignored** after correcting an initial formatting-only failure; runtime inspection verifies static ELF, explicit nonroot identity, only `/server` executable and no shell/package manager.
+- Native filesystem, disposable RustFS/S3 and actual container Commonlib/PouchDB fixtures each pass **11 scenarios**, including E2EE/compression, 3 MiB binary equality, conflicts, bootstrap, checkpoints and serving restart. The separate S3 storage contract and disposable Compose writer-fencing/persistent-restart smoke pass. Host Node **24.22.1** and Linux fixture Node **22.22.3** differ from the CI Node pin. These are synthetic tests, not native-cloud or desktop certification.
+
+**Full supply-chain gate still FAILS on fresh evidence.** A separately attributed `linux/amd64` registry rescan on 15 November completes all seven inventories with no scan errors, but finds **350 matches: 301 exact accepted / 49 blocking occurrences**. These are finding occurrences, not 49 unique vulnerabilities:
+
+| Declared image | Total / accepted / blocking |
+|---|---|
+| Static runtime base | 0 / 0 / 0 |
+| Dockerfile frontend | 27 / 19 / 8 |
+| Gitleaks | 237 / 218 / 19 |
+| DevSecOps Grype | 29 / 19 / 10 |
+| DevSecOps Syft | 24 / 14 / 10 |
+| Rust build base | 17 / 16 / 1 |
+| RustFS | 16 / 15 / 1 |
+
+New/changed upstream findings are not grandfathered by October's acceptance. Updating scanner pins still requires a genuine completed producer publication, provenance and public-access verification, plus consumer qualification; a supplier source commit or accepted-risk change alone is insufficient. No external-image finding was suppressed, no acceptance snapshot expanded and no failing check removed. The operational application image/data were not replaced. Earlier passing scans below remain historical, not current release clearance.
+
 ## Local verification — 2026-10-30
 
 Final implementation source **`cdd8fc7`**, clean tree at SBOM generation; the subsequent handoff commit changes documentation only. Host: Apple M4 Pro (14 CPUs, 24 GiB), macOS **26.6.2 / arm64**, Rust **1.99.1**, Node **24.22.1**, npm **11.19.1**. No application/tooling dependency, lockfile, schema, CI feature cell or accepted-risk policy was changed.
@@ -164,7 +190,7 @@ New [native-first onboarding](getting-started.md), [configuration](configuration
 
 ## Remaining operational qualifications
 
-- Fresh complete source/runtime/builder/registry baseline and hosted Required CI for the final source. Public scanner access and both seven-image registry gates now pass. Pause/K3s/k3d are retired scope, not active blockers or missing-inventory exemptions.
+- Fresh complete source/runtime/builder/registry baseline and hosted Required CI for the final source. The 15 November amd64 registry rescan has 49 blocking occurrences despite completed inventories; October's passing scans are historical. Pause/K3s/k3d remain retired scope, not active blockers or missing-inventory exemptions.
 - Protected source/release authority, accountable approval and verified publication/package visibility.
 - Durable private raw-evidence archive and hard host/provider-staging quotas; finite report/archive caps are not those quotas.
 - Provider-native IAM/conditional-write/lifecycle, private TLS/CNI egress enforcement, matched encrypted restore/revocation drills and managed credential custody.

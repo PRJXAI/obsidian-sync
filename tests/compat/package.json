@@ -12,6 +12,7 @@
     "pouchdb-replication": "9.0.0"
   },
   "overrides": {
+    "minimatch": "11.0.1",
     "pouchdb-core": { "uuid": "11.1.1" },
     "pouchdb-utils": { "uuid": "11.1.1" }
   }
