@@ -44,6 +44,14 @@ Both architectures of each source derivative have **0 findings / 0 ignored / 0 a
 
 **Anonymous access now passes for both packages**, after the owner changed their visibility. Index/member/config digests, both native platforms, nonroot/source metadata, producer catalog bindings and exact source/workflow provenance all verify. Earlier HTTP 401/403 failures remain historical; this is not an application-release or hosted Required CI result. `xtask/tests/tool_delivery.rs` contains separate ignored anonymous and explicitly authorized private qualification tests, plus ordinary pin/substitution/risk-migration negatives. Historical applicability subjects retain their original upstream image identities and binary paths.
 
+### Qualified Gitleaks delivery
+
+Gitleaks publishes from merged source **`95c6d9c2dd324d7a6f7ed1ebdaeebe5c9a55ce27`** in manual-main run [43779284917](https://github.com/PRJXAI/devsecops/actions/runs/43779284917): index **`sha256:f9dbb39a13bddc19e7e8a4dbdce8d3e204ebd146eef35340ca2b59cf9636b14b`**. Both fresh native preparations retain **0 findings / ignored / accepted / blocking**, original Go/native notices, physical corresponding sources and the mandatory loader-only exit check. Exact-byte publication, provenance and anonymous gates pass.
+
+Independent consumer verification checks the actual source tag/index, both native manifests/config/catalog bindings, nonroot entrypoints and source/main/workflow-restricted attestations with no registry credentials. The first attempt correctly rejects the new package's config redirect; only the exact fixed Gitleaks blob path is added to the existing bounded single-hop CDN allowlist. Digest verification, no token forwarding and negative foreign-package/host/path tests remain. Original inventories/reports are unchanged; historical acceptance does not transfer.
+
+The active constant adopts this actual delivery only after independent verification. This does not replace RustFS, approve other host tools, complete hosted application CI or authorize deployment. See [verification](results.md).
+
 ### Public package access
 
 Existing packages: [Syft](https://github.com/orgs/PRJXAI/packages/container/package/devsecops%2Fsyft) and [Grype](https://github.com/orgs/PRJXAI/packages/container/package/devsecops%2Fgrype).

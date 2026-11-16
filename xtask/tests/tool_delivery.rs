@@ -27,7 +27,12 @@ fn blob_redirect(source: &str, location: &str) -> Result<reqwest::Url> {
             && source.query().is_none()
             && source.fragment().is_none()
             && blob.is_some_and(|(prefix, id)| {
-                ["/v2/prjxai/devsecops/syft", "/v2/prjxai/devsecops/grype"].contains(&prefix)
+                [
+                    "/v2/prjxai/devsecops/syft",
+                    "/v2/prjxai/devsecops/grype",
+                    "/v2/prjxai/devsecops/gitleaks",
+                ]
+                .contains(&prefix)
                     && images::is_digest(id)
             }),
         "Redirect only permitted for fixed registry config blobs",
@@ -118,7 +123,10 @@ fn verify_delivery(
     supplier: &Path,
     status: &str,
 ) -> Result {
-    ensure(["syft", "grype"].contains(&tool), "Fixed scanner only")?;
+    ensure(
+        ["syft", "grype", "gitleaks"].contains(&tool),
+        "Fixed reviewed scanner only",
+    )?;
     println!("Checking {tool} delivery without registry credentials");
     let root = xtask::root();
     let directory = root.join(".work/scanner-delivery-verification");
@@ -169,6 +177,13 @@ fn verify_delivery(
         .filter(|v| !v.is_empty() && v.len() <= 64 * 1024)
         .ok_or("Missing anonymous pull token")?;
     let base = format!("https://ghcr.io/v2/prjxai/devsecops/{tool}");
+    let tag = get(
+        &client,
+        &format!("{base}/manifests/sha-{source}"),
+        Some(token),
+    )?;
+    digest(&tag, expected)?;
+    fs::write(capture.join("source-tag-index.json"), &tag)?;
     let bytes = get(
         &client,
         &format!("{base}/manifests/{expected}"),
@@ -218,6 +233,7 @@ fn verify_delivery(
             value["os"] == "linux"
                 && value["architecture"] == arch
                 && value["config"]["User"] == "65532:65532"
+                && value["config"]["Entrypoint"] == json!([format!("/usr/local/bin/{tool}")])
                 && value["config"]["Labels"]["org.opencontainers.image.revision"] == source,
             "Source/platform/runtime config differs",
         )?;
@@ -356,6 +372,23 @@ fn verify_repaired_grype_delivery() -> Result {
         "grype",
         "sha256:e9d7ab082648d53929f90761b0e6f70e306814a8711afa85aa6de9c361347d4b",
         "7d20ea6ba4956a65db1640ec3752534d9dc4b727",
+        &supplier,
+        "clean",
+    )
+}
+
+#[test]
+#[ignore = "fixed published Gitleaks delivery; independent anonymous/native/provenance check only"]
+fn verify_repaired_gitleaks_delivery() -> Result {
+    util::install_cancellation()?;
+    let supplier = xtask::root()
+        .parent()
+        .ok_or("Missing workspace parent")?
+        .join("devsecops-gitleaks-main-95c6/.work/delivery-95c6");
+    verify_delivery(
+        "gitleaks",
+        "sha256:f9dbb39a13bddc19e7e8a4dbdce8d3e204ebd146eef35340ca2b59cf9636b14b",
+        "95c6d9c2dd324d7a6f7ed1ebdaeebe5c9a55ce27",
         &supplier,
         "clean",
     )
@@ -656,6 +689,10 @@ fn scanner_migration_refuses_new_findings_versions_paths_and_duplicate_budgets()
 #[test]
 fn production_scanners_are_the_exact_qualified_devsecops_images() {
     assert_eq!(
+        xtask::security::GITLEAKS,
+        "ghcr.io/prjxai/devsecops/gitleaks:sha-95c6d9c2dd324d7a6f7ed1ebdaeebe5c9a55ce27@sha256:f9dbb39a13bddc19e7e8a4dbdce8d3e204ebd146eef35340ca2b59cf9636b14b"
+    );
+    assert_eq!(
         xtask::sbom::SYFT,
         "ghcr.io/prjxai/devsecops/syft:sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727@sha256:5375dc13c75626a7dfec919e11fe075241abd0b0ab3c4cd8d4a13890d73b428a"
     );
@@ -673,6 +710,9 @@ fn config_blob_redirect_is_bounded_https_allowlisted_and_credential_free() {
     );
     let good =
         "https://pkg-containers.githubusercontent.com/ghcr1/blobs/config?synthetic-signature=test";
+    for tool in ["syft", "grype", "gitleaks"] {
+        assert!(blob_redirect(&source.replace("/syft/", &format!("/{tool}/")), good).is_ok());
+    }
     let target = blob_redirect(&source, good).unwrap();
     let client = reqwest::blocking::Client::builder()
         .https_only(true)
@@ -702,6 +742,7 @@ fn config_blob_redirect_is_bounded_https_allowlisted_and_credential_free() {
         source.replace("ghcr.io/", "other.invalid/"),
         source.replace("/blobs/", "/manifests/"),
         source.replace("/syft/", "/other/"),
+        source.replace("/syft/", "/gitleaks-other/"),
         source.replace("https:", "http:"),
     ] {
         assert!(blob_redirect(&bad, good).is_err());

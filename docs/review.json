@@ -1,5 +1,5 @@
 {
-  "reason": "Reviewed exact manual-main published Syft/Grype pins with independent anonymous/native/provenance receipts; exact native schema pairs and mixed/unknown rejection; retained historical scanner formats/rules; reviewed source-auditable RustFS opt-in diagnostic and its unchanged S3/client controls, not active service adoption",
+  "reason": "Reviewed only qualified published Gitleaks adoption and independent anonymous source-tag/native config/catalog/entrypoint/main-workflow provenance verification, exact CDN package allowlist and unchanged scanner/policy/CLI constraints; RustFS remains unchanged and unqualified",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -435,7 +435,7 @@
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "7bb3575e78664bfba7a52ecbb3169b13c04f567f21849b884cc8019fc1c1abcb"
+      "sha256": "492622837717cf806847de7a1451ba8e59c0331260767d872e972d2c6b20315a"
     },
     {
       "path": "xtask/src/supply_sbom.rs",
@@ -487,7 +487,7 @@
     },
     {
       "path": "xtask/tests/tool_delivery.rs",
-      "sha256": "fb515ec43c11bef8c4e9adcdb4e1db5fdf543888225aede24f6cb080160c4946"
+      "sha256": "2fd8c654603990ef8ec6b67942f9f8c76b3f025d3eb43662b860fd449a5255dc"
     },
     {
       "path": "xtask/tests/tooling.rs",

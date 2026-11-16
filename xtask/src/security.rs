@@ -7,7 +7,7 @@ use std::{
     process::Command,
 };
 
-pub const GITLEAKS: &str = "ghcr.io/gitleaks/gitleaks:latest@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f";
+pub const GITLEAKS: &str = "ghcr.io/prjxai/devsecops/gitleaks:sha-95c6d9c2dd324d7a6f7ed1ebdaeebe5c9a55ce27@sha256:f9dbb39a13bddc19e7e8a4dbdce8d3e204ebd146eef35340ca2b59cf9636b14b";
 // Build/test-only utilities reuse the required compiler base; no separate OS helper.
 pub const BUILD_IMAGE: &str = "cgr.dev/chainguard/wolfi-base:latest@sha256:833c48f1faf32c90e6f9501a2410a9aa28ceb2c594102edd4470053c30efa089";
 pub fn image_regex() -> Result<Regex> {

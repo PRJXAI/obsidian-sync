@@ -112,7 +112,7 @@ CI tests eight feature combinations, the actual Linux/musl runtime, genuine clie
 
 Supply-chain checks use **Syft → native SBOM → offline Grype**, fresh RustSec/deny/npm checks and minimized source/history secret scans. The owner accepted a specific investigated stack-risk snapshot on **2026-10-30**; accepted findings remain visible. New findings, missing inventories and scanner failures still block. This is not a vulnerability-free or regulated-production claim.
 
-CI uses our published [DevSecOps Syft/Grype images](https://github.com/PRJXAI/devsecops) by source-bound manifest digest. Public package access is required, without a consumer registry token. A public source repository does not make its GHCR packages public; visibility failures block rather than triggering a scanner fallback. Compiler/daemon/service images remain separate. See [build and release engineering](docs/releases.md) for artifact reuse, provenance, package access and publication requirements, and [verification status](docs/results.md) for actual outcomes.
+CI uses our published [DevSecOps Syft/Grype/Gitleaks images](https://github.com/PRJXAI/devsecops) by source-bound manifest digest. Public package access is required, without a consumer registry token. A public source repository does not make its GHCR packages public; visibility failures block rather than triggering a scanner fallback. Compiler/daemon/service images remain separate. See [build and release engineering](docs/releases.md) for artifact reuse, provenance, package access and publication requirements, and [verification status](docs/results.md) for actual outcomes.
 
 ## Documentation
 
