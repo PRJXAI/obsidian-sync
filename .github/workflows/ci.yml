@@ -131,7 +131,16 @@ jobs:
           cache-dependency-path: tests/compat/package-lock.json
       - run: scripts/validate-deployments.sh
       - run: cargo xtask test-livesync
-      - run: scripts/test-s3.sh
+      - name: Qualify the exact disposable source-built S3 fixture and all real clients
+        id: s3
+        run: scripts/test-s3.sh
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always() && steps.s3.outcome != 'skipped'
+        with:
+          name: disposable-s3-source-status
+          path: .work/public-s3-fixture/summary.json
+          retention-days: 14
+          if-no-files-found: error
       - run: npm audit --prefix tests/compat --audit-level=low
       - run: scripts/smoke-compose.sh
       - run: cargo xtask test-livesync --image obsidian-sync:local

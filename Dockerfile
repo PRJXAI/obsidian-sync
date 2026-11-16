@@ -17,8 +17,10 @@ RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl
 RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl-info"]
 RUN ["ln", "-s", "/usr/local/bin/native-musl-cargo", "/usr/local/bin/native-musl-install-target"]
 RUN ["native-musl-install-target"]
+# Fresh disk-backed target per RUN: Cargo mtimes cannot authenticate source
+# changes across COPY layers. Writable bind outputs are discarded by BuildKit.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=obsidian-sync-native-musl-target-v2,target=/build/target \
+    --mount=type=bind,source=xtask/tests/fixtures/native-target,target=/build/target,rw \
     --mount=type=cache,target=/build/zig-cache \
     native-musl-cargo build --release --locked -p obsidian-sync-server && \
     readelf -l target/*-unknown-linux-musl/release/obsidian-sync-server > /tmp/server-program-headers && \
@@ -35,7 +37,7 @@ COPY .github ./.github
 COPY .cargo ./.cargo
 COPY Dockerfile .gitignore docker-compose*.yml ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,id=obsidian-sync-native-musl-target-v2,target=/build/target \
+    --mount=type=bind,source=xtask/tests/fixtures/native-target,target=/build/target,rw \
     --mount=type=cache,target=/build/zig-cache \
     native-musl-cargo build --locked && native-musl-cargo fmt --all -- --check && \
     native-musl-cargo clippy --workspace --all-targets --locked -- -D warnings && \

@@ -14,6 +14,7 @@ mod native_musl;
 pub mod policy;
 pub mod publication;
 pub mod risk;
+pub mod rustfs_fixture;
 pub mod sbom;
 pub mod security;
 pub mod supply_sbom;

@@ -33,6 +33,8 @@ pub fn test_build_context(root: &Path) -> Result {
         "xtask/tests/support/mod.rs",
         "xtask/tests/fixtures/rustfs/native.rs",
         "xtask/tests/fixtures/rustfs/Dockerfile",
+        "xtask/tests/fixtures/rustfs/source.Dockerfile",
+        "xtask/tests/fixtures/native-target/README.txt",
         ".cargo/config.toml",
     ];
     for path in included {
@@ -55,6 +57,9 @@ pub fn test_build_context(root: &Path) -> Result {
         "xtask/tests/support/.env",
         "xtask/tests/fixtures/rustfs/private-canary.toml",
         "xtask/tests/fixtures/rustfs/.env",
+        "xtask/tests/fixtures/native-target/.env",
+        "xtask/tests/fixtures/native-target/private-canary.rs",
+        "xtask/tests/fixtures/native-target/private/nested.rs",
         "xtask/tests/fixtures/other/private-canary.rs",
         "xtask/tests/fixtures/retired-private.rs",
     ];
@@ -181,6 +186,9 @@ pub fn validate(root: &Path) -> Result {
             ],
             root,
         )
+        // Rendering only: no image is built, pulled or executed here. Actual S3
+        // execution substitutes the qualified immutable ID, never this value.
+        .env("TEST_S3_IMAGE", "obsidian-sync-s3:render-validation-only")
         .env("TEST_S3_ACCESS_KEY", "validation-only")
         .env("TEST_S3_SECRET_KEY", "validation-only"),
         60,
@@ -225,7 +233,9 @@ impl Drop for Compose {
 }
 
 pub fn s3(root: &Path) -> Result {
-    s3_fixture(root, "docker-compose.test-s3.yml".into())
+    let mut fixture = crate::rustfs_fixture::qualify(root)?;
+    s3_fixture(root, fixture.compose()?)?;
+    fixture.functional_passed()
 }
 // The fixed, ignored RustFS evaluation reuses every storage/client control.
 // This is not a caller-selectable image or CLI override.
