@@ -10,6 +10,12 @@ Rules include package/version/type/location, advisory/namespace/severity/fix/rel
 
 Changing the snapshot requires a new reviewed owner decision. Do not generate acceptance automatically from a future scan, add broad severity rules, enable `--only-fixed`, suppress warnings or rewrite raw reports.
 
+## Dependency remediation — 2026-11-15
+
+The application now requires `rusqlite` 0.41.1 (locked bundled SQLite through `libsqlite3-sys` 0.39.1) and `rustix` 1.1.6, addressing RUSTSEC-2026-0459 and RUSTSEC-2026-0486. Tests check the linked SQLite version and Rust lock floor. Compatibility fixtures retain Commonlib 0.1.44 with a separately pinned minimatch 11.0.1 security override; this is not a claim that unmodified desktop clients contain the same patch.
+
+Fresh Cargo/npm audits pass, but fresh declared-image scanning still finds new/changed blocking occurrences. Dependency fixes are not permission to expand `accepted-risks.json`, lower audit severity, discard UNKNOWN/suppressed matches or promote an older successful scan. See the current measurements in [verification status](results.md#dependency-security-repair--2026-11-15). A failed supplier/consumer gate remains a release blocker.
+
 ## Exposure assessment
 
 - Windows-only `os.Root` behavior does not match Linux subjects. The cited 32-bit OpenSSL/Perl triggers differ from reviewed 64-bit conditions; native builder Perl reports 8-byte pointers/integers. These observations do not dismiss other advisories.

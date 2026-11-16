@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fs, path::Path, process::Command};
 
-pub const GRYPE: &str = "ghcr.io/prjxai/devsecops/grype:sha-13edb5277101befe100a435f5ade8da6ea3d40af@sha256:3079a040326484d0b50ac28c7fc2fb25894a22170e81445ab90c400d091378e0";
+pub const GRYPE: &str = "ghcr.io/prjxai/devsecops/grype:sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727@sha256:e9d7ab082648d53929f90761b0e6f70e306814a8711afa85aa6de9c361347d4b";
 pub const SEVERITIES: [&str; 6] = ["Critical", "High", "Medium", "Low", "Negligible", "Unknown"];
 
 pub(crate) fn command(
@@ -70,9 +70,15 @@ pub fn valid_db(status: &Value, now: DateTime<Utc>) -> Result {
 }
 pub fn validate_catalog(catalog: &Value) -> Result {
     ensure(
-        catalog["schema"]["version"] == "16.1.11"
-            && catalog["descriptor"]["name"] == "syft"
-            && catalog["descriptor"]["version"] == "1.55.0",
+        catalog["descriptor"]["name"] == "syft"
+            && matches!(
+                (
+                    catalog["descriptor"]["version"].as_str(),
+                    catalog["schema"]["version"].as_str()
+                ),
+                (Some("1.55.0"), Some("16.1.11")) // Historical evidence remains readable.
+                    | (Some("1.57.1"), Some("16.1.13")) // Exact published repaired format.
+            ),
         "Unsupported cataloger/schema",
     )?;
     let artifacts = catalog["artifacts"].as_array().ok_or("Missing catalog")?;
@@ -128,7 +134,11 @@ pub fn image_subject(catalog: &Value) -> Result<Value> {
 pub fn validate_report(catalog: &Value, report: &Value, now: DateTime<Utc>) -> Result<Vec<Value>> {
     validate_catalog(catalog)?;
     ensure(
-        report["descriptor"]["name"] == "grype" && report["descriptor"]["version"] == "0.121.0",
+        report["descriptor"]["name"] == "grype"
+            && matches!(
+                report["descriptor"]["version"].as_str(),
+                Some("0.121.0" | "0.121.3")
+            ),
         "Unsupported scanner",
     )?;
     crate::evidence::fresh(

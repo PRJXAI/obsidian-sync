@@ -15,6 +15,7 @@ Read README.md, docs/llm.md, docs/consistency.md and docs/threat-model.md before
 - Target is Self-hosted LiveSync (vrtmrz/obsidian-livesync), pinned source and contract in docs/livesync-protocol.md. Preserve PouchDB/CouchDB revision trees, conflicts, tombstones and checkpoints; do not map them to the old single-head CAS model. Implement verified upstream-client tests before claiming compatibility. MCP remains deferred.
 - Priorities: isolation/security, integrity/race protection, reliable async work, performance/simplicity.
 - No first-party unsafe Rust. No note content, bearer tokens, secret keys, signed URLs or raw provider errors in logs.
+- Keep public documentation and artifacts deployment-neutral: no proprietary company/product material, real deployment IP addresses, private hostnames or personal infrastructure details. Use generic synthetic examples; operator-specific evidence stays outside versioned documentation.
 - BlobStorage is the common streaming interface. All adapters must preserve create-only publication, vault-scoped server-generated keys, bounded memory and hash/size verification. Never use canonicalization as the only filesystem boundary.
 - SQLite transactions implement CAS and replay. Never replace persistent checks with a mutex. Preserve the process lock through canceled blocking work. No multi-writer deployments, NFS, HPA, public ingress, or Tailscale Funnel.
 - No GC of final blobs/revisions/tombstones/replay records. Design and test a protocol-aware retention policy before adding deletion. Do not edit internal storage by hand.

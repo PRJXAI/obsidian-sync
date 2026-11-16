@@ -2,7 +2,7 @@ use crate::{Result, ensure, images, security, util};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, fs, path::Path};
 
-pub const SYFT: &str = "ghcr.io/prjxai/devsecops/syft:sha-13edb5277101befe100a435f5ade8da6ea3d40af@sha256:7d484d97e289e8ba108ef17a7ecd9dbbbe457398b92f5f3d79219a6445aaaf2c";
+pub const SYFT: &str = "ghcr.io/prjxai/devsecops/syft:sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727@sha256:5375dc13c75626a7dfec919e11fe075241abd0b0ab3c4cd8d4a13890d73b428a";
 pub const SOURCE_FILES: &[&str] = &[
     "Cargo.toml",
     "Cargo.lock",
@@ -90,6 +90,20 @@ pub fn source_complete(root: &Path, components: &[Value]) -> Result {
         "Source SBOM omitted locked npm development dependencies",
     )
 }
+fn catalog_sandbox(container: &str, scope: &str) -> Result<Vec<String>> {
+    let mut args = security::sandbox_args(container);
+    if scope == "builder" {
+        // The complete SDK is larger than runtime/source inputs. Reallocate
+        // scratch inside the SAME 3 GiB RAM cgroup; never omit image layers.
+        let index = args
+            .iter()
+            .position(|arg| arg == "/tmp:rw,noexec,nosuid,nodev,size=1536m,mode=1777")
+            .ok_or("Missing bounded scanner scratch profile")?;
+        args[index] = "/tmp:rw,noexec,nosuid,nodev,size=2304m,mode=1777".into();
+    }
+    Ok(args)
+}
+
 pub fn scan(
     root: &Path,
     target: &str,
@@ -103,7 +117,7 @@ pub fn scan(
         .tempdir_in(root.join(".work"))?;
     let container = util::Container::new(root, "sync-sbom");
     let mut c = util::cmd("docker", &[], root);
-    c.args(security::sandbox_args(&container.name));
+    c.args(catalog_sandbox(&container.name, name)?);
     c.args([
         "--network",
         "none",
@@ -308,4 +322,44 @@ pub fn generate(
     )?;
     println!("Generated nine Syft/SPDX/CycloneDX inventories, native identity and bound materials");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn only_builder_catalog_reallocates_scratch_inside_unchanged_ram_cpu_and_containment() -> Result
+    {
+        let original = security::sandbox_args("catalog-test");
+        for scope in ["source", "runtime", "registry", "other"] {
+            assert_eq!(catalog_sandbox("catalog-test", scope)?, original);
+        }
+        let builder = catalog_sandbox("catalog-test", "builder")?;
+        let differences = original
+            .iter()
+            .zip(&builder)
+            .filter(|(a, b)| a != b)
+            .collect::<Vec<_>>();
+        assert_eq!(original.len(), builder.len());
+        assert_eq!(differences.len(), 1);
+        assert_eq!(
+            differences[0].0,
+            "/tmp:rw,noexec,nosuid,nodev,size=1536m,mode=1777"
+        );
+        assert_eq!(
+            differences[0].1,
+            "/tmp:rw,noexec,nosuid,nodev,size=2304m,mode=1777"
+        );
+        for pair in [
+            ["--memory", "3g"],
+            ["--cpus", "2"],
+            ["--pids-limit", "128"],
+            ["--cap-drop", "ALL"],
+            ["--security-opt", "no-new-privileges"],
+        ] {
+            assert!(builder.windows(2).any(|args| args == pair));
+        }
+        assert!(builder.iter().any(|arg| arg == "--read-only"));
+        Ok(())
+    }
 }

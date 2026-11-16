@@ -1,5 +1,5 @@
 {
-  "reason": "Removed owner-requested internal cleanup plan and implementation diary; reviewed maintenance, consistency, architecture, protocol/threat contracts and retained results/failure evidence and desktop acceptance guidance; docs/xtask/deployment checks pass without source changes",
+  "reason": "Reviewed fixed source-built RustFS qualifier and actual cold native arm64 37m21s compile, six complete builder/runtime inventories with zero raw matches, immutable source/compiler/Compose handoff and all actual S3/client/restart controls; reviewed fresh disk-backed app targets, durable private failure logs, constrained marker/cancellation cleanup and current delivered Gitleaks. Failed trials retained; clean hosted amd64/full CI and production remain unapproved",
   "sources": [
     {
       "path": ".agents/skills/maintain-docs/SKILL.md",
@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "2449c02763374838d5ffde77a41711c1f4c19d3023e5828d074410d1d095d477"
+      "sha256": "adce67b6dc400a5bb0f4468f67c1e2e7416b86169afdc635a49ad95f62241c65"
     },
     {
       "path": ".env.example",
@@ -27,7 +27,7 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "ddacc59b5a42f260bdf891274d881f9939f333e89f57bbe38d25d6d6e8f36b04"
+      "sha256": "f1b9386e4c3933a83d2c9e3ead2a3b408139586dda19e4405f1d40e087f1da7c"
     },
     {
       "path": ".gitignore",
@@ -35,19 +35,19 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "d01258a0a7d0b5dfa0b50507281f5f3e3f5f350a12b67f0adf8e15d1c9dc3ef3"
+      "sha256": "36ad775dd4a50e735a1a96932fb0f076d79c99e4ef8fc4c7ac194a9f028900bb"
     },
     {
       "path": "Cargo.lock",
-      "sha256": "0c692adda37af9891d8894f247d2b7a7e66cd3cac59e024f725f0add138e5abf"
+      "sha256": "77b1dff602ae259a92dfe96691d70c3f9b24cb324c97a7760cc3127eea4ea6dc"
     },
     {
       "path": "Cargo.toml",
-      "sha256": "fa8ea57f202d265ba7a60f39149ab08768797a369e363c3b9e5a4ef9dc5bcf29"
+      "sha256": "c826a3bd0ecee69b5ad2b8e8226ed2db6f8c3233375644dc30723b787b4b8d7b"
     },
     {
       "path": "Dockerfile",
-      "sha256": "f582d915a3e2326764e1887cbfc58f423f3aa0bb85e9305f2a54d0f983d2ddec"
+      "sha256": "c968fd745554c063c823efdb1f68a9f013d8cbe67dde30f1169e49b52ca89e0d"
     },
     {
       "path": "LICENSE",
@@ -163,7 +163,7 @@
     },
     {
       "path": "docker-compose.test-s3.yml",
-      "sha256": "d857227ff1109432d5bfc726db73aef4bb86e4e9d20e33d83e42fb55f65887e7"
+      "sha256": "12143670d8b6797aef7cd46c8dabb60229fb8f7a4f4d22a6275e6fb3a9b11d15"
     },
     {
       "path": "docker-compose.yml",
@@ -323,11 +323,11 @@
     },
     {
       "path": "tests/compat/package-lock.json",
-      "sha256": "6388c5cba51e7566496f8bde54a55f356c2e54e613a4b19e7b679ed1ef27b671"
+      "sha256": "8ba93495cbebcf30e21f12ff7250bd0c506fdc3605a4c3047d9a33b9ee35868b"
     },
     {
       "path": "tests/compat/package.json",
-      "sha256": "1aa6202523c61660e9d53617066a7ba75458acf4f3612222e0909d7454f56971"
+      "sha256": "916429183ad2fedf2c9cc119bf339a32eea34d155552d19146f6eb4a0c9f7d2f"
     },
     {
       "path": "tests/config_transport.rs",
@@ -352,6 +352,10 @@
     {
       "path": "tests/recovery.rs",
       "sha256": "660702eb71876ebd723cb230c47ed898898d0dc9c70eb00bcea66aecded23e58"
+    },
+    {
+      "path": "tests/security_dependencies.rs",
+      "sha256": "579efc9240e65f4d56b3715ec7653365602c8951cb8efe141abff074ccb4c6ad"
     },
     {
       "path": "tests/storage_contract.rs",
@@ -379,7 +383,7 @@
     },
     {
       "path": "xtask/src/deployment.rs",
-      "sha256": "e06bf27f75db70265d511225f918d2be58ba615fc580440388efb6f98281ec8a"
+      "sha256": "e19c9f5d828bea3f3749f840deeed9587d0d33abcd671b7ea8647e56c941e068"
     },
     {
       "path": "xtask/src/docs.rs",
@@ -395,7 +399,7 @@
     },
     {
       "path": "xtask/src/grype.rs",
-      "sha256": "068e1d9bd91c5a07024396f7387575e177b1e10ee147a96cdb5383624585f8a2"
+      "sha256": "29ce6df7f2b0470d3eca81f518a5e93696b532203a88d1d807de56e1a2a9973c"
     },
     {
       "path": "xtask/src/images.rs",
@@ -403,11 +407,15 @@
     },
     {
       "path": "xtask/src/lib.rs",
-      "sha256": "057ecea3433534681128c3b59f0b2f99676483dbbe94dcc4f589cf62c39619e2"
+      "sha256": "4f0f713397bf2f2492837e13120a6d9e3545828f862ab743c0ec5dddad793144"
     },
     {
       "path": "xtask/src/main.rs",
       "sha256": "afd3b473f86d17bd47d476ec17032c801de8b31813ce2b04e3455c076e325625"
+    },
+    {
+      "path": "xtask/src/native_musl.rs",
+      "sha256": "e3640ced46c0c8a3390e3d2d208e3c0e63d67e7acf72a642388f623dc027126f"
     },
     {
       "path": "xtask/src/policy.rs",
@@ -419,15 +427,19 @@
     },
     {
       "path": "xtask/src/risk.rs",
-      "sha256": "c87a1be64ce70a4c39d1d0d83096c63c3d7973d85b1bc4bbb1cdb2ed402398cd"
+      "sha256": "0ace822c05c6e6f50580b13b8bb3bd1c713cf0eca402956fe6c4e0e62446cb29"
+    },
+    {
+      "path": "xtask/src/rustfs_fixture.rs",
+      "sha256": "e1b53b3ccf6ed38e12787ddff3aa18ba87d1aa28acaccf231215f664b4d44dee"
     },
     {
       "path": "xtask/src/sbom.rs",
-      "sha256": "193ec5f2bad4d5dfe4177c9152d6a289061aae7156d9be8596646b9ab6753143"
+      "sha256": "a5e1de1a7d3694febc6ebcba20f299d0fb977a97718258eb000e4011eaf4e77f"
     },
     {
       "path": "xtask/src/security.rs",
-      "sha256": "7427e89a7a3572c06587b8890db8a8764b22d6cb632de87554ceac018da6b79e"
+      "sha256": "1c81207101d4013d2175859832830d3120a5f66146916f14a84a636e28897ca1"
     },
     {
       "path": "xtask/src/supply_sbom.rs",
@@ -435,7 +447,7 @@
     },
     {
       "path": "xtask/src/util.rs",
-      "sha256": "1c708ab8f8541e70dce9c599527294ecf32a4b4788b838d2dc128cf6d4389227"
+      "sha256": "35e894e6e1459e41794296841e82ca67fc80cf8820f252d6c26d63b72a0481c6"
     },
     {
       "path": "xtask/tests/cancellation.rs",
@@ -446,12 +458,24 @@
       "sha256": "9a4f91e6000d6e67fae64479d3575e28823a23d0b8c9ecf6cf6488e5342c69e0"
     },
     {
+      "path": "xtask/tests/fixtures/approved-builder-recipe.txt",
+      "sha256": "f582d915a3e2326764e1887cbfc58f423f3aa0bb85e9305f2a54d0f983d2ddec"
+    },
+    {
+      "path": "xtask/tests/fixtures/native-target/README.txt",
+      "sha256": "70a2dda867ae87e5ebb06530ac61da42ea8bd937716a9407708bcf4e0ce14950"
+    },
+    {
       "path": "xtask/tests/fixtures/rustfs/Dockerfile",
       "sha256": "d1c4297d34f1b7b2a3a79eebb14d13908b88abb7164b9aa9f47b6f50607c0a54"
     },
     {
       "path": "xtask/tests/fixtures/rustfs/native.rs",
-      "sha256": "2eac50b71f41b1d950fbad7eb53bc9537abb3dd3b87855bf58c5a0be82fa5c78"
+      "sha256": "53002d8bc755866a56d7da3f1ac86c56bd1556c34917f22b36ba57ea507c36e2"
+    },
+    {
+      "path": "xtask/tests/fixtures/rustfs/source.Dockerfile",
+      "sha256": "560c785fab201bfdf05ddc4da08e602c4dae3be0d4ae003b5c0654188740fe3b"
     },
     {
       "path": "xtask/tests/go_symbols.rs",
@@ -459,7 +483,7 @@
     },
     {
       "path": "xtask/tests/grype.rs",
-      "sha256": "224601bc79abe8611916accffeb7e1551572748260001b890aad57e8fd3eca4b"
+      "sha256": "d4e5fc9c44604cfffd97f0466e72937380d1361eda28a162fd05de0fa541942d"
     },
     {
       "path": "xtask/tests/publication.rs",
@@ -475,11 +499,11 @@
     },
     {
       "path": "xtask/tests/tool_delivery.rs",
-      "sha256": "01f039bea9a93019df421dfb426a317b85887792fa1bd217f06dbee37043ecd4"
+      "sha256": "2fd8c654603990ef8ec6b67942f9f8c76b3f025d3eb43662b860fd449a5255dc"
     },
     {
       "path": "xtask/tests/tooling.rs",
-      "sha256": "8c15fe4c412f0c0555cbb752fb74dfd829dc1f98bc764145cdcaa55a0b60bd95"
+      "sha256": "37581c0874afbc38c3fec0c9dbb2ffec6580c2f33fc3be76d476c03bcf19d547"
     }
   ]
 }

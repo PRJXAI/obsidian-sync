@@ -27,7 +27,12 @@ fn blob_redirect(source: &str, location: &str) -> Result<reqwest::Url> {
             && source.query().is_none()
             && source.fragment().is_none()
             && blob.is_some_and(|(prefix, id)| {
-                ["/v2/prjxai/devsecops/syft", "/v2/prjxai/devsecops/grype"].contains(&prefix)
+                [
+                    "/v2/prjxai/devsecops/syft",
+                    "/v2/prjxai/devsecops/grype",
+                    "/v2/prjxai/devsecops/gitleaks",
+                ]
+                .contains(&prefix)
                     && images::is_digest(id)
             }),
         "Redirect only permitted for fixed registry config blobs",
@@ -111,26 +116,46 @@ fn digest(bytes: &[u8], expected: &str) -> Result {
         "Registry metadata digest mismatch",
     )
 }
-fn verify(tool: &str, expected: &str) -> Result {
-    ensure(["syft", "grype"].contains(&tool), "Fixed scanner only")?;
+fn verify_delivery(
+    tool: &str,
+    expected: &str,
+    source: &str,
+    supplier: &Path,
+    status: &str,
+) -> Result {
+    ensure(
+        ["syft", "grype", "gitleaks"].contains(&tool),
+        "Fixed reviewed scanner only",
+    )?;
     println!("Checking {tool} delivery without registry credentials");
     let root = xtask::root();
-    let capture = root
-        .join(".work/delivery-20261030")
-        .join(format!("verified-{tool}-{}", util::random_hex()));
+    let directory = root.join(".work/scanner-delivery-verification");
+    fs::create_dir_all(&directory)?;
+    let capture = directory.join(format!("verified-{tool}-{source}-{}", util::random_hex()));
     fs::DirBuilder::new().mode(0o700).create(&capture)?;
-    let supplier = root
-        .parent()
-        .ok_or("Missing workspace parent")?
-        .join("devsecops/.work/delivery-20261030");
     let published = util::json(&supplier.join(format!("published-{tool}/release-status.json")))?;
     ensure(
-        published["source_sha"] == SOURCE
+        published["source_sha"] == source
             && published["tool"] == tool
             && published["manifest_digest"] == expected
-            && published["status"] == "accepted-risk",
+            && published["status"] == status,
         "Publication record differs",
     )?;
+    if status == "clean" {
+        ensure(
+            published["architectures"].as_array().is_some_and(|arches| {
+                arches.len() == 2
+                    && arches.iter().all(|arch| {
+                        arch["count"] == 0
+                            && arch["counts"]["ignoredMatches"] == 0
+                            && arch["risk"]["accepted"] == 0
+                            && arch["risk"]["blocking"] == 0
+                            && arch["status"] == "clean"
+                    })
+            }),
+            "Repaired native release is not clean",
+        )?;
+    }
     let client = reqwest::blocking::Client::builder()
         .https_only(true)
         .no_proxy()
@@ -152,6 +177,13 @@ fn verify(tool: &str, expected: &str) -> Result {
         .filter(|v| !v.is_empty() && v.len() <= 64 * 1024)
         .ok_or("Missing anonymous pull token")?;
     let base = format!("https://ghcr.io/v2/prjxai/devsecops/{tool}");
+    let tag = get(
+        &client,
+        &format!("{base}/manifests/sha-{source}"),
+        Some(token),
+    )?;
+    digest(&tag, expected)?;
+    fs::write(capture.join("source-tag-index.json"), &tag)?;
     let bytes = get(
         &client,
         &format!("{base}/manifests/{expected}"),
@@ -201,7 +233,8 @@ fn verify(tool: &str, expected: &str) -> Result {
             value["os"] == "linux"
                 && value["architecture"] == arch
                 && value["config"]["User"] == "65532:65532"
-                && value["config"]["Labels"]["org.opencontainers.image.revision"] == SOURCE,
+                && value["config"]["Entrypoint"] == json!([format!("/usr/local/bin/{tool}")])
+                && value["config"]["Labels"]["org.opencontainers.image.revision"] == source,
             "Source/platform/runtime config differs",
         )?;
         fs::write(capture.join(format!("{arch}.config.json")), &bytes)?;
@@ -209,7 +242,7 @@ fn verify(tool: &str, expected: &str) -> Result {
         let summary = util::json(&catalog_dir.join("summary.json"))?;
         let catalog = catalog_dir.join(format!("{tool}.syft.json"));
         ensure(
-            summary["source_sha"] == SOURCE
+            summary["source_sha"] == source
                 && summary["arch"] == arch
                 && summary["tools"].as_array().is_some_and(|v| v.len() == 1)
                 && summary["tools"][0]["config_id"] == config
@@ -234,9 +267,9 @@ fn verify(tool: &str, expected: &str) -> Result {
                 "--signer-workflow",
                 "PRJXAI/devsecops/.github/workflows/tool.yml",
                 "--signer-digest",
-                SOURCE,
+                source,
                 "--source-digest",
-                SOURCE,
+                source,
                 "--source-ref",
                 "refs/heads/main",
                 "--deny-self-hosted-runners",
@@ -270,7 +303,7 @@ fn verify(tool: &str, expected: &str) -> Result {
     fs::write(capture.join("attestation.json"), &verified)?;
     util::write_json(
         &capture.join("summary.json"),
-        &json!({"schema":1,"tool":tool,"source":SOURCE,"manifest_digest":expected,"anonymous_registry_access":true,"native_catalog_binding":true,"provenance_verified":true,"scope":"delivery verification; not vulnerability-free or deployment approval"}),
+        &json!({"schema":1,"tool":tool,"source":source,"manifest_digest":expected,"anonymous_registry_access":true,"native_catalog_binding":true,"provenance_verified":true,"scope":"delivery verification; not vulnerability-free or deployment approval"}),
     )?;
     println!(
         "Verified {tool} anonymous access, both native config bindings and source/workflow provenance"
@@ -301,9 +334,64 @@ fn verify_fixed_scanner_delivery() -> Result {
         "Public registry positive control failed",
     )?;
     println!("Known-public registry control passed");
-    let syft = verify("syft", SYFT);
-    let grype = verify("grype", GRYPE);
+    let supplier = xtask::root()
+        .parent()
+        .ok_or("Missing workspace parent")?
+        .join("devsecops/.work/delivery-20261030");
+    let syft = verify_delivery("syft", SYFT, SOURCE, &supplier, "accepted-risk");
+    let grype = verify_delivery("grype", GRYPE, SOURCE, &supplier, "accepted-risk");
     syft.and(grype)
+}
+
+#[test]
+#[ignore = "fixed repaired Syft publication; independent anonymous/native/provenance check only"]
+fn verify_repaired_syft_delivery() -> Result {
+    util::install_cancellation()?;
+    let supplier = xtask::root()
+        .parent()
+        .ok_or("Missing workspace parent")?
+        .join("devsecops/.work/delivery-repaired-7d20");
+    verify_delivery(
+        "syft",
+        "sha256:5375dc13c75626a7dfec919e11fe075241abd0b0ab3c4cd8d4a13890d73b428a",
+        "7d20ea6ba4956a65db1640ec3752534d9dc4b727",
+        &supplier,
+        "clean",
+    )
+}
+
+#[test]
+#[ignore = "fixed repaired Grype publication; independent anonymous/native/provenance check only"]
+fn verify_repaired_grype_delivery() -> Result {
+    util::install_cancellation()?;
+    let supplier = xtask::root()
+        .parent()
+        .ok_or("Missing workspace parent")?
+        .join("devsecops/.work/delivery-repaired-7d20");
+    verify_delivery(
+        "grype",
+        "sha256:e9d7ab082648d53929f90761b0e6f70e306814a8711afa85aa6de9c361347d4b",
+        "7d20ea6ba4956a65db1640ec3752534d9dc4b727",
+        &supplier,
+        "clean",
+    )
+}
+
+#[test]
+#[ignore = "fixed published Gitleaks delivery; independent anonymous/native/provenance check only"]
+fn verify_repaired_gitleaks_delivery() -> Result {
+    util::install_cancellation()?;
+    let supplier = xtask::root()
+        .parent()
+        .ok_or("Missing workspace parent")?
+        .join("devsecops-gitleaks-main-95c6/.work/delivery-95c6");
+    verify_delivery(
+        "gitleaks",
+        "sha256:f9dbb39a13bddc19e7e8a4dbdce8d3e204ebd146eef35340ca2b59cf9636b14b",
+        "95c6d9c2dd324d7a6f7ed1ebdaeebe5c9a55ce27",
+        &supplier,
+        "clean",
+    )
 }
 
 // Private access is a separate explicit qualification, never an automatic
@@ -601,12 +689,16 @@ fn scanner_migration_refuses_new_findings_versions_paths_and_duplicate_budgets()
 #[test]
 fn production_scanners_are_the_exact_qualified_devsecops_images() {
     assert_eq!(
+        xtask::security::GITLEAKS,
+        "ghcr.io/prjxai/devsecops/gitleaks:sha-95c6d9c2dd324d7a6f7ed1ebdaeebe5c9a55ce27@sha256:f9dbb39a13bddc19e7e8a4dbdce8d3e204ebd146eef35340ca2b59cf9636b14b"
+    );
+    assert_eq!(
         xtask::sbom::SYFT,
-        format!("ghcr.io/prjxai/devsecops/syft:sha-{SOURCE}@{SYFT}")
+        "ghcr.io/prjxai/devsecops/syft:sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727@sha256:5375dc13c75626a7dfec919e11fe075241abd0b0ab3c4cd8d4a13890d73b428a"
     );
     assert_eq!(
         xtask::grype::GRYPE,
-        format!("ghcr.io/prjxai/devsecops/grype:sha-{SOURCE}@{GRYPE}")
+        "ghcr.io/prjxai/devsecops/grype:sha-7d20ea6ba4956a65db1640ec3752534d9dc4b727@sha256:e9d7ab082648d53929f90761b0e6f70e306814a8711afa85aa6de9c361347d4b"
     );
 }
 
@@ -618,6 +710,9 @@ fn config_blob_redirect_is_bounded_https_allowlisted_and_credential_free() {
     );
     let good =
         "https://pkg-containers.githubusercontent.com/ghcr1/blobs/config?synthetic-signature=test";
+    for tool in ["syft", "grype", "gitleaks"] {
+        assert!(blob_redirect(&source.replace("/syft/", &format!("/{tool}/")), good).is_ok());
+    }
     let target = blob_redirect(&source, good).unwrap();
     let client = reqwest::blocking::Client::builder()
         .https_only(true)
@@ -647,6 +742,7 @@ fn config_blob_redirect_is_bounded_https_allowlisted_and_credential_free() {
         source.replace("ghcr.io/", "other.invalid/"),
         source.replace("/blobs/", "/manifests/"),
         source.replace("/syft/", "/other/"),
+        source.replace("/syft/", "/gitleaks-other/"),
         source.replace("https:", "http:"),
     ] {
         assert!(blob_redirect(&bad, good).is_err());

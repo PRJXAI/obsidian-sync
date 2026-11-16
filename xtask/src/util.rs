@@ -234,19 +234,22 @@ fn capture_mode(c: &mut Command, seconds: u64, interruptible: bool) -> Result<Ca
     })
 }
 pub fn logged(c: &mut Command, path: &Path, seconds: u64) -> Result {
-    let result = capture(c, seconds)?;
     if path.symlink_metadata().is_ok() {
         fs::remove_file(path)?;
     }
-    let mut file = OpenOptions::new()
+    let file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .mode(0o600)
         .open(path)?;
-    std::io::Write::write_all(&mut file, &result.stdout)?;
-    std::io::Write::write_all(&mut file, &result.stderr)?;
+    // Capture directly into durable private evidence, including spawn errors,
+    // cancellation, output-limit failures and deadlines. Never echo raw bytes.
+    // Both streams share one bounded file; no existing output budget increases.
+    c.stdout(file.try_clone()?).stderr(file.try_clone()?);
+    let status = wait_bounded(c, seconds, Some((&file, &file)), true);
+    file.sync_all()?;
     ensure(
-        result.success,
+        status?.success(),
         "External scanner failed; raw output retained privately",
     )
 }

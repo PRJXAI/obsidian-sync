@@ -57,6 +57,40 @@ fn valid_clean_report_and_image_subject() -> Result {
     Ok(())
 }
 #[test]
+fn repaired_format_is_an_exact_pair_and_preserves_report_controls() -> Result {
+    // Synthetic structural fixture, not a rewritten native scanner capture.
+    let (mut catalog, mut report) = fixture();
+    catalog["descriptor"]["version"] = json!("1.57.1");
+    catalog["schema"]["version"] = json!("16.1.13");
+    report["descriptor"]["version"] = json!("0.121.3");
+    assert!(grype::validate_report(&catalog, &report, Utc::now())?.is_empty());
+    for (version, schema) in [
+        ("1.55.0", "16.1.13"),
+        ("1.57.1", "16.1.11"),
+        ("1.57.2", "16.1.13"),
+        ("1.57.1", "16.1.14"),
+    ] {
+        let mut changed = catalog.clone();
+        changed["descriptor"]["version"] = json!(version);
+        changed["schema"]["version"] = json!(schema);
+        assert!(grype::validate_catalog(&changed).is_err());
+    }
+    report["matches"] = json!([finding("Unknown")]);
+    assert_eq!(
+        grype::validate_report(&catalog, &report, Utc::now())?.len(),
+        1
+    );
+    report["matches"] = json!([]);
+    report["ignoredMatches"] = json!([finding("Critical")]);
+    assert_eq!(
+        grype::validate_report(&catalog, &report, Utc::now())?.len(),
+        1
+    );
+    report["descriptor"]["version"] = json!("0.121.4");
+    assert!(grype::validate_report(&catalog, &report, Utc::now()).is_err());
+    Ok(())
+}
+#[test]
 fn every_severity_and_suppressed_match_remains_a_finding() -> Result {
     let (catalog, mut report) = fixture();
     for severity in grype::SEVERITIES {

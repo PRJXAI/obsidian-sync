@@ -396,6 +396,7 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
     let root = temp.path();
     for text in [
         "FROM alpine:latest\n".into(),
+        "FROM scratch:latest\n".into(),
         "  from alpine:latest\n".into(),
         "FROM --platform=linux/amd64 alpine:latest\n".into(),
         format!("# syntax=docker/dockerfile:latest\nFROM {}\n", pin()),
@@ -424,11 +425,60 @@ fn image_inventory_requires_pins_including_frontend_and_compose() -> Result {
     Ok(())
 }
 #[test]
+fn private_logged_child_fixture() {
+    let Ok(mode) = std::env::var("XTASK_PRIVATE_LOG_CHILD") else {
+        return;
+    };
+    println!("synthetic-private-stdout-canary");
+    eprintln!("synthetic-private-stderr-canary");
+    if mode == "timeout" {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+    }
+    std::process::exit(7);
+}
+
+#[test]
+fn logged_preserves_private_output_on_failure_and_deadline_without_echoing_it() -> Result {
+    use std::os::unix::fs::PermissionsExt;
+    let temp = tempfile::tempdir()?;
+    for mode in ["exit", "timeout"] {
+        let path = temp.path().join(mode);
+        let mut command = std::process::Command::new(std::env::current_exe()?);
+        command.args(["--exact", "private_logged_child_fixture", "--nocapture"]);
+        command.env("XTASK_PRIVATE_LOG_CHILD", mode);
+        let error = util::logged(&mut command, &path, 1).expect_err("fixture must not pass");
+        assert!(!error.to_string().contains("canary"));
+        let retained = fs::read_to_string(&path)?;
+        assert!(retained.contains("synthetic-private-stdout-canary"));
+        assert!(retained.contains("synthetic-private-stderr-canary"));
+        assert_eq!(fs::metadata(path)?.permissions().mode() & 0o777, 0o600);
+    }
+    Ok(())
+}
+
+#[test]
+fn compiled_native_targets_are_fresh_disk_scratch_not_mutable_source_authority() -> Result {
+    let recipe = fs::read_to_string(xtask::root().join("Dockerfile"))?;
+    let targets: Vec<_> = recipe
+        .lines()
+        .filter(|line| line.contains("target=/build/target"))
+        .collect();
+    assert_eq!(targets.len(), 2);
+    assert!(targets.iter().all(|line| line.trim() == "--mount=type=bind,source=xtask/tests/fixtures/native-target,target=/build/target,rw \\"));
+    assert!(!recipe.contains("id=obsidian-sync-native-musl-target"));
+    assert!(recipe.contains("type=cache,target=/usr/local/cargo/registry"));
+    assert!(recipe.contains("type=cache,target=/build/zig-cache"));
+    Ok(())
+}
+
+#[test]
 fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Result {
     let images = security::inventory(&xtask::root())?;
     assert_eq!(images.len(), 7);
     assert!(images.keys().all(|image| {
-        !image.contains("trivy")
+        !image.starts_with("docker/dockerfile:")
+            && !image.starts_with("rustfs/rustfs:")
+            && !image.contains("trivy")
             && !image.starts_with("couchdb:")
             && !image.starts_with("alpine:")
             && !image.starts_with("kindest/node:")
@@ -444,9 +494,22 @@ fn repository_inventory_covers_all_active_images_without_retired_scanner() -> Re
             .lines()
             .any(|line| line == format!("FROM {} AS build", security::BUILD_IMAGE))
     );
-    for pin in [security::GITLEAKS, security::BUILD_IMAGE, sbom::SYFT] {
+    for pin in [
+        security::GITLEAKS,
+        security::BUILD_IMAGE,
+        sbom::SYFT,
+        xtask::rustfs_fixture::COMPILER,
+        xtask::rustfs_fixture::BASE,
+    ] {
         assert!(images.contains_key(pin), "{pin}");
     }
+    let dockerfile = fs::read_to_string(xtask::root().join("Dockerfile"))?;
+    assert!(
+        !dockerfile
+            .lines()
+            .any(|line| line.trim_start().starts_with("# syntax="))
+    );
+    assert!(dockerfile.contains("RUN --mount=type=cache"));
     Ok(())
 }
 #[test]
